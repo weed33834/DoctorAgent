@@ -252,7 +252,7 @@ def test_phi_detection_under_100ms() -> None:
 # ---------------------------------------------------------------------------
 async def _mock_clinical_analysis(engine: ClinicalRuleEngine, context: dict) -> list:
     """模拟单次临床分析：规则评估 + 模拟 I/O 等待。"""
-    await asyncio.sleep(0.02)  # 模拟 I/O 延迟（FHIR 读取等）
+    await asyncio.sleep(0.1)  # 模拟 I/O 延迟（FHIR 读取等），用 100ms 确保并发收益明显
     return await engine.evaluate_all(context)
 
 
