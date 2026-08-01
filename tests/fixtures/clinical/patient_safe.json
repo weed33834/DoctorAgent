@@ -1,0 +1,332 @@
+{
+  "resourceType": "Bundle",
+  "id": "synthetic-bundle-safe",
+  "type": "collection",
+  "entry": [
+    {
+      "resource": {
+        "resourceType": "Patient",
+        "id": "synthetic-patient-1",
+        "identifier": [
+          {"system": "http://doctoragent.test/mrn", "value": "SYN-1"}
+        ],
+        "name": [
+          {"use": "official", "family": "Doe", "given": ["Jane", "A."]}
+        ],
+        "gender": "female",
+        "birthDate": "1981-03-15"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Encounter",
+        "id": "synthetic-encounter-1",
+        "status": "finished",
+        "class": {
+          "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+          "code": "AMB",
+          "display": "ambulatory"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-1"},
+        "period": {
+          "start": "2026-02-10T09:30:00+08:00",
+          "end": "2026-02-10T10:15:00+08:00"
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "synthetic-condition-1",
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "active"
+            }
+          ]
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10",
+              "code": "E78.0",
+              "display": "Pure hypercholesterolemia"
+            }
+          ],
+          "text": "Hypercholesterolemia"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-1"},
+        "onsetDateTime": "2024-06-01"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationRequest",
+        "id": "synthetic-medication-1",
+        "status": "active",
+        "intent": "order",
+        "medicationCodeableConcept": {
+          "coding": [
+            {
+              "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+              "code": "83367",
+              "display": "atorvastatin"
+            }
+          ],
+          "text": "Atorvastatin 20mg PO"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-1"},
+        "authoredOn": "2024-06-05T08:00:00+08:00",
+        "dosageInstruction": [
+          {
+            "text": "20mg PO daily",
+            "route": {
+              "coding": [{"code": "PO", "display": "Oral"}],
+              "text": "PO"
+            },
+            "doseAndRate": [
+              {"doseQuantity": {"value": 20, "unit": "mg"}}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "AllergyIntolerance",
+        "id": "synthetic-allergy-1",
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical",
+              "code": "resolved",
+              "display": "Resolved"
+            }
+          ]
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "91935008",
+              "display": "Allergy to egg protein"
+            }
+          ],
+          "text": "Egg"
+        },
+        "patient": {"reference": "Patient/synthetic-patient-1"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "synthetic-observation-vital-1",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "vital-signs"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "heart_rate",
+              "display": "Heart rate"
+            }
+          ],
+          "text": "Heart rate"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-1"},
+        "effectiveDateTime": "2026-02-10T09:35:00+08:00",
+        "valueQuantity": {"value": 72, "unit": "bpm"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "synthetic-observation-vital-2",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "vital-signs"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "systolic_bp",
+              "display": "Systolic blood pressure"
+            }
+          ],
+          "text": "Systolic blood pressure"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-1"},
+        "effectiveDateTime": "2026-02-10T09:35:00+08:00",
+        "valueQuantity": {"value": 115, "unit": "mmHg"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "synthetic-observation-vital-3",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "vital-signs"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "diastolic_bp",
+              "display": "Diastolic blood pressure"
+            }
+          ],
+          "text": "Diastolic blood pressure"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-1"},
+        "effectiveDateTime": "2026-02-10T09:35:00+08:00",
+        "valueQuantity": {"value": 75, "unit": "mmHg"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "synthetic-observation-vital-4",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "vital-signs"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "temperature",
+              "display": "Body temperature"
+            }
+          ],
+          "text": "Body temperature"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-1"},
+        "effectiveDateTime": "2026-02-10T09:35:00+08:00",
+        "valueQuantity": {"value": 36.7, "unit": "C"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "synthetic-observation-vital-5",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "vital-signs"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "spo2",
+              "display": "Oxygen saturation"
+            }
+          ],
+          "text": "Oxygen saturation"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-1"},
+        "effectiveDateTime": "2026-02-10T09:35:00+08:00",
+        "valueQuantity": {"value": 98, "unit": "%"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "synthetic-observation-lab-1",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "sodium",
+              "display": "Sodium"
+            }
+          ],
+          "text": "Sodium"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-1"},
+        "effectiveDateTime": "2026-02-10T09:00:00+08:00",
+        "valueQuantity": {"value": 140, "unit": "mmol/L"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "synthetic-observation-lab-2",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "potassium",
+              "display": "Potassium"
+            }
+          ],
+          "text": "Potassium"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-1"},
+        "effectiveDateTime": "2026-02-10T09:00:00+08:00",
+        "valueQuantity": {"value": 4.2, "unit": "mmol/L"}
+      }
+    }
+  ]
+}

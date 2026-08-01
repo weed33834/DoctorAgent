@@ -1,0 +1,264 @@
+{
+  "resourceType": "Bundle",
+  "id": "synthetic-bundle-drug-interaction",
+  "type": "collection",
+  "entry": [
+    {
+      "resource": {
+        "resourceType": "Patient",
+        "id": "synthetic-patient-2",
+        "identifier": [
+          {"system": "http://doctoragent.test/mrn", "value": "SYN-2"}
+        ],
+        "name": [
+          {"use": "official", "family": "Roe", "given": ["Robert", "B."]}
+        ],
+        "gender": "male",
+        "birthDate": "1958-04-20"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Encounter",
+        "id": "synthetic-encounter-2",
+        "status": "finished",
+        "class": {
+          "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+          "code": "AMB",
+          "display": "ambulatory"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-2"},
+        "period": {
+          "start": "2026-03-12T14:00:00+08:00",
+          "end": "2026-03-12T14:45:00+08:00"
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "synthetic-condition-2-1",
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "active"
+            }
+          ]
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10",
+              "code": "E11.9",
+              "display": "Type 2 diabetes mellitus without complications"
+            }
+          ],
+          "text": "Type 2 diabetes mellitus"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-2"},
+        "onsetDateTime": "2015-09-01"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "synthetic-condition-2-2",
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "active"
+            }
+          ]
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10",
+              "code": "I10",
+              "display": "Essential (primary) hypertension"
+            }
+          ],
+          "text": "Hypertension"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-2"},
+        "onsetDateTime": "2012-03-01"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationRequest",
+        "id": "synthetic-medication-2-1",
+        "status": "active",
+        "intent": "order",
+        "medicationCodeableConcept": {
+          "coding": [
+            {
+              "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+              "code": "11289",
+              "display": "warfarin"
+            }
+          ],
+          "text": "Warfarin 5mg PO"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-2"},
+        "authoredOn": "2024-01-15T08:00:00+08:00",
+        "dosageInstruction": [
+          {
+            "text": "5mg PO daily",
+            "route": {"coding": [{"code": "PO", "display": "Oral"}], "text": "PO"},
+            "doseAndRate": [
+              {"doseQuantity": {"value": 5, "unit": "mg"}}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationRequest",
+        "id": "synthetic-medication-2-2",
+        "status": "active",
+        "intent": "order",
+        "medicationCodeableConcept": {
+          "coding": [
+            {
+              "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+              "code": "3222",
+              "display": "fluconazole"
+            }
+          ],
+          "text": "Fluconazole 150mg PO"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-2"},
+        "authoredOn": "2026-03-12T14:30:00+08:00",
+        "dosageInstruction": [
+          {
+            "text": "150mg PO once",
+            "route": {"coding": [{"code": "PO", "display": "Oral"}], "text": "PO"},
+            "doseAndRate": [
+              {"doseQuantity": {"value": 150, "unit": "mg"}}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "AllergyIntolerance",
+        "id": "synthetic-allergy-2",
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical",
+              "code": "resolved",
+              "display": "Resolved"
+            }
+          ]
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "293619006",
+              "display": "Aspirin allergy"
+            }
+          ],
+          "text": "Aspirin"
+        },
+        "patient": {"reference": "Patient/synthetic-patient-2"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "synthetic-observation-vital-2-1",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "vital-signs"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "systolic_bp",
+              "display": "Systolic blood pressure"
+            }
+          ],
+          "text": "Systolic blood pressure"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-2"},
+        "effectiveDateTime": "2026-03-12T14:05:00+08:00",
+        "valueQuantity": {"value": 145, "unit": "mmHg"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "synthetic-observation-vital-2-2",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "vital-signs"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "diastolic_bp",
+              "display": "Diastolic blood pressure"
+            }
+          ],
+          "text": "Diastolic blood pressure"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-2"},
+        "effectiveDateTime": "2026-03-12T14:05:00+08:00",
+        "valueQuantity": {"value": 92, "unit": "mmHg"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "synthetic-observation-lab-2-1",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "inr",
+              "display": "International normalized ratio"
+            }
+          ],
+          "text": "International normalized ratio"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-2"},
+        "effectiveDateTime": "2026-03-12T08:00:00+08:00",
+        "valueQuantity": {"value": 2.5}
+      }
+    }
+  ]
+}

@@ -1,0 +1,238 @@
+{
+  "resourceType": "Bundle",
+  "id": "synthetic-bundle-duplicate-therapy",
+  "type": "collection",
+  "entry": [
+    {
+      "resource": {
+        "resourceType": "Patient",
+        "id": "synthetic-patient-6",
+        "identifier": [
+          {"system": "http://doctoragent.test/mrn", "value": "SYN-6"}
+        ],
+        "name": [
+          {"use": "official", "family": "Bell", "given": ["Susan", "L."]}
+        ],
+        "gender": "female",
+        "birthDate": "1976-09-12"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Encounter",
+        "id": "synthetic-encounter-6",
+        "status": "finished",
+        "class": {
+          "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+          "code": "AMB",
+          "display": "ambulatory"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-6"},
+        "period": {
+          "start": "2026-07-02T13:00:00+08:00",
+          "end": "2026-07-02T13:20:00+08:00"
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "synthetic-condition-6",
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "active"
+            }
+          ]
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10",
+              "code": "G89.4",
+              "display": "Chronic pain syndrome"
+            }
+          ],
+          "text": "Chronic pain"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-6"},
+        "onsetDateTime": "2023-01-15"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationRequest",
+        "id": "synthetic-medication-6-1",
+        "status": "active",
+        "intent": "order",
+        "medicationCodeableConcept": {
+          "coding": [
+            {
+              "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+              "code": "161",
+              "display": "Acetaminophen"
+            }
+          ],
+          "text": "Acetaminophen 500mg PO"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-6"},
+        "authoredOn": "2026-07-02T13:05:00+08:00",
+        "dosageInstruction": [
+          {
+            "text": "500mg PO every 6 hours",
+            "route": {"coding": [{"code": "PO", "display": "Oral"}], "text": "PO"},
+            "doseAndRate": [
+              {"doseQuantity": {"value": 500, "unit": "mg"}}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationRequest",
+        "id": "synthetic-medication-6-2",
+        "status": "active",
+        "intent": "order",
+        "medicationCodeableConcept": {
+          "coding": [
+            {
+              "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+              "code": "161",
+              "display": "Acetaminophen"
+            }
+          ],
+          "text": "Acetaminophen 325mg PRN"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-6"},
+        "authoredOn": "2026-07-02T13:08:00+08:00",
+        "dosageInstruction": [
+          {
+            "text": "325mg PRN as needed for pain",
+            "route": {"coding": [{"code": "PO", "display": "Oral"}], "text": "PO"},
+            "doseAndRate": [
+              {"doseQuantity": {"value": 325, "unit": "mg"}}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "AllergyIntolerance",
+        "id": "synthetic-allergy-6",
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical",
+              "code": "resolved",
+              "display": "Resolved"
+            }
+          ]
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "300913006",
+              "display": "Latex allergy"
+            }
+          ],
+          "text": "Latex"
+        },
+        "patient": {"reference": "Patient/synthetic-patient-6"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "synthetic-observation-vital-6-1",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "vital-signs"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "heart_rate",
+              "display": "Heart rate"
+            }
+          ],
+          "text": "Heart rate"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-6"},
+        "effectiveDateTime": "2026-07-02T13:02:00+08:00",
+        "valueQuantity": {"value": 80, "unit": "bpm"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "synthetic-observation-vital-6-2",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "vital-signs"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "temperature",
+              "display": "Body temperature"
+            }
+          ],
+          "text": "Body temperature"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-6"},
+        "effectiveDateTime": "2026-07-02T13:02:00+08:00",
+        "valueQuantity": {"value": 36.8, "unit": "C"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "synthetic-observation-lab-6-1",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "potassium",
+              "display": "Potassium"
+            }
+          ],
+          "text": "Potassium"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-6"},
+        "effectiveDateTime": "2026-07-02T12:30:00+08:00",
+        "valueQuantity": {"value": 4.3, "unit": "mmol/L"}
+      }
+    }
+  ]
+}

@@ -1,0 +1,206 @@
+{
+  "resourceType": "Bundle",
+  "id": "synthetic-bundle-critical-labs",
+  "type": "collection",
+  "entry": [
+    {
+      "resource": {
+        "resourceType": "Patient",
+        "id": "synthetic-patient-5",
+        "identifier": [
+          {"system": "http://doctoragent.test/mrn", "value": "SYN-5"}
+        ],
+        "name": [
+          {"use": "official", "family": "Ng", "given": ["David", "K."]}
+        ],
+        "gender": "male",
+        "birthDate": "1966-01-30"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Encounter",
+        "id": "synthetic-encounter-5",
+        "status": "in-progress",
+        "class": {
+          "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+          "code": "IMP",
+          "display": "inpatient encounter"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-5"},
+        "period": {"start": "2026-06-18T11:00:00+08:00"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "synthetic-condition-5",
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "active"
+            }
+          ]
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10",
+              "code": "N18.3",
+              "display": "Chronic kidney disease, stage 3"
+            }
+          ],
+          "text": "Chronic kidney disease"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-5"},
+        "onsetDateTime": "2022-05-01"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationRequest",
+        "id": "synthetic-medication-5",
+        "status": "active",
+        "intent": "order",
+        "medicationCodeableConcept": {
+          "coding": [
+            {
+              "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+              "code": "4604",
+              "display": "furosemide"
+            }
+          ],
+          "text": "Furosemide 40mg PO"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-5"},
+        "authoredOn": "2024-09-01T09:00:00+08:00",
+        "dosageInstruction": [
+          {
+            "text": "40mg PO daily",
+            "route": {"coding": [{"code": "PO", "display": "Oral"}], "text": "PO"},
+            "doseAndRate": [
+              {"doseQuantity": {"value": 40, "unit": "mg"}}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "AllergyIntolerance",
+        "id": "synthetic-allergy-5",
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical",
+              "code": "resolved",
+              "display": "Resolved"
+            }
+          ]
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "91939003",
+              "display": "Allergy to sulfonamide"
+            }
+          ],
+          "text": "Sulfa"
+        },
+        "patient": {"reference": "Patient/synthetic-patient-5"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "synthetic-observation-vital-5-1",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "vital-signs"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "heart_rate",
+              "display": "Heart rate"
+            }
+          ],
+          "text": "Heart rate"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-5"},
+        "effectiveDateTime": "2026-06-18T11:30:00+08:00",
+        "valueQuantity": {"value": 88, "unit": "bpm"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "synthetic-observation-lab-5-1",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "potassium",
+              "display": "Potassium"
+            }
+          ],
+          "text": "Potassium"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-5"},
+        "effectiveDateTime": "2026-06-18T07:00:00+08:00",
+        "valueQuantity": {"value": 6.8, "unit": "mmol/L"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "synthetic-observation-lab-5-2",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "creatinine",
+              "display": "Creatinine"
+            }
+          ],
+          "text": "Creatinine"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-5"},
+        "effectiveDateTime": "2026-06-18T07:00:00+08:00",
+        "valueQuantity": {"value": 3.2, "unit": "mg/dL"}
+      }
+    }
+  ]
+}

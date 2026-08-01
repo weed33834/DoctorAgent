@@ -1,0 +1,62 @@
+# Version control & metadata — never useful inside the image.
+.git
+.gitignore
+.github
+.gitattributes
+
+# Local dev data and runtime secrets.
+data
+.env
+.env.*
+!.env.example
+.storage_key
+
+# Tests, docs, and auxiliary tooling not needed at runtime.
+tests
+*.md
+!README.md
+AGENTS.md
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+LICENSE
+browser-extension
+
+# Python build artefacts and caches.
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+build/
+dist/
+*.egg-info/
+.eggs/
+wheels/
+pip-wheel-metadata/
+
+# Virtual environments & tool caches.
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Editor / OS cruft.
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# AI development assistance (kept local only).
+.trae
+
+# Docker artefacts themselves — no recursion.
+Dockerfile
+docker-compose.yml
+.dockerignore
+Makefile

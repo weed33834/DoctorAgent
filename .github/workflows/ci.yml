@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Lint & Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install project with dev + server extras
+        run: |
+          python -m pip install --upgrade pip
+          # Install all extras that the test suite exercises (except kms: its
+          # cloud SDKs cannot work in CI without real credentials, and the
+          # kms tests are designed to verify graceful ImportError handling).
+          # observability + evaluation are included because their test suites
+          # (langfuse, deepeval, datasets) are imported and exercised.
+          pip install -e ".[dev,server,clinical,mcp,s3,auth,observability,evaluation]"
+
+      - name: Lint with ruff
+        run: |
+          ruff check doctoragent/
+          ruff format --check doctoragent/
+
+      - name: Run tests with coverage gate
+        # The 60% threshold is set in pyproject.toml ([tool.coverage.run]
+        # omit + [tool.coverage.report]). The gate catches regressions in
+        # the well-tested core (clinical / security / agent / API) while
+        # excluding platform-specific and optional-dependency modules that
+        # cannot run on every CI matrix leg (PyQt GUI, Windows-only, sync).
+        run: pytest --cov=doctoragent --cov-report=xml --cov-report=term-missing --cov-fail-under=60
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-py${{ matrix.python-version }}
+          path: coverage.xml
+          retention-days: 14

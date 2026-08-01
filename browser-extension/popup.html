@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DoctorAgent Inbox</title>
+  <style>
+    :root {
+      --bg: #14171f;
+      --panel: #1c2230;
+      --panel-2: #242b3d;
+      --accent: #6ea8fe;
+      --accent-dim: #4a7fc4;
+      --text: #e2e8f0;
+      --text-dim: #94a3b8;
+      --danger: #f87171;
+      --ok: #4ade80;
+      --border: #2d3548;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 360px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 14px;
+      background: linear-gradient(135deg, #1a1f2e, #232a40);
+      border-bottom: 1px solid var(--border);
+    }
+    header .logo {
+      width: 20px; height: 20px;
+      flex-shrink: 0;
+      fill: var(--accent);
+    }
+    header h1 { font-size: 14px; font-weight: 600; letter-spacing: 0.3px; }
+    header .ver { font-size: 10px; color: var(--text-dim); margin-left: auto; }
+
+    /* ── Tab navigation ─────────────────────────────────────────────── */
+    .tabs {
+      display: flex;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+    }
+    .tab {
+      flex: 1;
+      padding: 8px 0;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-dim);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none;
+      font-family: inherit;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    section { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+    section:last-of-type { border-bottom: none; }
+    label {
+      display: block;
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    input, textarea {
+      width: 100%;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--text);
+      padding: 7px 9px;
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus, textarea:focus { border-color: var(--accent-dim); }
+    textarea { resize: vertical; min-height: 56px; line-height: 1.4; }
+    .row { display: flex; gap: 8px; }
+    .row > * { flex: 1; }
+    button {
+      width: 100%;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 5px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s, background 0.15s;
+      font-family: inherit;
+    }
+    button:disabled { opacity: 0.4; cursor: default; }
+    .btn-primary {
+      background: var(--accent);
+      color: #0f1420;
+    }
+    .btn-primary:hover:not(:disabled) { background: #82b5ff; }
+    .btn-secondary {
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover:not(:disabled) { background: #2d3548; }
+    .btn-row { display: flex; gap: 6px; margin-top: 8px; }
+    .btn-row button { padding: 7px 8px; font-size: 11px; }
+    #status {
+      margin-top: 10px;
+      padding: 7px 9px;
+      border-radius: 5px;
+      font-size: 11px;
+      line-height: 1.4;
+      display: none;
+      word-break: break-all;
+    }
+    #status.show { display: block; }
+    #status.ok { background: rgba(74,222,128,0.12); color: var(--ok); border: 1px solid rgba(74,222,128,0.25); }
+    #status.err { background: rgba(248,113,113,0.12); color: var(--danger); border: 1px solid rgba(248,113,113,0.25); }
+    #status.info { background: rgba(110,168,254,0.12); color: var(--accent); border: 1px solid rgba(110,168,254,0.25); }
+    .hint { font-size: 10px; color: var(--text-dim); margin-top: 6px; line-height: 1.4; }
+    .spin {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border: 2px solid var(--text-dim);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      vertical-align: middle;
+      margin-right: 5px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Vault file list ────────────────────────────────────────────── */
+    #vault-list {
+      max-height: 320px;
+      overflow-y: auto;
+      margin-top: 8px;
+    }
+    .vault-item {
+      padding: 8px 10px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      margin-bottom: 6px;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+    .vault-item .vi-cat {
+      display: inline-block;
+      background: var(--accent-dim);
+      color: #0f1420;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-size: 10px;
+      font-weight: 600;
+      margin-right: 4px;
+    }
+    .vault-item .vi-summary {
+      color: var(--text-dim);
+      margin-top: 3px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .vault-item .vi-tags {
+      margin-top: 3px;
+    }
+    .vault-item .vi-tag {
+      display: inline-block;
+      background: var(--panel);
+      color: var(--text-dim);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 9px;
+      margin-right: 3px;
+    }
+    .vault-empty {
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 11px;
+      padding: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <svg class="logo" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2L3 5v6c0 5.5 3.8 10.7 9 12 5.2-1.3 9-6.5 9-12V5l-9-3zm-1 14l-4-4 1.4-1.4L11 13.2l4.6-4.6L17 10l-6 6z"/>
+    </svg>
+    <h1>DoctorAgent</h1>
+    <span class="ver">v1.0</span>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="inbox">📥 收件箱</button>
+    <button class="tab" data-tab="vault">🗄️ Vault</button>
+  </div>
+
+  <!-- ── Inbox tab ─────────────────────────────────────────────────── -->
+  <div id="tab-inbox" class="tab-content active">
+    <section>
+      <label for="server">服务器地址</label>
+      <input id="server" type="url" placeholder="http://127.0.0.1:8000" value="http://127.0.0.1:8000" />
+      <div style="height:8px"></div>
+      <label for="token">API 令牌 (DOCTORAGENT_API_TOKEN)</label>
+      <input id="token" type="password" placeholder="粘贴服务端配置的令牌" autocomplete="off" />
+      <div class="btn-row">
+        <button id="save" class="btn-secondary">保存配置</button>
+        <button id="test" class="btn-secondary">测试连接</button>
+      </div>
+      <div class="hint">令牌仅存于本地，作为 PBKDF2 派生密钥的源材料，明文不会发送到服务端。</div>
+    </section>
+
+    <section>
+      <label for="manual">手动输入内容</label>
+      <textarea id="manual" placeholder="粘贴或输入要归档的文本…"></textarea>
+      <div class="btn-row">
+        <button id="send-manual" class="btn-primary" disabled>加密发送</button>
+      </div>
+      <div class="btn-row">
+        <button id="send-selection" class="btn-secondary">发送当前选区</button>
+        <button id="send-page" class="btn-secondary">发送页面正文</button>
+      </div>
+      <div class="hint">选区优先取页面高亮文字；正文取 &lt;article&gt; 或 &lt;main&gt;，回退到 &lt;body&gt;。</div>
+    </section>
+
+    <section>
+      <div id="status"></div>
+    </section>
+  </div>
+
+  <!-- ── Vault tab ─────────────────────────────────────────────────── -->
+  <div id="tab-vault" class="tab-content">
+    <section>
+      <label for="vault-search">搜索 Vault 内容</label>
+      <input id="vault-search" type="text" placeholder="输入关键词搜索…" />
+      <div class="btn-row">
+        <button id="vault-search-btn" class="btn-primary">🔍 搜索</button>
+        <button id="vault-refresh" class="btn-secondary">刷新列表</button>
+      </div>
+      <div class="hint">搜索匹配分类、摘要和标签；列表展示最近归档的文件。</div>
+    </section>
+    <section>
+      <label>Vault 文件 (<span id="vault-count">0</span>)</label>
+      <div id="vault-list">
+        <div class="vault-empty">点击「刷新列表」加载 Vault 文件</div>
+      </div>
+    </section>
+  </div>
+
+  <script src="shared.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+# Docker Compose stack for DoctorAgent.
+#
+# Default profile starts only the DoctorAgent server (API on :8000).
+#   docker compose up
+#
+# Add a local LLM backend (Ollama) for full LLM-driven workflows:
+#   docker compose --profile with-llm up
+#
+# Add an open-source FHIR R4 server (HAPI FHIR) so the clinical workflow can
+# read/write real FHIR resources instead of synthetic fixtures:
+#   docker compose --profile with-fhir up
+# To make /clinical/analyze actually read from HAPI, also set in .env:
+#   DOCTORAGENT_CLINICAL__FHIR_BASE_URL=http://hapi-fhir:8080/fhir
+#
+# Run everything together (LLM + FHIR) for a complete clinical demo:
+#   docker compose --profile with-llm --profile with-fhir up
+#
+# Mounts: ./data/{inbox,vault,index,config} are bind-mounted into the
+# container so encrypted artefacts persist across rebuilds.
+
+services:
+  doctoragent:
+    # 本地构建（开发）: 取消下方 build 注释，注释掉 image 行
+    # 生产部署: 默认使用 GHCR 预构建镜像（支持 amd64 + arm64）。
+    # GHCR 镜像名跟随发布仓库（${{ github.repository }} 小写）：
+    #   ghcr.io/weed33834/doctoragent:<version>
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # image: ghcr.io/weed33834/doctoragent:latest
+    image: doctoragent:latest
+    container_name: doctoragent
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # Master key password for the FilePassword provider. Without it
+      # `doctoragent serve` aborts at startup (master_key.py raises RuntimeError).
+      # The default below lets a fresh `docker compose up` boot for demos; it
+      # MUST be overridden via .env (DOCTORAGENT_SECURITY__MASTER_KEY_PASSWORD)
+      # for any real deployment. Stripping/rotating it later re-encrypts the
+      # vault, so set a strong value before ingesting any real data.
+      DOCTORAGENT_SECURITY__MASTER_KEY_PASSWORD: ${DOCTORAGENT_SECURITY__MASTER_KEY_PASSWORD:-change-me-in-production}
+      # Point the LLM client at the ollama service when the `with-llm` profile
+      # is active. Harmless when ollama is absent — the agent falls back to the
+      # deterministic rule engine + keyword search (llm_provider=None path).
+      DOCTORAGENT_MODEL__BASE_URL: ${DOCTORAGENT_MODEL__BASE_URL:-http://ollama:11434/v1}
+      # When the `with-fhir` profile is active, point the clinical layer at the
+      # hapi-fhir service so /clinical/analyze and CDS Hooks operate on live
+      # FHIR R4 resources. Empty (default) → the workflow runs on the
+      # patient_context in the request body or the synthetic fixtures. The
+      # ClinicalConfig section in config.py reads this via pydantic-settings.
+      DOCTORAGENT_CLINICAL__FHIR_BASE_URL: ${DOCTORAGENT_CLINICAL__FHIR_BASE_URL:-}
+    volumes:
+      - ./data/inbox:/inbox
+      - ./data/vault:/vault
+      - ./data/index:/index
+      - ./data/config:/config
+    # NOTE: doctoragent does NOT hard-depend on ollama or hapi-fhir. Compose's
+    # `depends_on` with a condition cannot be made optional per-profile, so we
+    # omit it entirely — the service degrades gracefully when an optional
+    # backend is absent (see environment comments above).
+    healthcheck:
+      test:
+        - "CMD"
+        - "python"
+        - "-c"
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: doctoragent-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - "ollama list >/dev/null 2>&1 || curl -fsS http://127.0.0.1:11434/api/tags >/dev/null"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    profiles:
+      - with-llm
+
+  # Open-source HAPI FHIR R4 server. Provides a real FHIR endpoint so the
+  # clinical layer (FHIRClient / CDS Hooks / run_clinical_workflow) can operate
+  # on live FHIR resources during demos. Gated behind the `with-fhir` profile —
+  # pull it in only when you need end-to-end FHIR integration.
+  hapi-fhir:
+    image: hapiproject/hapi:latest
+    container_name: doctoragent-hapi-fhir
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - hapi-data:/data
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - "curl -fsS http://127.0.0.1:8080/fhir/metadata >/dev/null"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    profiles:
+      - with-fhir
+
+volumes:
+  ollama-models:
+  hapi-data:

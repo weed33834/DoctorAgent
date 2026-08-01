@@ -1,0 +1,228 @@
+[project]
+name = "doctoragent"
+version = "0.3.1"
+description = "Enterprise clinical AI agent platform: CDS Hooks 2.0, FHIR R4 / SMART-on-FHIR, SNOMED CT / LOINC / ICD-10-CM terminology binding, structured LLM output via instructor, deterministic safety rules, multi-tenant audit with HMAC, towards HIPAA / 等保三级 hardening (certification is a roadmap goal, not yet certified)"
+authors = [{ name = "DoctorAgent Team" }]
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = ["clinical-ai", "cds-hooks", "fhir", "smart-on-fhir", "snomed-ct", "loinc", "icd-10", "llm-agents", "react-loop", "healthcare", "hipaa", "patient-safety", "deterministic-rules", "structured-output", "instructor"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security :: Cryptography",
+    "Topic :: Text Processing :: Indexing",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
+dependencies = [
+    "click>=8.4,<9.0",
+    "pydantic>=2.11,<3.0",
+    "pydantic-settings>=2.6,<3.0",
+    "python-dotenv>=1.0,<2.0",
+    "httpx>=0.28,<1.0",
+    "watchdog>=5.0,<7.0",
+    "cryptography>=44.0,<55.0",
+    "argon2-cffi>=24.1,<26.0",
+    "tenacity>=9.0,<10.0",
+    "numpy>=1.26,<3.0",
+    # Previously imported without being declared — surfaced by dependency audit.
+    "json5>=0.9,<1.0",
+    "tiktoken>=0.7,<1.0",
+    # Structured logging is infrastructure used by both CLI and server paths.
+    "structlog>=24.1,<27.0",
+    # Chinese word segmentation for FTS5/BM25 search. Without it the default
+    # unicode61 tokenizer treats a whole CJK run as one token, so Chinese
+    # content search is effectively broken. jieba is the standard library;
+    # the tokenisation helpers degrade gracefully when it is absent.
+    "jieba>=0.42,<1.0",
+]
+
+[project.optional-dependencies]
+gui = ["pyqt6>=6.8,<7.0"]
+server = [
+    "fastapi>=0.115,<1.0",
+    # starlette is a transitive dep of fastapi but we import it directly
+    # (BaseHTTPMiddleware, WebSocketState, RedirectResponse, BackgroundTask)
+    # — declare it explicitly per "declare what you import".
+    "starlette>=0.40,<2.0",
+    "uvicorn[standard]>=0.30,<1.0",
+    "python-multipart>=0.0.18",
+    # Observability stack exposed via /metrics and OTel instrumentation.
+    "prometheus-client>=0.20,<1.0",
+    "opentelemetry-sdk>=1.27,<2.0",
+    "opentelemetry-instrumentation-fastapi>=0.48b0,<1.0",
+    # OTLP HTTP span exporter — required to actually push traces to an OTel
+    # collector when DOCTORAGENT_OTEL_EXPORTER_OTLP_ENDPOINT is set. Lives in
+    # a separate distribution from the SDK; without it traces silently
+    # don't export.
+    "opentelemetry-exporter-otlp-proto-http>=1.27,<2.0",
+]
+sync = ["zeroconf>=0.140,<1.0"]
+semantic = ["sentence-transformers>=5.0,<6.0"]
+observability = [
+    # LLM observability — records traces / generations / token usage to a
+    # Langfuse instance (self-hosted or cloud). Optional; the
+    # ``@observe`` decorator is a no-op when langfuse isn't installed.
+    # v2/v3/v4 all expose the ``Langfuse`` client + ``observe`` decorator
+    # with the same ``capture_input``/``capture_output`` semantics we rely on.
+    "langfuse>=2.0,<5.0",
+    # RAG / clinical evaluation — Faithfulness / Answer Relevancy / Context
+    # Precision / Context Recall via the industry-standard DeepEval library
+    # (replaces the hand-rolled RAGAS-style metrics). Optional; when absent
+    # the evaluator degrades to the deterministic fallback metrics.
+    "deepeval>=2.0,<5.0",
+]
+multimodal = [
+    "pypdf>=5.0,<7.0",
+    "python-docx>=1.0,<2.0",
+    "openpyxl>=3.1,<4.0",
+    "python-pptx>=1.0,<2.0",
+    "striprtf>=0.0.26,<1.0",
+    "pdfplumber>=0.11,<1.0",
+    # Image / OCR extraction (model/extractors/image_extractor.py).
+    "pillow>=10.0,<14.0",
+    "pytesseract>=0.3,<1.0",
+]
+# Speech-to-text extraction (model/extractors/audio_extractor.py).
+audio = ["faster-whisper>=1.0,<2.0"]
+# Cross-platform desktop notifications (connections/notifications.py).
+notifications = ["plyer>=2.1,<3.0"]
+# Chroma vector store backend (model/vectorstore/chroma_store.py).
+# Previously chromadb was imported but never declared — surfaced by import audit.
+chroma = ["chromadb>=0.5,<2.0"]
+# S3 / MinIO storage backend (integrations/storage.py) and AWS KMS.
+s3 = ["boto3>=1.34,<2.0"]
+# Enterprise auth: RBAC + OIDC (api/auth/).
+auth = ["authlib>=1.3,<2.0", "casbin>=1.16,<2.0"]
+# Model Context Protocol server (agent/mcp_server.py) — 2026 table-stakes.
+mcp = ["mcp>=1.0,<3.0"]
+# Cloud KMS providers (security/kms.py). AWS KMS reuses the `s3` extra (boto3).
+kms = [
+    "azure-identity>=1.16,<2.0",
+    # security/kms.py imports azure.keyvault.keys.crypto (CryptographyClient,
+    # EncryptionAlgorithm) — that lives in the `azure-keyvault-keys` distribution,
+    # NOT `azure-keyvault-secrets` (which provides azure.keyvault.secrets).
+    # Previously mis-declared as azure-keyvault-secrets; fixed per import audit.
+    "azure-keyvault-keys>=4.8,<5.0",
+    "google-cloud-kms>=2.20,<4.0",
+]
+# Clinical AI: FHIR R4 resource model (HL7-official pydantic library).
+# openFDA / RxNorm / PubMed are consumed via httpx (already a core dep) — no extra SDK needed.
+# instructor wraps the OpenAI SDK to give validated pydantic-structured LLM output for
+# the four clinical specialist agents (replaces fragile json.loads on prose).
+# openai SDK is required as the instructor backend (OpenAI-compatible /v1/chat/completions).
+clinical = [
+    "fhir.resources>=8.0,<10.0",
+    # instructor >=1.13 requires openai>=2.0 (it dropped the openai 1.x
+    # backend); the two are coupled across the 1.x→2.x transition, so we pin
+    # a consistent modern stack: instructor>=1.13 + openai>=2.0. Verified
+    # against the full clinical structured-output / agent test suite.
+    "instructor>=1.13,<2.0",
+    "openai>=2.0,<3.0",
+    # Declarative multi-agent orchestration. The clinical workflow runs on a
+    # compiled, immutable StateGraph (rules → parallel specialists →
+    # documentation → guardrail) so the DAG is auditable and cannot be
+    # re-planned by the LLM. Falls back to the hand-rolled orchestrator
+    # when langgraph is absent — kept optional for minimal installs.
+    "langgraph>=0.2,<2.0",
+    # SMART-on-FHIR v2 launch flow (clinical/fhir/smart.py) uses authlib's
+    # PKCE S256 code challenge. Also satisfied by installing the `auth` extra.
+    "authlib>=1.3,<2.0",
+]
+dev = [
+    "pytest>=8.0,<10.0",
+    "pytest-asyncio>=1.0,<2.0",
+    "pytest-cov>=5.0,<8.0",
+    "ruff>=0.10",
+    "bandit>=1.7,<2.0",
+]
+# HuggingFace datasets loader for the clinical QA benchmark
+# (clinical/evaluation/datasets.py: MedQA / PubMedQA). Optional; the loader
+# degrades to built-in sample data when datasets is absent.
+evaluation = ["datasets>=2.14,<6.0"]
+# Convenience aggregate: every optional feature except dev tooling.
+all = [
+    "doctoragent[server,sync,semantic,multimodal,audio,notifications,chroma,s3,auth,mcp,kms,clinical,observability,evaluation]",
+]
+
+[project.scripts]
+doctoragent = "doctoragent.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["doctoragent*", "tests*"]
+exclude = ["data*"]
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "C4"]
+# E501 (line-too-long) is intentionally not enforced: ruff format handles
+# what it can, and the remaining violations are in long strings / comments
+# where automatic wrapping would break readability. B027
+# (empty-method-without-abstract-decorator) is excluded because concrete
+# subclasses are expected to override the empty methods.
+ignore = ["E501", "B027"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "gui: GUI-related tests requiring a display",
+    "integration: Tests that hit real external services",
+    "slow: Tests that take a long time to run",
+    "security: Security-sensitive tests",
+    "windows: Tests that exercise Windows-only APIs",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning:pytest_asyncio.*",
+    "ignore::pytest.PytestDeprecationWarning",
+]
+# Coverage gate: ``--cov=doctoragent --cov-report=term-missing --cov-fail-under=60``
+# is appended in CI (`.github/workflows/ci.yml`). We deliberately keep the
+# threshold at 60% so:
+#   * the GUI layer (PyQt, ~12% coverage without a display) doesn't gate CI
+#   * the sync engine (network-dependent, ~24%) doesn't gate CI
+#   * regressions in the well-tested core (clinical, security, agent) DO trip
+# Local runs without coverage stay fast: ``pytest`` alone still works.
+addopts = "-m 'not integration and not gui and not slow' --assert=plain"
+
+[tool.coverage.run]
+source = ["doctoragent"]
+# NOTE: ``branch = true`` is intentionally OFF. Some tests spawn subprocesses
+# (e.g. via ``asyncio.subprocess``) whose coverage data is written with the
+# default statement-only mode; combining branch + statement data raises
+# ``DataError: Can't combine statement coverage data with branch data``.
+# Branch coverage is a nice-to-have, the global threshold is the real gate.
+# Exclude platform-specific and optional-dependency modules from the
+# coverage gate — they cannot be exercised on every CI runner.
+omit = [
+    # Windows-only modules — never importable on Linux CI.
+    "doctoragent/security/win_helpers.py",
+    "doctoragent/security/windows_hello.py",
+    # PyQt GUI — requires a display; covered by `gui`-marked tests.
+    "doctoragent/presentation/*",
+    # Offline disaster-recovery tool — only runs against a real vault.
+    "doctoragent/tools/offline_decryptor.py",
+]
+
+[tool.coverage.report]
+# Modules below this threshold are listed in the report but do NOT fail
+# the build (only the global ``--cov-fail-under`` does).
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+]

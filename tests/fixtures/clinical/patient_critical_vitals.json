@@ -1,0 +1,236 @@
+{
+  "resourceType": "Bundle",
+  "id": "synthetic-bundle-critical-vitals",
+  "type": "collection",
+  "entry": [
+    {
+      "resource": {
+        "resourceType": "Patient",
+        "id": "synthetic-patient-4",
+        "identifier": [
+          {"system": "http://doctoragent.test/mrn", "value": "SYN-4"}
+        ],
+        "name": [
+          {"use": "official", "family": "Clark", "given": ["Carol", "M."]}
+        ],
+        "gender": "female",
+        "birthDate": "1971-11-08"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Encounter",
+        "id": "synthetic-encounter-4",
+        "status": "in-progress",
+        "class": {
+          "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+          "code": "EMER",
+          "display": "emergency"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-4"},
+        "period": {"start": "2026-05-05T22:30:00+08:00"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "synthetic-condition-4",
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "active"
+            }
+          ]
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10",
+              "code": "I10",
+              "display": "Essential (primary) hypertension"
+            }
+          ],
+          "text": "Severe hypertension"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-4"},
+        "onsetDateTime": "2020-02-01"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationRequest",
+        "id": "synthetic-medication-4",
+        "status": "active",
+        "intent": "order",
+        "medicationCodeableConcept": {
+          "coding": [
+            {
+              "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+              "code": "89668",
+              "display": "amlodipine"
+            }
+          ],
+          "text": "Amlodipine 10mg PO"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-4"},
+        "authoredOn": "2025-12-10T09:00:00+08:00",
+        "dosageInstruction": [
+          {
+            "text": "10mg PO daily",
+            "route": {"coding": [{"code": "PO", "display": "Oral"}], "text": "PO"},
+            "doseAndRate": [
+              {"doseQuantity": {"value": 10, "unit": "mg"}}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "AllergyIntolerance",
+        "id": "synthetic-allergy-4",
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical",
+              "code": "resolved",
+              "display": "Resolved"
+            }
+          ]
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "300913006",
+              "display": "Latex allergy"
+            }
+          ],
+          "text": "Latex"
+        },
+        "patient": {"reference": "Patient/synthetic-patient-4"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "synthetic-observation-vital-4-1",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "vital-signs"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "heart_rate",
+              "display": "Heart rate"
+            }
+          ],
+          "text": "Heart rate"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-4"},
+        "effectiveDateTime": "2026-05-05T22:35:00+08:00",
+        "valueQuantity": {"value": 35, "unit": "bpm"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "synthetic-observation-vital-4-2",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "vital-signs"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "systolic_bp",
+              "display": "Systolic blood pressure"
+            }
+          ],
+          "text": "Systolic blood pressure"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-4"},
+        "effectiveDateTime": "2026-05-05T22:35:00+08:00",
+        "valueQuantity": {"value": 200, "unit": "mmHg"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "synthetic-observation-vital-4-3",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "vital-signs"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "diastolic_bp",
+              "display": "Diastolic blood pressure"
+            }
+          ],
+          "text": "Diastolic blood pressure"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-4"},
+        "effectiveDateTime": "2026-05-05T22:35:00+08:00",
+        "valueQuantity": {"value": 120, "unit": "mmHg"}
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "synthetic-observation-lab-4-1",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "sodium",
+              "display": "Sodium"
+            }
+          ],
+          "text": "Sodium"
+        },
+        "subject": {"reference": "Patient/synthetic-patient-4"},
+        "effectiveDateTime": "2026-05-05T22:40:00+08:00",
+        "valueQuantity": {"value": 139, "unit": "mmol/L"}
+      }
+    }
+  ]
+}
