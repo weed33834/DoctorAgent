@@ -70,17 +70,15 @@
 
 ---
 
-## 📦 仓库家族
+## 🔗 关联平台
 
-本项目是 **badhope 开源 AI 生态** 的核心成员：
+更多 badhope 开源项目：
 
-| 仓库 | 定位 | 链接 |
-|---|---|---|
-| 🏠 **AI** (Rule Hub) | **主仓库** — AI 工程方法论、规则集、提示词库、Skill 市场 | [gitcode.com/badhope/AI](https://gitcode.com/badhope/AI) |
-| ⚕️ **DoctorAgent** | **核心产品** — 临床 AI 智能体平台（本仓库） | [gitcode.com/badhope/DoctorAgent](https://gitcode.com/badhope/DoctorAgent) |
-| 🎨 *(待定)* | **可视化 & 展示** — 产品演示、截图、文档站点 | 建设中 |
-
-> 💡 **使用指南**：AI 仓库 = 大脑（方法论 + 规则），DoctorAgent = 身体（落地产品），可视化仓库 = 门面（展示推广）。
+| 平台 | 简介 |
+|---|---|
+| [DoctorAgent](https://gitcode.com/badhope/DoctorAgent) | 临床 AI 智能体平台（本仓库） |
+| [AI Rule Hub](https://gitcode.com/badhope/AI) | AI 工程方法论、规则集与提示词库 |
+| [查看全部 →](https://gitcode.com/badhope) | 16 个开源项目 |
 
 ---
 
@@ -226,7 +224,7 @@ bash start.sh
 
 ## 🔗 相关链接
 
-- **主仓库**: [badhope/AI](https://gitcode.com/badhope/AI) — AI 工程方法论与规则集
+- **关联项目**: [badhope/AI](https://gitcode.com/badhope/AI) — AI 工程方法论与规则集 | [badhope](https://gitcode.com/badhope) — 全部项目
 - **文档**: [docs/](docs/)
 - **贡献指南**: [CONTRIBUTING.md](CONTRIBUTING.md)
 - **许可证**: [MIT](LICENSE)
