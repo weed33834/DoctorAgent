@@ -5,6 +5,67 @@
 
 ---
 
+## [0.3.2] - 2026-08-04
+
+### 新增
+
+#### Web 控制台全新设计
+- **27 模块侧边栏导航**：5 个分组（临床工具/知识检索/工作流评估/运维管理/扩展），一键切换
+- **侧边栏搜索过滤**：输入关键词实时筛选功能模块
+- **侧边栏折叠**：52px 图标模式 + localStorage 状态记忆
+- **API Token 输入**：移至侧边栏底部，折叠时自动隐藏
+
+#### UI 与交互优化
+- CDN 离线化：所有 JS/CSS vendor 资源本地化，jsdelivr-free
+- 顶部栏精简：命令面板/帮助/主题/健康状态紧凑排列
+- 暗色主题兼容：CSS 变量适配
+
+#### 性能与稳定性
+- LLM 模型切换：HCNSEC 网关默认 `step-3.5-flash`（0.84s/次），Agent 对话从超时→12s 完成
+- Agent 最大迭代 10→5：减少 LLM 累计延迟
+- SSE 流中断优化：AbortError 保留已生成内容，不丢数据
+- BM25Search 模块级导入：消除每次搜索的 import 开销
+
+#### 多智能体协作
+- **委托功能实现**：`collab/delegate` 从 `[stub]` 空壳→真实 LLM 调用
+- AegisAgent 新增 `async def delegate(task, role)`，复用分类器 LLM Provider
+- 异步 handler 修复：`advanced_routes.py` 加 `await` 调用异步 delegate
+
+### 修复
+
+#### 数据层
+- **搜索修复（B1）**：`agent.py` 搜索合并 metadata FTS + chunk BM25 内容检索
+- 内容搜索此前只能查到元数据（文件名/摘要），正文匹配现在正常
+
+#### 安全与策略
+- **分类器云策略修复（F1）**：`classifier.py` 允许信任网关连接的云回退
+- 配置持久化：`DOCTORAGENT_PATHS__SETTINGS` 指向工作区目录
+- 钩子启停：`PATCH /hooks/{name}?enabled=true` query 参数修复
+
+#### 依赖
+- 移除 GUI (PyQt6) 依赖：PyQt6-Qt6 + PyQt6_sip 已卸载
+
+### 开发体验
+- `start.sh` 一键启动：8 个环境变量自动配置
+- `.gitignore` 更新：排除 `.doctoragent/` / `.workbuddy/` / `serve.log`
+- CSS 死代码清理：移除 2 处 `.tab-indicator` 旧代码
+
+### 文档
+- README 2.0 重写：控制台 ASCII 预览 + 功能全景表格 + 安全矩阵 + 测试覆盖
+- 中文 README 同步更新
+- 合规教程全量就位：6 篇（NMPA/算法备案/等保/IRB/数据安全/HIPAA），8-14KB/篇
+
+### 验证
+- 全量单元测试：1602 passed，64 skipped（LLM/slow）
+- 27 模块端到端审计：38 端点探测，0 空壳
+- 10 个跨模块集成场景：8 个贯通
+- 代码安全扫描：0 硬编码 token 泄露
+- Docker 3 容器架构验证
+- CDS Hooks 3 服务注册验证
+- 浏览器扩展结构审查
+
+---
+
 ## [0.3.1] - 2026-07-31
 
 ### 修复
