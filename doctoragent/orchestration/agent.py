@@ -16,6 +16,7 @@ from doctoragent.execution.inbox_watcher import InboxWatcher
 from doctoragent.execution.vault import VaultManager
 from doctoragent.model.classifier import Classifier
 from doctoragent.model.embedding import LocalEmbeddingProvider, SentenceTransformersProvider
+from doctoragent.model.rag import BM25Search  # 延迟初始化，避免重复 import
 from doctoragent.orchestration.pipeline import ProcessingPipeline
 from doctoragent.orchestration.state_machine import TaskState
 from doctoragent.orchestration.task_store import TaskStore
@@ -520,12 +521,12 @@ class AegisAgent:
         )
 
     async def search(self, query: SearchQuery) -> list[SearchResult]:
-        """Search vault metadata by keywords and semantic similarity.
+        """Search vault metadata by keywords, chunk content, and semantic similarity.
 
         When ``--semantic`` is explicitly requested, and an embedding provider
         is available, the search uses the weighted hybrid fusion from
-        ``TaskStore.hybrid_search``.  Otherwise it falls back to pure
-        full-text search.
+        ``TaskStore.hybrid_search``.  Otherwise it falls back to FTS on
+        metadata AND chunk-level BM25 content search, merging results.
         """
         if query.semantic and self._embedding_provider is not None:
             provider = self._embedding_provider
@@ -541,8 +542,66 @@ class AegisAgent:
 
             return await asyncio.to_thread(_hybrid)
 
-        # Fallback: pure FTS.
-        return await asyncio.to_thread(self.task_store.search, query.query, top_k=query.top_k)
+        # ── Non-semantic: merge metadata FTS + chunk BM25 content search ──
+        def _merged_search() -> list[SearchResult]:
+            meta_results = self.task_store.search(query.query, top_k=query.top_k)
+            try:
+                bm25 = BM25Search(self.task_store.db_path, self.task_store._tenant_id)
+                chunk_hits = bm25.search(query.query, top_k=query.top_k)
+            except Exception:
+                chunk_hits = []
+            # 合并：chunk 命中优先（text 字段有内容），去重 by vault_path
+            seen: set[str] = set()
+            merged: list[SearchResult] = []
+            for ch in chunk_hits:
+                vp = ch.get("vault_path", "")
+                if vp and vp not in seen:
+                    seen.add(vp)
+                    merged.append(SearchResult(
+                        vault_path=Path(vp),
+                        category=ch.get("category", ""),
+                        summary=ch.get("text", ch.get("summary", "")),
+                        score=ch.get("score", 1.0),
+                        text=ch.get("text", ""),
+                    ))
+            for mr in meta_results:
+                key = str(mr.vault_path)
+                if key and key not in seen:
+                    seen.add(key)
+                    merged.append(mr)
+            return merged[: query.top_k]
+
+        return await asyncio.to_thread(_merged_search)
+
+    async def delegate(self, task: str, role: str) -> str:
+        """Delegate a task to this agent in a specialist role.
+
+        Uses the classifier's LLM provider (same path as document classification,
+        proven working with HCNSEC gateway) to generate a response in the
+        persona of the named specialist role.
+        """
+        provider = getattr(self.classifier, "provider", None)
+        if provider is None:
+            return "No LLM provider configured. Add a connection first."
+
+        system_prompt = (
+            f"You are a {role}. "
+            "Provide a concise, professional response to the task below."
+        )
+        try:
+            raw = await provider.chat_completion(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": task},
+                ],
+            )
+            if hasattr(raw, "content"):
+                return str(raw.content).strip()
+            if hasattr(raw, "choices") and raw.choices:
+                return str(raw.choices[0].message.content).strip()
+            return str(raw).strip() if raw else ""
+        except Exception as e:
+            return f"[delegation error: {e}]"
 
     async def aclose(self) -> None:
         """Clean up resources."""

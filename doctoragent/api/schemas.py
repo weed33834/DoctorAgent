@@ -78,6 +78,7 @@ class SearchResult(BaseModel):
     category: str
     summary: str
     score: float
+    text: str = ""  # BM25 chunk content match (optional, populated when chunk hit)
 
 
 class BrowserSubmission(BaseModel):

@@ -37,6 +37,12 @@ ENV/
 .mypy_cache/
 .ruff_cache/
 .coverage
+
+# Dev artifacts
+.doctoragent/
+.workbuddy/
+audit/analyze.py
+serve.log
 htmlcov/
 .storage_key
 .pypirc

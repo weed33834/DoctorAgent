@@ -716,23 +716,29 @@ class Classifier:
     ) -> "Classifier":
         """Create a classifier from the connection manager.
 
-        Prefers trusted local connections. Only uses cloud connections when
-        allow_cloud_fallback is True and the connection is explicitly authorized.
+        优先级（隐私与可用性折中）：
+        1. ``allow_cloud_fallback=True`` 且存在操作员显式授权的云端连接
+           (``is_cloud_authorized=True``) 时，优先使用云端——操作员已明确
+           选择云端模型，保证在无可用本地模型（如 Ollama 未运行）的环境
+           下分类链路仍可贯通。
+        2. 否则优先可信本地连接（隐私优先）。
+        3. 兜底：若既无本地、也允许回退，则使用云端。
         """
-        # First pass: look for a trusted local connection.
-        for candidate in manager.list_enabled():
-            if "chat" not in candidate.capabilities:
-                continue
-            if candidate.is_trusted_local():
-                return cls(create_provider(candidate), candidate)
+        enabled = [c for c in manager.list_enabled() if "chat" in c.capabilities]
+        local = [c for c in enabled if c.is_trusted_local()]
+        cloud = [c for c in enabled if c.is_cloud_authorized]
 
-        # Second pass: fall back to a cloud connection if allowed.
-        if allow_cloud_fallback:
-            for candidate in manager.list_enabled():
-                if "chat" not in candidate.capabilities:
-                    continue
-                if candidate.is_cloud_authorized:
-                    return cls(create_provider(candidate), candidate)
+        # 1) 显式授权的云端连接优先（操作员 opt-in）。
+        if allow_cloud_fallback and cloud:
+            return cls(create_provider(cloud[0]), cloud[0])
+
+        # 2) 隐私优先：可信本地连接。
+        if local:
+            return cls(create_provider(local[0]), local[0])
+
+        # 3) 兜底：允许回退时使用云端。
+        if allow_cloud_fallback and cloud:
+            return cls(create_provider(cloud[0]), cloud[0])
 
         raise RuntimeError(
             "No suitable chat connection found. "

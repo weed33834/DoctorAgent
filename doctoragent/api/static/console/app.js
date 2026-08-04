@@ -364,25 +364,12 @@
     if (e.key === "Escape" && !confirmModal.classList.contains("hidden")) closeConfirm(false);
   });
 
-  // ── Tabs（URL hash 路由 + AbortController 取消旧请求 + 滑动指示器） ──
+  // ── Tabs（URL hash 路由 + AbortController 取消旧请求） ──
   let currentTabSignal = null;
-  const tabList = document.querySelector(".tabs");
-  // 滑动指示器
-  let tabIndicator = null;
-  if (tabList) {
-    tabIndicator = document.createElement("div");
-    tabIndicator.className = "tab-indicator";
-    tabList.appendChild(tabIndicator);
-  }
-  function moveTabIndicator(tab) {
-    if (!tabIndicator || !tab) return;
-    const rect = tab.getBoundingClientRect();
-    const parentRect = tabList.getBoundingClientRect();
-    tabIndicator.style.width = rect.width + "px";
-    tabIndicator.style.left = (rect.left - parentRect.left + tabList.scrollLeft) + "px";
-  }
+  // 侧边栏模式不需要滑动指示器
+  function moveTabIndicator(tab) { /* no-op in sidebar mode */ }
   function switchTab(view, pushState) {
-    const tab = document.querySelector('.tab[data-view="' + view + '"]');
+    const tab = document.querySelector('.sidebar-item[data-view="' + view + '"]');
     if (!tab) return;
     // 取消上一个 tab 的请求
     if (currentTabSignal) { try { currentTabSignal.abort(); } catch (e) {} }
@@ -396,7 +383,7 @@
       if (sendBtn) sendBtn.classList.remove("hidden");
       if (stopBtn) stopBtn.classList.add("hidden");
     }
-    document.querySelectorAll(".tab").forEach((t) => { t.classList.remove("active"); t.setAttribute("aria-selected", "false"); });
+    document.querySelectorAll(".sidebar-item").forEach((t) => { t.classList.remove("active"); t.setAttribute("aria-selected", "false"); });
     document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
     tab.classList.add("active");
     tab.setAttribute("aria-selected", "true");
@@ -428,14 +415,14 @@
     if (view === "compliance") loadCompliancePanel();
     if (view === "chat") initChat();
   }
-  document.querySelectorAll(".tab").forEach((tab) => {
+  document.querySelectorAll(".sidebar-item").forEach((tab) => {
     tab.addEventListener("click", () => switchTab(tab.dataset.view));
   });
   // 初始化：从 URL hash 恢复
   // 注意：实际 switchTab 调用延迟到 IIFE 末尾（所有 let/const 声明完成后），
   // 否则 view 的 load 函数会访问尚未初始化的变量（TDZ）。
   const initialView = (location.hash || "").replace("#", "") || "chat";
-  moveTabIndicator(document.querySelector(".tab.active"));
+  moveTabIndicator(document.querySelector(".sidebar-item.active"));
   // 浏览器前进/后退
   window.addEventListener("popstate", (e) => {
     const view = (location.hash || "").replace("#", "") || "chat";
@@ -443,7 +430,7 @@
   });
   // 窗口 resize 时重新定位指示器
   window.addEventListener("resize", () => {
-    moveTabIndicator(document.querySelector(".tab.active"));
+    moveTabIndicator(document.querySelector(".sidebar-item.active"));
   });
 
   // ── 视图切换（医生视图 / 管理视图） ──
@@ -454,7 +441,7 @@
     return CLINICAL_TAB_KEYWORDS.some(function (kw) { return v.indexOf(kw) !== -1; });
   }
   function switchView(view) {
-    const tabButtons = document.querySelectorAll(".tab[data-view]");
+    const tabButtons = document.querySelectorAll(".sidebar-item[data-view]");
     tabButtons.forEach(function (btn) {
       const tabView = btn.dataset.view || "";
       const isClinical = isClinicalTab(tabView);
@@ -466,13 +453,13 @@
     });
     try { localStorage.setItem("doctoragent_view", view); } catch (e) {}
     // 若当前激活标签在当前视图不可见，切换到第一个可见标签
-    const activeTab = document.querySelector(".tab.active");
+    const activeTab = document.querySelector(".sidebar-item.active");
     if (activeTab && activeTab.style.display === "none") {
       const firstVisible = document.querySelector('.tab[data-view]:not([style*="display: none"])');
       if (firstVisible) switchTab(firstVisible.dataset.view, false);
     }
     // 标签显隐变化后重新定位指示器
-    moveTabIndicator(document.querySelector(".tab.active"));
+    moveTabIndicator(document.querySelector(".sidebar-item.active"));
   }
   // 绑定视图切换器
   const viewSwitcher = document.getElementById("viewSwitcher");
@@ -3767,7 +3754,7 @@
       const response = await fetch("/vault/agent/stream", {
         method: "POST",
         headers: headers,
-        body: JSON.stringify({ task: taskText, max_iterations: 10, session_id: chat.id, history: historyMsgs }),
+        body: JSON.stringify({ task: taskText, max_iterations: 5, session_id: chat.id, history: historyMsgs }),
         signal: chatState.abortCtrl.signal,
       });
 
@@ -3820,7 +3807,7 @@
       if (!fullContent) {
         const r = await api("/vault/agent", {
           method: "POST",
-          body: { task: taskText, max_iterations: 10, session_id: chat.id, history: historyMsgs },
+          body: { task: taskText, max_iterations: 5, session_id: chat.id, history: historyMsgs },
         });
         fullContent = r.answer || "（无返回内容）";
         if (r.steps) {
@@ -3839,7 +3826,8 @@
 
     } catch (e) {
       if (e.name === "AbortError") {
-        assistantMsg.content = fullContent + "\n\n（已停止生成）";
+        // 用户手动停止或超时：如果有部分内容则保留，否则提示
+        assistantMsg.content = fullContent || "⏸ 已停止生成";
       } else {
         assistantMsg.content = "⚠ 请求失败：" + e.message;
       }
@@ -7014,7 +7002,7 @@
   const ONBOARD_STEPS = [
     { icon: "👋", title: "欢迎使用 DoctorAgent", text: "欢迎使用 DoctorAgent，医疗智能体控制台。30 秒了解核心功能。", target: null },
     { icon: "📝", title: "配置 API Token", text: "在这里配置 API Token 用于鉴权。本地开发可留空。", target: "#tokenInput" },
-    { icon: "🧭", title: "导航栏", text: "顶部导航栏切换功能页面。共 20+ 个模块。", target: ".tabs" },
+    { icon: "🧭", title: "侧边栏", text: "左侧导航栏切换功能页面。共 20+ 个模块。", target: ".sidebar" },
     { icon: "⌘", title: "命令面板", text: "按 Ctrl+K 快速跳转任意页面或执行命令。", target: "#cmdPaletteBtn" },
     { icon: "📖", title: "帮助文档", text: "随时点击 ? 查看完整使用文档。开始探索吧！", target: "#helpBtn" },
   ];
@@ -7174,7 +7162,7 @@
   function buildCommands() {
     const cmds = [];
     // —— 页面导航（从 tab 元素动态构建） ——
-    document.querySelectorAll(".tab[data-view]").forEach(function (tab) {
+    document.querySelectorAll(".sidebar-item[data-view]").forEach(function (tab) {
       const view = tab.dataset.view;
       const label = tab.textContent.trim();
       cmds.push({
@@ -7371,7 +7359,7 @@
     if (e.altKey && !e.ctrlKey && !e.metaKey) {
       const n = parseInt(e.key, 10);
       if (!isNaN(n) && n >= 1 && n <= 9) {
-        const tabs = document.querySelectorAll(".tab[data-view]");
+        const tabs = document.querySelectorAll(".sidebar-item[data-view]");
         if (tabs[n - 1]) {
           e.preventDefault();
           switchTab(tabs[n - 1].dataset.view);
@@ -7679,7 +7667,7 @@
   // 所有 let/const 声明已完成，现在安全地初始化默认视图。
   // 先初始化对话（chat 是默认激活视图），再切换到 URL hash 指定的视图。
   initChat();
-  if (initialView && initialView !== "chat" && document.querySelector('.tab[data-view="' + initialView + '"]')) {
+  if (initialView && initialView !== "chat" && document.querySelector('.sidebar-item[data-view="' + initialView + '"]')) {
     switchTab(initialView, false);
   }
 
@@ -7695,5 +7683,50 @@
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
   })();
+
+  // ── 侧边栏搜索过滤 ──
+  (function initSidebarSearch() {
+    var input = document.getElementById("sidebarSearch");
+    if (!input) return;
+    input.addEventListener("input", function () {
+      var q = this.value.toLowerCase().trim();
+      var items = document.querySelectorAll(".sidebar-item");
+      var sections = document.querySelectorAll(".sidebar-section");
+      items.forEach(function (item) {
+        var text = (item.textContent || "").toLowerCase();
+        item.classList.toggle("filtered", q && text.indexOf(q) === -1);
+      });
+      sections.forEach(function (sec) {
+        // 隐藏没有任何可见 items 的分组标题
+        var next = sec.nextElementSibling;
+        var allHidden = true;
+        while (next && next.classList.contains("sidebar-item")) {
+          if (!next.classList.contains("filtered")) { allHidden = false; break; }
+          next = next.nextElementSibling;
+        }
+        sec.classList.toggle("filtered", q && allHidden);
+      });
+    });
+  })();
+
+  // ── 侧边栏折叠切换 ──
+  (function initSidebarToggle() {
+    var sidebar = document.querySelector(".sidebar");
+    var toggleBtn = document.getElementById("sidebarToggleBtn");
+    if (!sidebar || !toggleBtn) return;
+    try {
+      if (localStorage.getItem("doctoragent_sidebar_collapsed") === "1") {
+        sidebar.classList.add("collapsed");
+        toggleBtn.textContent = "▶";
+      }
+    } catch (e) {}
+    toggleBtn.addEventListener("click", function () {
+      sidebar.classList.toggle("collapsed");
+      var isCollapsed = sidebar.classList.contains("collapsed");
+      toggleBtn.textContent = isCollapsed ? "▶" : "☰";
+      try { localStorage.setItem("doctoragent_sidebar_collapsed", isCollapsed ? "1" : "0"); } catch (e) {}
+    });
+  })();
+
 })();
 

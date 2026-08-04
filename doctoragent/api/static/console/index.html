@@ -4,18 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>DoctorAgent 控制台</title>
-  <link rel="stylesheet" href="/console/style.css?v=14" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.11/dist/purify.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css" />
+  <link rel="stylesheet" href="/console/style.css?v=17" />
+  <!-- 外部依赖已本地化到 /console/vendor，消除对 jsdelivr CDN 的离线/沙箱白屏依赖 -->
+  <script src="/console/vendor/chart.umd.min.js"></script>
+  <script src="/console/vendor/chartjs-plugin-annotation.min.js"></script>
+  <script src="/console/vendor/marked.min.js"></script>
+  <script src="/console/vendor/purify.min.js"></script>
+  <script src="/console/vendor/highlight.min.js"></script>
+  <link rel="stylesheet" href="/console/vendor/github-dark.min.css" />
 </head>
 <body>
   <a href="#app" class="skip-link">跳到主内容</a>
   <header class="topbar">
     <div class="brand">
+      <button id="sidebarToggleBtn" class="sidebar-toggle" title="折叠/展开侧边栏" aria-label="切换侧边栏">☰</button>
       <span class="logo" aria-hidden="true">⚕</span>
       <span class="title">DoctorAgent 控制台</span>
       <span id="serverVersion" class="version"></span>
@@ -26,51 +28,57 @@
       <button class="view-tab" data-view="admin" title="管理视图">⚙️ 管理</button>
     </div>
     <div class="auth">
-      <input id="tokenInput" type="password" placeholder="API Token（本地可留空）" autocomplete="off" aria-label="API Token 输入框" />
-      <button id="saveTokenBtn" class="btn btn-ghost">保存</button>
-      <button id="cmdPaletteBtn" class="cmd-trigger" title="命令面板 (Ctrl+K)" aria-label="打开命令面板">
-        <span class="cmd-trigger-icon" aria-hidden="true">⌘</span>
-        <span class="cmd-trigger-kbd">K</span>
-      </button>
-      <button id="helpBtn" class="help-trigger" title="使用文档与帮助 (?)" aria-label="打开使用文档">
-        <span aria-hidden="true">?</span>
-      </button>
+      <button id="cmdPaletteBtn" class="cmd-trigger" title="命令面板" aria-label="打开命令面板">⌘K</button>
+      <button id="helpBtn" class="help-trigger" title="帮助" aria-label="打开使用文档">?</button>
       <button id="themeToggle" class="theme-toggle" title="切换主题" aria-label="切换暗色/亮色主题">🌙</button>
       <span id="healthDot" class="health-dot unknown" title="未检测" aria-hidden="true"></span>
       <span id="healthText" class="health-text" aria-label="服务健康状态">未检测</span>
     </div>
   </header>
 
-  <nav class="tabs" role="tablist" aria-label="主导航">
-    <button class="tab active" data-view="chat" role="tab" aria-selected="true" aria-controls="view-chat">智能对话</button>
-    <button class="tab" data-view="clinical" role="tab" aria-selected="false" aria-controls="view-clinical">临床工作台</button>
-    <button class="tab" data-view="deidentify" role="tab" aria-selected="false" aria-controls="view-deidentify">PHI 脱敏</button>
-    <button class="tab" data-view="safety" role="tab" aria-selected="false" aria-controls="view-safety">安全规则</button>
-    <button class="tab" data-view="agents" role="tab" aria-selected="false" aria-controls="view-agents">智能体编排</button>
-    <button class="tab" data-view="kg" role="tab" aria-selected="false" aria-controls="view-kg">知识图谱</button>
-    <button class="tab" data-view="dag" role="tab" aria-selected="false" aria-controls="view-dag">工作流引擎</button>
-    <button class="tab" data-view="eval" role="tab" aria-selected="false" aria-controls="view-eval">评估中心</button>
-    <button class="tab" data-view="evo" role="tab" aria-selected="false" aria-controls="view-evo">自进化</button>
-    <button class="tab" data-view="rag" role="tab" aria-selected="false" aria-controls="view-rag">高级 RAG</button>
-    <button class="tab" data-view="vault" role="tab" aria-selected="false" aria-controls="view-vault">文档 Vault</button>
-    <button class="tab" data-view="config" role="tab" aria-selected="false" aria-controls="view-config">配置管理</button>
-    <button class="tab" data-view="connections" role="tab" aria-selected="false" aria-controls="view-connections">连接</button>
-    <button class="tab" data-view="tenants" role="tab" aria-selected="false" aria-controls="view-tenants">租户</button>
-    <button class="tab" data-view="ops" role="tab" aria-selected="false" aria-controls="view-ops">集成运维</button>
-    <button class="tab" data-view="audit" role="tab" aria-selected="false" aria-controls="view-audit">审计日志</button>
-    <button class="tab" data-view="system" role="tab" aria-selected="false" aria-controls="view-system">系统状态</button>
-    <button class="tab" data-view="compliance" role="tab" aria-selected="false" aria-controls="view-compliance">合规管理</button>
-    <button class="tab" data-view="settings" role="tab" aria-selected="false" aria-controls="view-settings">设置中心</button>
-    <button class="tab" data-view="mem" role="tab" aria-selected="false" aria-controls="view-mem">记忆管理</button>
-    <button class="tab" data-view="hooks" role="tab" aria-selected="false" aria-controls="view-hooks">生命周期钩子</button>
-    <button class="tab" data-view="obs" role="tab" aria-selected="false" aria-controls="view-obs">可观测性</button>
-    <button class="tab" data-view="rl" role="tab" aria-selected="false" aria-controls="view-rl">强化学习</button>
-    <button class="tab" data-view="collab" role="tab" aria-selected="false" aria-controls="view-collab">多智能体协作</button>
-    <button class="tab" data-view="plugins" role="tab" aria-selected="false" aria-controls="view-plugins">插件管理</button>
-    <button class="tab" data-view="exp" role="tab" aria-selected="false" aria-controls="view-exp">A/B 实验</button>
-    <button class="tab" data-view="prompts" role="tab" aria-selected="false" aria-controls="view-prompts">Prompt 模板</button>
+  <div class="app-layout">
+  <nav class="sidebar" role="navigation" aria-label="侧边栏导航">
+    <div class="sidebar-search">
+      <input id="sidebarSearch" type="text" placeholder="搜索功能..." autocomplete="off" aria-label="搜索侧边栏功能" />
+    </div>
+    <div class="sidebar-section">临床工具</div>
+    <button class="sidebar-item active" data-view="chat" role="tab" aria-selected="true">💬 智能对话</button>
+    <button class="sidebar-item" data-view="clinical" role="tab">🏥 临床工作台</button>
+    <button class="sidebar-item" data-view="deidentify" role="tab">🔒 PHI 脱敏</button>
+    <button class="sidebar-item" data-view="safety" role="tab">🛡 安全规则</button>
+    <button class="sidebar-item" data-view="agents" role="tab">🔀 智能体编排</button>
+    <div class="sidebar-section">知识 & 检索</div>
+    <button class="sidebar-item" data-view="vault" role="tab">📁 文档 Vault</button>
+    <button class="sidebar-item" data-view="rag" role="tab">🧠 高级 RAG</button>
+    <button class="sidebar-item" data-view="kg" role="tab">🕸 知识图谱</button>
+    <button class="sidebar-item" data-view="mem" role="tab">🧩 记忆管理</button>
+    <button class="sidebar-item" data-view="prompts" role="tab">📝 Prompt 模板</button>
+    <div class="sidebar-section">工作流 & 评估</div>
+    <button class="sidebar-item" data-view="dag" role="tab">⚡ 工作流引擎</button>
+    <button class="sidebar-item" data-view="eval" role="tab">📊 评估中心</button>
+    <button class="sidebar-item" data-view="evo" role="tab">🔄 自进化</button>
+    <button class="sidebar-item" data-view="rl" role="tab">🎯 强化学习</button>
+    <button class="sidebar-item" data-view="collab" role="tab">👥 多智能体协作</button>
+    <div class="sidebar-section">运维 & 管理</div>
+    <button class="sidebar-item" data-view="config" role="tab">⚙️ 配置管理</button>
+    <button class="sidebar-item" data-view="connections" role="tab">🔗 连接</button>
+    <button class="sidebar-item" data-view="tenants" role="tab">🏢 租户</button>
+    <button class="sidebar-item" data-view="system" role="tab">📡 系统状态</button>
+    <button class="sidebar-item" data-view="audit" role="tab">📋 审计日志</button>
+    <button class="sidebar-item" data-view="compliance" role="tab">✅ 合规管理</button>
+    <button class="sidebar-item" data-view="ops" role="tab">🔧 集成运维</button>
+    <div class="sidebar-section">扩展</div>
+    <button class="sidebar-item" data-view="settings" role="tab">🎛 设置中心</button>
+    <button class="sidebar-item" data-view="hooks" role="tab">🪝 生命周期钩子</button>
+    <button class="sidebar-item" data-view="obs" role="tab">📈 可观测性</button>
+    <button class="sidebar-item" data-view="plugins" role="tab">🧩 插件管理</button>
+    <button class="sidebar-item" data-view="exp" role="tab">🧪 A/B 实验</button>
+    <div class="sidebar-section" style="margin-top:auto">连接</div>
+    <div class="sidebar-token">
+      <input id="tokenInput" type="password" placeholder="API Token" autocomplete="off" aria-label="API Token" />
+      <button id="saveTokenBtn" class="btn btn-ghost" style="font-size:11px;padding:4px 8px">保存</button>
+    </div>
   </nav>
-
   <main id="app">
 
     <!-- ============ 智能对话 ============ -->
@@ -1271,6 +1279,7 @@
     </section>
 
   </main>
+  </div><!-- /.app-layout -->
 
   <div id="toastContainer" class="toast-container" aria-live="polite" role="status"></div>
 
@@ -1345,6 +1354,6 @@
 
   <button id="backToTopBtn" class="back-to-top hidden" title="返回顶部" aria-label="返回顶部">↑</button>
 
-  <script src="/console/app.js?v=17"></script>
+  <script src="/console/app.js?v=22"></script>
 </body>
 </html>

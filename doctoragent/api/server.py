@@ -90,6 +90,7 @@ try:
     )
     from fastapi.security import HTTPBearer
     from fastapi.staticfiles import StaticFiles
+    from fastapi.openapi.docs import get_swagger_ui_html
     from starlette.websockets import WebSocketState
 
     _FASTAPI_AVAILABLE = True
@@ -989,7 +990,21 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
             {"url": "/api/v1", "description": "Versioned API (v1)"},
             {"url": "/", "description": "Legacy unversioned API (backward compatible)"},
         ],
+        docs_url=None,  # 改为本地化 Swagger UI（见下方 /docs 路由），消除对 jsdelivr CDN 的依赖
+        redoc_url=None,  # redoc 同样依赖 CDN，离线不可用，禁用
     )
+
+    # 本地化 Swagger UI：默认 /docs 硬编码 jsdelivr CDN，离线/沙箱必白屏；
+    # 改为引用已 vendor 到 /console/vendor/swagger-ui/ 的本地资源。
+    @app.get("/docs", include_in_schema=False)
+    async def _local_swagger_ui_html():
+        return get_swagger_ui_html(
+            openapi_url=app.openapi_url or "/openapi.json",
+            title="DoctorAgent API - Swagger UI",
+            swagger_js_url="/console/vendor/swagger-ui/swagger-ui-bundle.js",
+            swagger_css_url="/console/vendor/swagger-ui/swagger-ui.css",
+            swagger_favicon_url="",
+        )
 
     # ── Middleware stack (outermost = last added): rate-limit → size → CORS ──
     app.add_middleware(

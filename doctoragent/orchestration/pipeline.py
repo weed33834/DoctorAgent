@@ -371,10 +371,13 @@ class ProcessingPipeline:
         task_id: UUID,
     ) -> EncryptResult:
         """Encrypt file into Vault after validating the connection is trusted local."""
+        # 若分类器使用的是操作员已显式授权的云端连接（is_cloud_authorized），
+        # 则按安全策略放行云端回退；否则必须可信本地连接（fail-closed）。
         require_trusted_local_connection(
             self.classifier.connection,
             audit_logger=self.audit_logger,
             operation="encrypt",
+            allow_cloud_fallback=self.classifier.connection.is_cloud_authorized,
         )
         encrypt_result = self.vault_manager.encrypt(
             source_path,

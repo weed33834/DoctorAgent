@@ -3435,27 +3435,39 @@ if _FASTAPI_AVAILABLE:
         response_text = ""
         rounds = 0
         if agent is not None:
-            # Best-effort: try a few common delegation APIs.
-            for meth in ("delegate", "delegate_to", "send_to", "ask_specialist"):
-                fn = getattr(agent, meth, None)
-                if callable(fn):
-                    try:
-                        result = (
-                            fn(body.role, body.task, **body.context)
-                            if meth == "delegate_to"
-                            else fn(body.task, body.role)
-                        )
-                        if hasattr(result, "answer"):
-                            response_text = result.answer
-                        elif isinstance(result, str):
-                            response_text = result
-                        else:
-                            response_text = _serialize(result)
-                        rounds = 1
-                        break
-                    except Exception as exc:  # noqa: BLE001
-                        response_text = f"[delegation failed: {exc}]"
-                        rounds = 0
+            import asyncio
+            # Try async delegate method first (new implementation)
+            if hasattr(agent, "delegate") and asyncio.iscoroutinefunction(agent.delegate):
+                try:
+                    response_text = await agent.delegate(body.task, body.role)
+                    rounds = 1
+                except Exception as exc:  # noqa: BLE001
+                    response_text = f"[delegation failed: {exc}]"
+                    rounds = 0
+            else:
+                # Legacy: try sync delegation methods
+                for meth in ("delegate_to", "send_to", "ask_specialist"):
+                    fn = getattr(agent, meth, None)
+                    if callable(fn):
+                        try:
+                            result = (
+                                fn(body.role, body.task, **body.context)
+                                if meth == "delegate_to"
+                                else fn(body.task, body.role)
+                            )
+                            if asyncio.iscoroutine(result):
+                                result = await result
+                            if hasattr(result, "answer"):
+                                response_text = result.answer
+                            elif isinstance(result, str):
+                                response_text = result
+                            else:
+                                response_text = _serialize(result)
+                            rounds = 1
+                            break
+                        except Exception as exc:  # noqa: BLE001
+                            response_text = f"[delegation failed: {exc}]"
+                            rounds = 0
         if not response_text:
             response_text = (
                 f"[stub] Delegated task to role '{body.role}': {body.task[:200]}. "
