@@ -45,6 +45,10 @@ audit/analyze.py
 serve.log
 htmlcov/
 .storage_key
+
+# Console walkthrough recording artifacts (110MB+ video/screenshots, not for repo)
+scripts/assets/
+scripts/*.log
 .pypirc
 *.core
 core.*

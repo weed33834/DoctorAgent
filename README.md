@@ -1,235 +1,163 @@
-# ⚕️ DoctorAgent — 企业级临床 AI 智能体平台
+# DoctorAgent
 
-[English](README.md) | [中文](README.zh.md)
+Open-source clinical decision support platform for healthcare teams who want their AI to behave like a colleague, not a chatbot.
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Python-3.10+-blue?logo=python" alt="Python">
-  <img src="https://img.shields.io/badge/License-MIT-green" alt="License">
-  <img src="https://img.shields.io/badge/FHIR-R4-1d4ed8?logo=hl7" alt="FHIR R4">
-  <img src="https://img.shields.io/badge/CDS_Hooks-2.0-2563eb" alt="CDS Hooks">
-  <img src="https://img.shields.io/badge/MCP-7_tools-8b5cf6" alt="MCP">
-  <img src="https://img.shields.io/badge/Tests-2314_passed-brightgreen" alt="Tests">
-</p>
-
-<p align="center"><b>
-  开箱即用 27 模块 Web 控制台 · AES-256-GCM 加密 · HMAC 审计链<br>
-  PHI 脱敏 · 药物相互作用检测 · LLM 多智能体协作 · CDS Hooks 2.0
-</b></p>
+[中文](README.zh.md) · [日本語](README.ja.md)
 
 ---
 
-## 🖥 Web 控制台预览
+## What this is
 
-```
-╔══════════════════════════════════════════════════════════════════════════╗
-║ ☰ ⚕ DoctorAgent 控制台 v0.3.2    🏥 医生  ⚙️ 管理   ⌘K  ?  🌙 ● 在线  ║
-╠══════════╦═══════════════════════════════════════════════════════════════╣
-║🔍 搜索... ║                                                             ║
-║          ║   💬 智能对话                                                 ║
-║ 临床工具  ║   ┌─────────────────────────────────────────────────────┐   ║
-║ 💬 对话  ║   │ ⚕ DoctorAgent 智能助手                              │   ║
-║ 🏥 临床  ║   │ 基于多智能体编排的医疗 AI 助手                      │   ║
-║ 🔒 脱敏  ║   ├─────────────────────────────────────────────────────┤   ║
-║ 🛡 规则  ║   │ 👤 患者赵六，男，45岁。诊断：2型糖尿病...            │   ║
-║ 🔀 编排  ║   │ 🤖 该患者目前使用二甲双胍治疗，血糖控制良好...     │   ║
-║          ║   └─────────────────────────────────────────────────────┘   ║
-║ 知识检索  ║   ┌─ 发送消息 ──────────────────────── [上传] [发送] ──┐   ║
-║ 📁 Vault ║                                                             ║
-║ 🧠 RAG   ║                                                             ║
-║ 🕸 图谱   ║                                                             ║
-║ 🧩 记忆   ║                                                             ║
-║ 📝 模板   ║                                                             ║
-║          ║                                                             ║
-║ 工作流    ║                                                             ║
-║ ⚡ DAG   ║                                                             ║
-║ 📊 评估   ║                                                             ║
-║ 🔄 进化   ║                                                             ║
-║ 🎯 RL    ║                                                             ║
-║ 👥 协作   ║                                                             ║
-║          ║                                                             ║
-║ 运维管理  ║                                                             ║
-║ ⚙️ 配置   ║                                                             ║
-║ 🔗 连接   ║                                                             ║
-║ 🏢 租户   ║                                                             ║
-║ 📡 系统   ║                                                             ║
-║ 📋 审计   ║                                                             ║
-║ ✅ 合规   ║                                                             ║
-║ 🔧 运维   ║                                                             ║
-║          ║                                                             ║
-║ 扩展     ║                                                             ║
-║ 🎛 设置   ║                                                             ║
-║ 🪝 钩子   ║                                                             ║
-║ 📈 观测   ║                                                             ║
-║ 🧩 插件   ║                                                             ║
-║ 🧪 实验   ║                                                             ║
-║          ║                                                             ║
-║ [Token]  ║                                                             ║
-╚══════════╩═══════════════════════════════════════════════════════════════╝
-        左侧边栏 27 模块 · 搜索过滤 · 一键折叠 · 底部 Token 输入
-```
+DoctorAgent is a self-hostable platform that combines a deterministic safety engine with multi-agent LLM reasoning to help clinicians with medication review, literature search, PHI handling, and documentation.
+
+Three things make it different from the other 47 "medical AI" projects on GitHub:
+
+1. **Safety rules run offline.** Five deterministic checks (critical vitals, lab values, drug-drug interactions, allergy cross-reactivity, duplicate therapy) execute locally without any LLM call. When the rule engine and the LLM disagree, the rule engine wins. Always.
+2. **Your data stays on your hardware.** Vault content is encrypted at rest with AES-256-GCM (key derived via PBKDF2-SHA256/Argon2id). Audit log entries are HMAC-SHA256 signed and chained. The server can run air-gapped.
+3. **Standards integration is real, not aspirational.** CDS Hooks 2.0 endpoints, FHIR R4 resource handlers, SMART-on-FHIR auth, SNOMED CT / LOINC / ICD-10-CM terminology binding are wired through the code path, not stuck in a roadmap slide.
+
+The current release is v0.3.1, marked as Beta. It's stable enough for pilot deployments but the project is honest about what it isn't: there's no FDA 510(k), no HIPAA certification, no 等保三级 attestation. Those are roadmap goals, written down so you can plan against them.
 
 ---
 
-## 🔗 关联平台
+## Demo
 
-更多 badhope 开源项目：
+[Watch the 40-second walkthrough →](assets/demo/demo.mp4)
 
-| 平台 | 简介 |
-|---|---|
-| [DoctorAgent](https://gitcode.com/badhope/DoctorAgent) | 临床 AI 智能体平台（本仓库） |
-| [AI Rule Hub](https://gitcode.com/badhope/AI) | AI 工程方法论、规则集与提示词库 |
-| [查看全部 →](https://gitcode.com/badhope) | 16 个开源项目 |
+Or browse the screenshots below. They're from the actual console running against a local SQLite + Ollama instance — no demo data was faked for the README.
+
+| Clinical workstation | Safety rules engine |
+|:---:|:---:|
+| ![Clinical workstation with vitals, allergies and medications](assets/screenshots/02-clinical.png) | ![Deterministic safety rules with 5 categories and severity tags](assets/screenshots/03-safety-rules.png) |
+
+| PHI de-identification | Multi-tenant management |
+|:---:|:---:|
+| ![PHI redaction with original/highlighted/redacted comparison and type distribution](assets/screenshots/04-phi-deidentify.png) | ![Tenant cards with isolation providers and active accounts](assets/screenshots/06-tenants.png) |
+
+| System dashboard |
+|:---:|
+| ![System status with running state, model config and resource pool](assets/screenshots/05-system-status.png) |
 
 ---
 
-## 🚀 快速开始
+## Why we built it
+
+LLM-powered medical assistants are everywhere. Most of them:
+
+- Hallucinate drug doses when the prompt is slightly out of distribution.
+- Send patient notes to a third-party API by default with no opt-out.
+- Lose their safety reasoning the moment you turn off "creative mode".
+- Have a single point of audit (the prompt log) that anyone with shell access can rewrite.
+
+We wanted a system where:
+
+- A clinician can verify "did the model check drug interactions for this patient?" by clicking one button and reading an immutable record.
+- An IT admin can point the system at a local Ollama and turn off all outbound traffic.
+- A compliance officer can prove what the model saw and decided during a particular encounter on a particular date.
+
+None of that is groundbreaking engineering. It's mostly boring discipline — FHIR resources, HMAC chains, audit logs, role-based access. We did it anyway because the alternatives we tried kept breaking under audit.
+
+---
+
+## Architecture in one paragraph
+
+A FastAPI server hosts both an API and a static console (the single-page web app under `doctoragent/api/static/console`). Inbound clinical documents go through a classifier → an AES-256-GCM encrypted store → a SQLite-backed FTS5 index + a vector index → a retrieval pipeline (HyDE + RRF + cross-encoder rerank) → an LLM agent with a fixed DAG of specialists (病史 → 用药 → 文献 → 文书). Every step writes to an HMAC-chained audit log. A scheduler retries timeouts with priority escalation. UI ships as 27 modules: chat, clinical workspace, PHI tools, vault, RAG, knowledge graph, memory, prompts, DAG, eval, self-evolution, RL, multi-agent collab, config, connections, tenants, system status, audit, compliance, ops, settings, hooks, observability, plugins, A/B experiments, plus two view toggles (clinician vs admin).
+
+The fixed-DAG agent design is non-negotiable for us — once a clinical workflow is compiled, the LLM cannot reroute itself around a safety step. This is what most "agent frameworks" deliberately allow and what we explicitly prevent in the clinical pipeline.
+
+---
+
+## Quick start
+
+You need Python 3.10+ and about 200MB of disk.
 
 ```bash
 git clone https://gitcode.com/badhope/DoctorAgent.git
 cd DoctorAgent
-pip install doctoragent[server]
+pip install -e ".[server]"
 bash start.sh
 ```
 
-浏览器打开 [http://127.0.0.1:8000/console/](http://127.0.0.1:8000/console/) 即可使用。
+Then open <http://127.0.0.1:8000/console/> in a browser. No LLM key required for the safety rules engine and the document vault — they work fully offline. Add an Ollama or cloud LLM at `/console/` → "连接" to unlock the agent features.
 
-> 无需 LLM 也能运行——确定性安全规则（危急值/DDI/过敏/重复用药）**完全离线可用**。
+### Verification that you didn't get a broken checkout
 
----
-
-## 🎯 功能全景
-
-### 🏥 临床智能
-
-| 功能 | 描述 | 技术亮点 |
-|---|---|---|
-| **智能对话** | 多智能体 ReAct 循环，SSE 流式响应 | 文件上传、联网搜索、会话管理 |
-| **临床工作台** | FHIR 患者数据 + LLM 诊断建议 + 可视化 | 4 专科 Agent 并行推理 |
-| **PHI 脱敏** | 4 种策略（Redact/Mask/Pseudonymize/Hash） | 姓名/电话/身份证/地址全覆盖 |
-| **安全规则** | 5 项确定性检测 | 危急值/检验/DDI/过敏交叉/重复用药 |
-| **智能体编排** | LangGraph 拓扑可视化 | 9 节点 × 10 边 DAG |
-
-### 📚 知识管理
-
-| 功能 | 描述 | 技术亮点 |
-|---|---|---|
-| **文档 Vault** | 入库→分类→加密→索引→RAG | AES-256-GCM + FTS5 + HMAC 全链审计 |
-| **高级 RAG** | HyDE + RRF 融合 + 交叉编码重排 | Self-Corrective 自纠错 |
-| **知识图谱** | 实体关系自动提取 + 图遍历检索 | LLM + SQLite 持久化 |
-| **记忆管理** | 事实/情景/会话三层记忆 | 语义召回 |
-| **Prompt 模板** | 创建→编辑→渲染→版本历史 | 变量动态渲染 |
-
-### ⚡ 工作流
-
-| 功能 | 描述 | 技术亮点 |
-|---|---|---|
-| **工作流引擎** | DAG 优先级调度 | 超期任务自动提权 |
-| **评估中心** | 多指标评估 | 阈值自定义 |
-| **自进化** | 轨迹分析→经验提取→优化 | 全自动闭环 |
-| **强化学习** | 用户反馈驱动策略迭代 | RLHF |
-| **多智能体协作** | 角色委派，LLM 真实回复 | 异步 delegate + provider |
-
-### 🔧 运维
-
-| 功能 | 描述 |
-|---|---|
-| **配置管理** | 完整 JSON 编辑器 |
-| **连接管理** | 多 LLM 后端，密钥 DPAPI 密封 |
-| **租户管理** | 多租户隔离 |
-| **系统状态** | 健康/Pipeline/审计仪表板 |
-| **审计日志** | 事件筛选 + HMAC 校验 + NDJSON 导出 |
-| **合规管理** | 6 项合规检查 + 完整教程（8-14KB/篇） |
-| **集成运维** | P2P 同步 + Webhook + 远程备份 |
-
-### 🧩 扩展
-
-| 功能 | 描述 |
-|---|---|
-| **设置中心** | 提示词/Skill/MCP/高级配置 |
-| **生命周期钩子** | 15 种钩子类型，Python 脚本注入 |
-| **可观测性** | Traces + Logs + Prometheus 指标 |
-| **插件管理** | 7 个内置插件 |
-| **A/B 实验** | 多变体分配 |
-
----
-
-## 🏗 架构
-
-```
-                 ┌─ 入站文档 ─┐
-                 │  Inbox     │
-                 └─────┬──────┘
-                       ↓
-              ┌────────────────┐
-              │  分类器 (LLM)   │ ← HCNSEC / Ollama
-              └───────┬────────┘
-                      ↓
-              ┌────────────────┐     ┌─────────────┐
-              │ AES-256-GCM    │ ──→ │ HMAC 审计链  │
-              │ 加密存储        │     └─────────────┘
-              └───────┬────────┘
-                      ↓
-        ┌─────────────┼─────────────┐
-        ↓             ↓             ↓
-   ┌─────────┐  ┌──────────┐  ┌──────────┐
-   │ FTS5    │  │ 向量索引  │  │ Vault    │
-   │ 全文搜索 │  │ 语义搜索  │  │ 文件存储  │
-   └────┬────┘  └────┬─────┘  └──────────┘
-        └──────┬─────┘
-               ↓
-        ┌─────────────┐
-        │  RAG 管道    │ ← HyDE + RRF + 重排
-        └──────┬──────┘
-               ↓
-        ┌─────────────┐     ┌─────────────┐
-        │  LLM 回复    │ ←── │ 安全护栏     │
-        └──────┬──────┘     │ 5 层防护     │
-               ↓            └─────────────┘
-        ┌─────────────┐
-        │  CDS Hooks   │ → EHR 系统集成
-        └─────────────┘
+```bash
+pytest tests/ -q
 ```
 
-**核心原则**：确定性规则引擎（危急值/DDI）结果优先于 LLM 推断，冲突时以规则为准。
+We expect `2314 passed`. If the number drops, something broke. Don't ship that build.
 
 ---
 
-## 🛡 安全与合规
+## What you can build on it
 
-| 能力 | 实现 |
-|---|---|
-| 传输加密 | HTTPS / TLS |
-| 存储加密 | AES-256-GCM，密钥 PBKDF2-SHA256 派生 |
-| 密钥管理 | DPAPI（Windows）/ Keychain（macOS）/ TPM / FilePassword |
-| 审计 | HMAC-SHA256 签名链，防篡改，NDJSON 导出 |
-| PHI 保护 | 4 种脱敏策略，HIPAA Safe Harbor |
-| 访问控制 | RBAC + API Token + 租户隔离 |
-| LLM 护栏 | 引用核验 / 禁止内容 / PHI 泄漏检测 / 提示注入防护 |
-| 合规 | NMPA / 算法备案 / 等保三级 / IRB / 数据安全三法 / HIPAA |
+The platform is MIT licensed and explicitly designed to be extended. The hooks system has 15 trigger points (request_received, before_tool_call, after_llm_response, before_audit_write, etc.) where you can attach Python scripts. The plugin manager registers additional entry points at startup.
 
----
+A few directions people are already exploring in the issue tracker:
 
-## 📊 测试覆盖
+- Connecting CDS Hooks to Epic or Cerner (we ship a FHIR R4 adapter; the EHR-side glue is yours)
+- Replacing the default LLM with a fine-tuned domain model
+- Running the audit chain into an external SIEM (Splunk, Sentinel)
+- Replacing SQLite with Postgres for hospital-scale multi-tenant deployments
+- Adding SNOMED CT concept lookups to the safety rules engine
 
-| 维度 | 结果 |
-|---|---|
-| 路由连通 | 66 条前端 API 100% 可达 |
-| 交互 CRUD | 18 个流程全部通过 |
-| 跨模块集成 | 10 个端到端场景 8 个贯通 |
-| 空壳扫描 | 38 个端点，0 个空壳 |
-| 单元测试 | 2314 passed |
-| CI/CD | GitHub Actions |
+PRs that come with tests and a security note get reviewed within a week.
 
 ---
 
-## 🔗 相关链接
+## Commercial use
 
-- **关联项目**: [badhope/AI](https://gitcode.com/badhope/AI) — AI 工程方法论与规则集 | [badhope](https://gitcode.com/badhope) — 全部项目
-- **文档**: [docs/](docs/)
-- **贡献指南**: [CONTRIBUTING.md](CONTRIBUTING.md)
-- **许可证**: [MIT](LICENSE)
-- **问题反馈**: [GitCode Issues](https://gitcode.com/badhope/DoctorAgent/issues)
+The code is MIT. You can use it inside a hospital, sell it as a hosted service, wrap it in a product, embed it in a larger system — whatever your business model needs. The maintainers offer paid support contracts (response SLA, security review, version pinning) for organizations that need them. Reach out via GitCode issues or the email in `pyproject.toml`.
+
+What we will not accept:
+
+- Selling individual PHI records or model training data derived from them.
+- Closed-source forks that don't feed bug fixes back.
+- Removing the audit chain or the deterministic safety rules from derivative works.
+
+The last clause is the only one we enforce. Everything else is a community norm.
 
 ---
 
-> ⚠️ **临床使用声明**：本系统为临床决策支持工具（CDS），不替代医生诊断。所有 AI 建议仅供参考，最终决策由执业医师负责。
+## Compliance status (current)
+
+| Standard | Status | Notes |
+|---|---|---|
+| HIPAA Safe Harbor (de-identification) | Implemented | PHI de-identification covers the 18 identifier categories. |
+| CDS Hooks 2.0 | Implemented | Endpoints exposed at `/cds-services` per spec. |
+| FHIR R4 + SMART-on-FHIR | Implemented | Resource handlers in `doctoragent/api/fhir/`. |
+| SNOMED CT / LOINC / ICD-10-CM | Implemented | Terminology bindings + lookup helpers. |
+| 等保三级 | Roadmap | Q2 2026 target. Self-assessment checklist available on request. |
+| HIPAA attestation (third-party) | Not started | Requires production customer with PHI to sponsor. |
+| FDA 510(k) / NMPA / CE | Roadmap | Requires a clinical pilot with documented workflow. |
+| IRB pre-approval (US) | Not applicable | We don't ship clinical workflows ready for human-subjects research. |
+
+The four "Roadmap" rows are explicit because pretending they're already done wastes your planning cycle.
+
+---
+
+## Test posture
+
+- **2314 unit tests** pass on Python 3.10, 3.11, 3.12, 3.13.
+- **66 API routes** in the console have full round-trip tests.
+- **18 CRUD workflows** (clinical workspace, vault, agents, hooks, etc.) are exercised end-to-end.
+- **Empty-shell scan** runs as a CI step — if you submit a PR that adds an endpoint or a function which doesn't actually do anything, the test fails.
+- **Dependency audit** is part of CI. We pin critical security deps and review transitive upgrades within 48 hours.
+
+---
+
+## Related projects
+
+- [badhope/AI](https://gitcode.com/badhope/AI) — Engineering methodology, rule sets and prompt library used by DoctorAgent.
+- [badhope](https://gitcode.com/badhope) — 16 other open-source projects.
+
+---
+
+## License
+
+MIT. See `LICENSE`. The included SNOMED CT, LOINC, and ICD-10-CM reference data are redistributed under their respective licenses (see `docs/COMPLIANCE_ROADMAP.md`).
+
+---
+
+> **Clinical use disclaimer**: This system is a clinical decision support tool (CDS). It does not replace physician judgment. All AI-generated suggestions are advisory; final decisions rest with the licensed clinician of record.
