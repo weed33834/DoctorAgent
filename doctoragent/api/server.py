@@ -83,6 +83,7 @@ try:
         WebSocketDisconnect,
     )
     from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.openapi.docs import get_swagger_ui_html
     from fastapi.responses import (
         FileResponse,
         PlainTextResponse,
@@ -90,7 +91,6 @@ try:
     )
     from fastapi.security import HTTPBearer
     from fastapi.staticfiles import StaticFiles
-    from fastapi.openapi.docs import get_swagger_ui_html
     from starlette.websockets import WebSocketState
 
     _FASTAPI_AVAILABLE = True

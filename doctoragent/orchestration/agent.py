@@ -557,13 +557,15 @@ class AegisAgent:
                 vp = ch.get("vault_path", "")
                 if vp and vp not in seen:
                     seen.add(vp)
-                    merged.append(SearchResult(
-                        vault_path=Path(vp),
-                        category=ch.get("category", ""),
-                        summary=ch.get("text", ch.get("summary", "")),
-                        score=ch.get("score", 1.0),
-                        text=ch.get("text", ""),
-                    ))
+                    merged.append(
+                        SearchResult(
+                            vault_path=Path(vp),
+                            category=ch.get("category", ""),
+                            summary=ch.get("text", ch.get("summary", "")),
+                            score=ch.get("score", 1.0),
+                            text=ch.get("text", ""),
+                        )
+                    )
             for mr in meta_results:
                 key = str(mr.vault_path)
                 if key and key not in seen:
@@ -585,8 +587,7 @@ class AegisAgent:
             return "No LLM provider configured. Add a connection first."
 
         system_prompt = (
-            f"You are a {role}. "
-            "Provide a concise, professional response to the task below."
+            f"You are a {role}. Provide a concise, professional response to the task below."
         )
         try:
             raw = await provider.chat_completion(

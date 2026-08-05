@@ -3436,6 +3436,7 @@ if _FASTAPI_AVAILABLE:
         rounds = 0
         if agent is not None:
             import asyncio
+
             # Try async delegate method first (new implementation)
             if hasattr(agent, "delegate") and asyncio.iscoroutinefunction(agent.delegate):
                 try:
