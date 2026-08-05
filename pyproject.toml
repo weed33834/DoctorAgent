@@ -5,7 +5,7 @@ description = "Enterprise clinical AI agent platform: CDS Hooks 2.0, FHIR R4 / S
 authors = [{ name = "DoctorAgent Team" }]
 readme = "README.md"
 requires-python = ">=3.10"
-keywords = ["clinical-ai", "cds-hooks", "fhir", "smart-on-fhir", "snomed-ct", "loinc", "icd-10", "llm-agents", "react-loop", "healthcare", "hipaa", "patient-safety", "deterministic-rules", "structured-output", "instructor"]
+keywords = ["clinical-ai", "medical-ai", "healthcare-ai", "clinical-decision-support", "cds-hooks", "fhir", "smart-on-fhir", "snomed-ct", "loinc", "icd-10", "drug-interaction", "critical-value", "phi-deidentification", "rag", "document-vault", "llm-agents", "langgraph", "multi-agent", "react-loop", "healthcare", "hipaa", "patient-safety", "deterministic-rules", "structured-output", "instructor", "fastapi"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: End Users/Desktop",

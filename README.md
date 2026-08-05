@@ -1,8 +1,29 @@
 # DoctorAgent
 
-Open-source clinical decision support platform for healthcare teams who want their AI to behave like a colleague, not a chatbot.
+> Clinical AI agent platform · 临床 AI 智能体平台 · 医療AIエージェント
+>
+> Open-source, self-hosted clinical decision support (CDS) platform combining deterministic drug-interaction / critical-value safety rules with multi-agent LLM reasoning — FHIR R4, CDS Hooks 2.0, SMART-on-FHIR, PHI de-identification, RAG document vault, HIPAA-aware audit chain.
 
 [中文](README.zh.md) · [日本語](README.ja.md)
+
+**Keywords**: clinical AI, medical AI, healthcare AI, clinical decision support, CDS Hooks, FHIR R4, SMART-on-FHIR, drug interaction checker, critical value alerting, PHI de-identification, RAG document vault, LangGraph multi-agent, LLM agents, FastAPI, Python, HIPAA, patient safety, self-hosted, on-premise, air-gapped
+
+---
+
+## Table of contents
+
+- [What this is](#what-this-is)
+- [Demo](#demo)
+- [Why we built it](#why-we-built-it)
+- [Architecture in one paragraph](#architecture-in-one-paragraph)
+- [Quick start](#quick-start)
+- [What you can build on it](#what-you-can-build-on-it)
+- [Commercial use](#commercial-use)
+- [Compliance status](#compliance-status-current)
+- [Test posture](#test-posture)
+- [FAQ](#faq)
+- [Related projects](#related-projects)
+- [License](#license)
 
 ---
 
@@ -144,6 +165,31 @@ The four "Roadmap" rows are explicit because pretending they're already done was
 - **18 CRUD workflows** (clinical workspace, vault, agents, hooks, etc.) are exercised end-to-end.
 - **Empty-shell scan** runs as a CI step — if you submit a PR that adds an endpoint or a function which doesn't actually do anything, the test fails.
 - **Dependency audit** is part of CI. We pin critical security deps and review transitive upgrades within 48 hours.
+
+---
+
+## FAQ
+
+**Is DoctorAgent free? Can I use it commercially?**
+Yes. MIT license, including commercial use, hosted services, and embedding in products. See [Commercial use](#commercial-use) for the three things we won't accept in derivative works.
+
+**Does it work without an LLM?**
+The deterministic safety engine (drug interactions, critical values, allergy cross-reactivity, duplicate therapy) and the document vault run fully offline — no API key, no network. The agent / chat features need an LLM backend: any OpenAI-compatible endpoint works, including a local Ollama instance (air-gapped setup is supported).
+
+**Which LLMs can it use?**
+Anything exposing an OpenAI-compatible API: Ollama (local), OpenAI, or your own gateway. The connection manager in the console stores multiple providers and lets you switch per session.
+
+**Can it integrate with my EHR?**
+The platform ships CDS Hooks 2.0 endpoints (`/cds-services`) and FHIR R4 resource handlers, plus SMART-on-FHIR authentication. The EHR-side glue (e.g. pointing your EHR's CDS Hooks client at this server) is implementation work, but the protocol side is done.
+
+**How is patient data protected?**
+PHI de-identification (HIPAA Safe Harbor, 18 identifier categories, 4 strategies: redact/mask/pseudonymize/hash), AES-256-GCM encryption at rest, HMAC-SHA256 signed audit chain, RBAC + API token + tenant isolation. The vault and audit chain are designed so that nothing sensitive needs to leave your infrastructure.
+
+**Is it certified?**
+Not yet. FDA 510(k), HIPAA third-party attestation, and 等保三级 are roadmap items, written down honestly in the [compliance table](#compliance-status-current). Pilot deployments are supported, production regulatory approval is not claimed.
+
+**Where does the project go from here?**
+v0.3.x is the current line: expanding the deterministic rule set, Postgres backend for hospital-scale multi-tenant, and SIEM integration for the audit chain. See the issue tracker for the active roadmap.
 
 ---
 
