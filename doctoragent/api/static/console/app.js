@@ -1837,12 +1837,35 @@
     });
   });
 
-  // 配置卡片折叠/展开（事件委托）
+  // 配置卡片折叠/展开 + 导航（事件委托）
   cfgCardsWrap.addEventListener("click", (e) => {
     const head = e.target.closest(".cfg-card-head");
     if (!head) return;
     const card = head.parentElement;
     if (card && card.classList.contains("cfg-card")) card.classList.toggle("collapsed");
+  });
+
+  // 配置卡片双击跳转到设置中心对应子页
+  cfgCardsWrap.addEventListener("dblclick", (e) => {
+    const card = e.target.closest(".cfg-card");
+    if (!card) return;
+    const group = card.dataset.cfgGroup || "";
+    // 映射卡片组名 → 设置中心子标签 data-stab
+    const groupToStab = {
+      "模型": "advanced",
+      "安全": "advanced",
+      "路径": "advanced",
+      "监控": "advanced",
+      "常规": "advanced",
+    };
+    const stab = groupToStab[group] || "advanced";
+    // 切换到设置中心
+    switchTab("settings", true);
+    // 激活对应子标签
+    setTimeout(() => {
+      const tab = document.querySelector('.settings-tab[data-stab="' + stab + '"]');
+      if (tab) tab.click();
+    }, 100);
   });
 
   // ════════════════════ 连接管理 ════════════════════

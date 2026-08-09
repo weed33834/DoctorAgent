@@ -145,7 +145,7 @@ class OpenAICompatibleProvider(ModelProvider):
             timeout=connection.timeout,
             headers=_build_headers(connection),
             auth=auth,
-            follow_redirects=True,
+            follow_redirects=False,
         )
 
     @retry(
@@ -279,7 +279,7 @@ class OpenAICompatibleProvider(ModelProvider):
                 timeout=self.connection.timeout,
                 headers=_build_headers(self.connection),
                 auth=auth,
-                follow_redirects=True,
+                follow_redirects=False,
             ) as sync_client:
                 response = sync_client.post(self._chat_path, json=payload)
         except httpx.HTTPStatusError as exc:
@@ -291,7 +291,7 @@ class OpenAICompatibleProvider(ModelProvider):
                     timeout=self.connection.timeout,
                     headers=_build_headers(self.connection),
                     auth=auth,
-                    follow_redirects=True,
+                    follow_redirects=False,
                 ) as sync_client:
                     response = sync_client.post(self._chat_path, json=payload)
             else:
@@ -304,7 +304,7 @@ class OpenAICompatibleProvider(ModelProvider):
                     timeout=self.connection.timeout,
                     headers=_build_headers(self.connection),
                     auth=auth,
-                    follow_redirects=True,
+                    follow_redirects=False,
                 ) as sync_client:
                     response = sync_client.post(self._chat_path, json=payload)
             else:
@@ -597,7 +597,7 @@ class OllamaProvider(OpenAICompatibleProvider):
         self._ollama_client = httpx.AsyncClient(
             base_url=self._ollama_base,
             timeout=connection.timeout,
-            follow_redirects=True,
+            follow_redirects=False,
         )
 
     async def close(self) -> None:
@@ -695,7 +695,7 @@ async def detect_platform(base_url: str, timeout: float = 5.0) -> str | None:
         candidate = _PLATFORM_PORT_MAP[port]
         # Verify with a health check
         try:
-            async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+            async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
                 url = base_url.rstrip("/") + "/v1/models"
                 resp = await client.get(url)
                 if resp.status_code == 200:
@@ -720,7 +720,7 @@ async def detect_platform(base_url: str, timeout: float = 5.0) -> str | None:
 
     # Slow path: try OpenAI-compatible endpoint
     try:
-        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
             url = base_url.rstrip("/") + "/v1/models"
             resp = await client.get(url)
             if resp.status_code == 200:

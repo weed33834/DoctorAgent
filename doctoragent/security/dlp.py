@@ -61,7 +61,7 @@ class DLPAction(StrEnum):
 _BUILTIN_PATTERNS: dict[SensitiveDataType, str] = {
     SensitiveDataType.SSN: r"\b\d{3}-\d{2}-\d{4}\b",
     SensitiveDataType.CREDIT_CARD: r"\b(?:\d[ -]?){12,18}\d\b",
-    SensitiveDataType.PHONE: r"(?<!\d)(?:\+?\d{1,3}[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}(?!\d)",
+    SensitiveDataType.PHONE: r"(?<!\d)(?:\+?\d{1,3}[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}(?!\d)|(?<!\d)1[3-9]\d{9}(?!\d)",
     SensitiveDataType.EMAIL: r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b",
     SensitiveDataType.IP_ADDRESS: r"\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b",
     SensitiveDataType.BANK_ACCOUNT: r"\b\d{8,17}\b",
