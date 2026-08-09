@@ -1880,7 +1880,7 @@
       { label: "连接总数", value: total, icon: "🔌" },
       { label: "已启用", value: enabled, icon: "✅" },
       { label: "本地连接", value: local, icon: "💻" },
-      { label: "平台类型数", value: platforms, icon: "🗂" },
+      { label: "连接类型数", value: platforms, icon: "🗂" },
     ].map((m) =>
       '<div class="metric-card"><div class="metric-label">' + m.icon + " " + escapeHtml(m.label) +
       '</div><div class="metric-value">' + m.value + "</div></div>"
@@ -2007,7 +2007,7 @@
       timeout: Number(document.getElementById("conn-timeout").value) || 120,
     };
     if (!body.name || !body.platform_type || !body.base_url) {
-      toast("名称、平台类型、Base URL 必填", "error");
+      toast("名称、连接类型、Base URL 必填", "error");
       return;
     }
     try {
