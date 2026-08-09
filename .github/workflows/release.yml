@@ -83,10 +83,11 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        # 使用 Trusted Publishing (OIDC)，无需 API token
-        # 若 PyPI 未配置 Trusted Publisher，改用 API token:
-        # with:
-        #   password: ${{ secrets.PYPI_API_TOKEN }}
+        # 优先使用 API Token（需在 GitHub 仓库配置 PYPI_API_TOKEN secret）
+        # 若已配置 Trusted Publisher（OIDC），可注释 password 行并取消注释
+        # 下方 id-token: write（已在 permissions 中启用）
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
 
   # ── Job 3: 构建 Docker 多架构镜像并发布到 GHCR ──
   publish-docker:
@@ -143,7 +144,8 @@ jobs:
   # ── Job 4: 创建 GitHub Release ──
   publish-github:
     name: 🚀 Publish GitHub Release
-    needs: [prepare, publish-pypi, publish-docker]
+    # 不依赖 PyPI（可能未配置 token），确保 Docker + Release 仍可独立发布
+    needs: [prepare, publish-docker]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

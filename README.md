@@ -37,7 +37,7 @@ Three things make it different from the other 47 "medical AI" projects on GitHub
 2. **Your data stays on your hardware.** Vault content is encrypted at rest with AES-256-GCM (key derived via PBKDF2-SHA256/Argon2id). Audit log entries are HMAC-SHA256 signed and chained. The server can run air-gapped.
 3. **Standards integration is real, not aspirational.** CDS Hooks 2.0 endpoints, FHIR R4 resource handlers, SMART-on-FHIR auth, SNOMED CT / LOINC / ICD-10-CM terminology binding are wired through the code path, not stuck in a roadmap slide.
 
-The current release is v0.3.1, marked as Beta. It's stable enough for pilot deployments but the project is honest about what it isn't: there's no FDA 510(k), no HIPAA certification, no 等保三级 attestation. Those are roadmap goals, written down so you can plan against them.
+The current release is v0.3.3, marked as Beta. It's stable enough for pilot deployments but the project is honest about what it isn't: there's no FDA 510(k), no HIPAA certification, no 等保三级 attestation. Those are roadmap goals, written down so you can plan against them.
 
 ---
 
@@ -93,7 +93,7 @@ The fixed-DAG agent design is non-negotiable for us — once a clinical workflow
 You need Python 3.10+ and about 200MB of disk.
 
 ```bash
-git clone https://gitcode.com/badhope/DoctorAgent.git
+git clone https://github.com/weed33834/DoctorAgent.git
 cd DoctorAgent
 pip install -e ".[server]"
 bash start.sh
@@ -107,7 +107,7 @@ Then open <http://127.0.0.1:8000/console/> in a browser. No LLM key required for
 pytest tests/ -q
 ```
 
-We expect `2314 passed`. If the number drops, something broke. Don't ship that build.
+We expect `2314+ passed`. If the number drops, something broke. Don't ship that build.
 
 ---
 
@@ -160,7 +160,7 @@ The four "Roadmap" rows are explicit because pretending they're already done was
 
 ## Test posture
 
-- **2314 unit tests** pass on Python 3.10, 3.11, 3.12, 3.13.
+- **2314+ unit tests** pass on Python 3.10, 3.11, 3.12, 3.13.
 - **66 API routes** in the console have full round-trip tests.
 - **18 CRUD workflows** (clinical workspace, vault, agents, hooks, etc.) are exercised end-to-end.
 - **Empty-shell scan** runs as a CI step — if you submit a PR that adds an endpoint or a function which doesn't actually do anything, the test fails.

@@ -37,7 +37,7 @@ DoctorAgent 把"确定性安全规则"和"多智能体 LLM 推理"结合在一�
 2. **数据留在你的硬件上**。文档库 AES-256-GCM 加密存储（密钥 PBKDF2-SHA256 / Argon2id 派生），审计日志 HMAC-SHA256 签名链式防篡改。可以完全断网运行。
 3. **标准集成是真接通的，不是 PPT 上的 roadmap**。CDS Hooks 2.0 端点、FHIR R4 资源处理器、SMART-on-FHIR 认证、SNOMED CT / LOINC / ICD-10-CM 术语绑定都在代码路径里，不是写在幻灯片上的承诺。
 
-当前版本 v0.3.1，Beta。我们不装：没有 FDA 510(k)，没有 HIPAA 认证，没有等保三级。这些都写在了 roadmap 里，让你做规划的时候不被坑。
+当前版本 v0.3.3，Beta。我们不装：没有 FDA 510(k)，没有 HIPAA 认证，没有等保三级。这些都写在了 roadmap 里，让你做规划的时候不被坑。
 
 ---
 
@@ -93,7 +93,7 @@ FastAPI 服务同时承载 API 和静态控制台（`doctoragent/api/static/cons
 需要 Python 3.10+，约 200MB 磁盘。
 
 ```bash
-git clone https://gitcode.com/badhope/DoctorAgent.git
+git clone https://github.com/weed33834/DoctorAgent.git
 cd DoctorAgent
 pip install -e ".[server]"
 bash start.sh
@@ -107,7 +107,7 @@ bash start.sh
 pytest tests/ -q
 ```
 
-期望 `2314 passed`。如果数字掉了，说明哪里坏了。别发那个版本。
+期望 `2314+ passed`。如果数字掉了，说明哪里坏了。别发那个版本。
 
 ---
 
@@ -160,7 +160,7 @@ pytest tests/ -q
 
 ## 测试姿态
 
-- **2314 个单元测试**，在 Python 3.10/3.11/3.12/3.13 全过。
+- **2314+ 个单元测试**，在 Python 3.10/3.11/3.12/3.13 全过。
 - 控制台里 **66 条 API 路由**有完整往返测试。
 - **18 个 CRUD 工作流**（临床工作台、文档库、智能体、钩子等）端到端跑过。
 - **空壳扫描** 是 CI 一步——你 PR 加了一个不干活的端点或函数，测试会失败。
