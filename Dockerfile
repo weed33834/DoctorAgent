@@ -50,9 +50,12 @@ RUN --mount=type=cache,target=/root/.cache/pip \
         "numpy>=1.26,<3.0" "json5>=0.9,<1.0" "tiktoken>=0.7,<1.0" "structlog>=24.1,<27.0" \
         "jieba>=0.42,<1.0" \
         "fastapi>=0.115,<1.0" "uvicorn[standard]>=0.30,<1.0" "python-multipart>=0.0.18" \
+        "starlette>=0.40,<2.0" \
         "prometheus-client>=0.20,<1.0" "opentelemetry-sdk>=1.27,<2.0" \
         "opentelemetry-instrumentation-fastapi>=0.48b0,<1.0" \
-        "fhir.resources>=8.0,<10.0" "instructor>=1.13,<2.0" "openai>=2.0,<3.0"
+        "opentelemetry-exporter-otlp-proto-http>=1.27,<2.0" \
+        "fhir.resources>=8.0,<10.0" "instructor>=1.13,<2.0" "openai>=2.0,<3.0" \
+        "langgraph>=0.2,<2.0" "authlib>=1.3,<2.0"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Runtime stage: slim image running as non-root `doctoragent` user (uid 1000).
