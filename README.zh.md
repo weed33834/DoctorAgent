@@ -1,8 +1,8 @@
 # DoctorAgent（医师智能体）
 
-> 临床 AI 智能体平台 · Clinical AI agent platform
+> 临床 AI 医生智能体 · Clinical AI agent for doctors
 >
-> 开源自托管的临床决策支持（CDS）平台：确定性用药相互作用 / 危急值安全规则 + 多智能体 LLM 推理，支持 FHIR R4、CDS Hooks 2.0、SMART-on-FHIR、PHI 脱敏、RAG 文档库、HIPAA 审计链。
+> 开源自托管的临床决策支持（CDS）智能体：确定性用药相互作用 / 危急值安全规则 + 多智能体 LLM 推理，支持 FHIR R4、CDS Hooks 2.0、SMART-on-FHIR、PHI 脱敏、RAG 文档库、HIPAA 审计链。
 
 [English](README.md) · [日本語](README.ja.md)
 
@@ -180,7 +180,7 @@ pytest tests/ -q
 任何 OpenAI 兼容 API：Ollama（本地）、OpenAI、或你自己的网关。控制台"连接"里可配置多个 provider 并切换。
 
 **能接医院系统吗？**
-平台自带 CDS Hooks 2.0 端点（`/cds-services`）、FHIR R4 资源处理器和 SMART-on-FHIR 认证。把 EHR 的 CDS Hooks 客户端指向本服务属于集成实施工作，协议侧已就绪。
+自带 CDS Hooks 2.0 端点（`/cds-services`）、FHIR R4 资源处理器和 SMART-on-FHIR 认证。把 EHR 的 CDS Hooks 客户端指向本服务属于集成实施工作，协议侧已就绪。
 
 **患者数据怎么保护？**
 PHI 脱敏（HIPAA Safe Harbor，18 类标识符，4 种策略：redact/mask/pseudonymize/hash）、AES-256-GCM 加密存储、HMAC-SHA256 签名审计链、RBAC + API Token + 租户隔离。设计目标就是敏感数据可以不出你的基础设施。

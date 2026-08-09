@@ -10,7 +10,7 @@ Design notes
 * DeepEval's metrics require an LLM judge. When the caller does not supply
   one (no ``OPENAI_API_KEY`` / no provider) every metric degrades to the
   **deterministic fallback** already implemented in
-  :mod:`doctoragent.model.evaluation` — the platform stays fully runnable
+  :mod:`doctoragent.model.evaluation` — the agent stays fully runnable
   offline. This mirrors the clinical workflow's no-LLM degradation pattern.
 * The :class:`RAGEvaluator` returns the same :class:`MetricResult` shape the
   hand-rolled metrics did, so :mod:`doctoragent.api.advanced_routes` and the

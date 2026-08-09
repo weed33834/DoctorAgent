@@ -1,8 +1,7 @@
 # DoctorAgent 灾难恢复方案 (Disaster Recovery Plan)
 
-> 适用对象：DoctorAgent 临床 AI 平台运维、安全、合规团队
+> 适用对象：DoctorAgent 运维、安全、合规团队
 > 版本：v1.0
-> 关联合规：`docs/compliance/05_数据安全合规教程.md`、`docs/compliance/03_等保三级认证教程.md`、`docs/compliance/06_HIPAA合规教程.md`
 > 配套文档：`docs/OPERATIONS.md`、`docs/UPGRADE_ROLLBACK.md`
 
 ---
@@ -30,7 +29,7 @@ DoctorAgent 区分两类恢复目标，按数据敏感度与临床依赖度分�
 | **审计日志** | 4 小时 | 0（不允许丢失） | 合规要求零丢失，实时追加 + 同步复制 |
 | **配置/密钥材料** | 1 小时 | 0 | 主密钥 Shamir 分片离线保管 |
 
-> RTO/RPO 依据等保三级与 HIPAA 要求设定，需每年由合规官复核，参见 `docs/compliance/03_等保三级认证教程.md`。
+> RTO/RPO 依据等保三级与 HIPAA 要求设定，需每年由合规官复核。
 
 ---
 
@@ -420,6 +419,3 @@ curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health
 
 - 运维手册：`docs/OPERATIONS.md`
 - 升级与回滚方案：`docs/UPGRADE_ROLLBACK.md`
-- 数据安全合规：`docs/compliance/05_数据安全合规教程.md`
-- 等保三级：`docs/compliance/03_等保三级认证教程.md`
-- HIPAA 合规：`docs/compliance/06_HIPAA合规教程.md`

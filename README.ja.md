@@ -8,7 +8,7 @@
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://docs.astral.sh/ruff/)
 [![FHIR](https://img.shields.io/badge/FHIR-R4-1d4ed8.svg)](https://hl7.org/fhir/R4/)
 
-**コンプライアンス優先・オンプレミス・監査可能な臨床AIエージェントプラットフォーム。** 企業の信頼境界内で臨床意思決定支援および文書エージェントを展開するためのローカルファースト・フレームワーク — 暗号化ストレージ、改ざん検知可能な監査ログ、RBAC + OIDC SSO、KMS、PHI マスキング、決定論的安全ルール、LLM 出力ガードレール。明示的な承認なしに PHI がホストから外部に出ることはありません。臨床能力の詳細は [docs/CLINICAL_CAPABILITIES.md](docs/CLINICAL_CAPABILITIES.md) を参照してください。
+**コンプライアンス優先・オンプレミス・監査可能な臨床AIエージェント。** 企業の信頼境界内で臨床意思決定支援および文書エージェントを展開するためのローカルファースト・フレームワーク — 暗号化ストレージ、改ざん検知可能な監査ログ、RBAC + OIDC SSO、KMS、PHI マスキング、決定論的安全ルール、LLM 出力ガードレール。明示的な承認なしに PHI がホストから外部に出ることはありません。臨床能力の詳細は [docs/CLINICAL_CAPABILITIES.md](docs/CLINICAL_CAPABILITIES.md) を参照してください。
 
 ---
 
@@ -16,7 +16,7 @@
 
 DoctorAgent は一つの強化コア上に二つの協調面を提供します：
 
-1. **臨床AIエージェントプラットフォーム**（`doctoragent.clinical`）— FHIR R4 アダプタ、決定論的臨床ルールエンジン（バイタルサイン / 検査 / 薬物相互作用 / アレルギー交差反応 / 重複投薬）、LLM 出力ガードレール（引用検証 / 禁止コンテンツ / PHI 漏洩 / プロンプトインジェクション）、15 の臨床ツール、およびマルチエージェントワークフロー（専門エージェントへファンアウト：病歴、薬物安全、文献、文書、その後ガードレール・引用・免責事項付きの結果に統合）。
+1. **臨床AIエージェント**（`doctoragent.clinical`）— FHIR R4 アダプタ、決定論的臨床ルールエンジン（バイタルサイン / 検査 / 薬物相互作用 / アレルギー交差反応 / 重複投薬）、LLM 出力ガードレール（引用検証 / 禁止コンテンツ / PHI 漏洩 / プロンプトインジェクション）、15 の臨床ツール、およびマルチエージェントワークフロー（専門エージェントへファンアウト：病歴、薬物安全、文献、文書、その後ガードレール・引用・免責事項付きの結果に統合）。
 2. **暗号化ドキュメントボールト**（DoctorAgent コア）— 監視ディレクトリに投入されたファイルは分類され、AES-256-GCM で暗号化、インデックス化（SQLite + FTS5）され、ローカルにアーカイブされます。取得は自然言語検索とツール呼び出しエージェントです。
 
 臨床ワークフローのエントリポイント：
@@ -63,7 +63,7 @@ doctoragent daemon
 
 ## 主な機能
 
-**臨床AIエージェントプラットフォーム**（`doctoragent.clinical`）
+**臨床AIエージェント**（`doctoragent.clinical`）
 - FHIR R4 アダプタ（HL7 公式 `fhir.resources`、SMART-on-FHIR bearer 認証）
 - CDS Hooks 2.0 サービス（patient-view / order-select / order-sign）
 - ナレッジソース：openFDA、RxNorm、PubMed（専用DBなし）
@@ -118,7 +118,7 @@ doctoragent daemon
 # ベース
 pip install doctoragent
 
-# 臨床AIエージェントプラットフォーム（FHIR R4 + openFDA/RxNorm/PubMed + ルールエンジン + ガードレール）
+# 臨床AIエージェント（FHIR R4 + openFDA/RxNorm/PubMed + ルールエンジン + ガードレール）
 pip install doctoragent[clinical]
 
 # デスクトップ GUI
@@ -256,13 +256,13 @@ ruff format doctoragent/
 
 本リポジトリは主に **GitHub** でホストされ、アクセス向上のため GitCode と Gitee にミラーしています。
 
-| プラットフォーム | URL |
+| 配布元 | URL |
 |----------|-----|
 | **GitHub**（主リポジトリ） | https://github.com/weed33834/DoctorAgent |
 | GitCode（ミラー） | https://gitcode.com/badhope/DoctorAgent |
 | Gitee（ミラー） | https://gitee.com/badhope/DoctorAgent |
 
-> 各プラットフォームのコンテンツは手動同期され、GitHub が権威あるソースです。
+> 各リポジトリのコンテンツは手動同期され、GitHub が権威あるソースです。
 
 ---
 

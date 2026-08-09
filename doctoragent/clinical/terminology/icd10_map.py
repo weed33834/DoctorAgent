@@ -13,7 +13,7 @@ validator (:func:`is_valid_icd10_cm_format`) that catches the most common
 LLM hallucinations (wrong separator, too many characters, lowercased alpha
 prefix) even when the code isn't in the curated map.
 
-For the full CDC ICD-10-CM tabular list (≈ 70 000 codes), an enterprise
+For the full CDC ICD-10-CM tabular list (≈ 70 000 codes), a production
 deployment can:
 
 1. Download the CDC ICD-10-CM tabular list XML/JSON from

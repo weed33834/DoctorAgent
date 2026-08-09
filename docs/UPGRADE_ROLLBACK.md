@@ -1,8 +1,8 @@
 # DoctorAgent 升级与回滚方案 (Upgrade & Rollback Plan)
 
-> 适用对象：DoctorAgent 临床 AI 平台运维、SRE、变更管理
+> 适用对象：DoctorAgent 运维、SRE、变更管理
 > 版本：v1.0
-> 配套文档：`docs/OPERATIONS.md`、`docs/DISASTER_RECOVERY.md`、`docs/compliance/`
+> 配套文档：`docs/OPERATIONS.md`、`docs/DISASTER_RECOVERY.md`
 
 ---
 
@@ -478,8 +478,5 @@ doctoragent rbac test --role auditor
 
 - 运维手册：`docs/OPERATIONS.md`
 - 灾难恢复方案：`docs/DISASTER_RECOVERY.md`
-- 合规总览：`docs/compliance/00_合规总览.md`
-- 数据安全合规：`docs/compliance/05_数据安全合规教程.md`
-- HIPAA 合规：`docs/compliance/06_HIPAA合规教程.md`
 - 变更日志：`CHANGELOG.md`
 - 发布流程：`RELEASE.md`

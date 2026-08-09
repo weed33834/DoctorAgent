@@ -1,9 +1,9 @@
 # Clinical AI Capabilities
 
-> Compliance-first, on-premise, auditable clinical AI agent platform.
+> Compliance-first, on-premise, auditable clinical AI agent.
 > This document describes the clinical layer shipped on top of the DoctorAgent core
 > (encryption / audit / RBAC / RAG / agent framework) and is the authoritative
-> reference for what the platform does — and does **not** — claim to do.
+> reference for what the agent does — and does **not** — claim to do.
 
 The clinical layer lives under `doctoragent/clinical/` and is gated behind the
 optional `clinical` extra:
@@ -21,7 +21,7 @@ when actually invoked without their backing library.
 ## 1. What it is
 
 DoctorAgent Clinical is **not** a diagnostic product. It is a clinical decision
-support and documentation framework that an enterprise can deploy on its own
+support and documentation framework that can be deployed on its own
 infrastructure, with PHI never leaving the trust boundary unless explicitly
 authorized. Every output carries a disclaimer: **clinical suggestions do not
 replace physician judgement**.
@@ -305,7 +305,7 @@ print(result.safety_findings)
 print(result.disclaimer)
 ```
 
-With `llm_provider=None` the platform still runs — only the deterministic
+With `llm_provider=None` the agent still runs — only the deterministic
 rule engine and the guardrails fire, and the result carries
 `requires_human_review = True`. This is the safe default for environments
 where no LLM is approved for clinical use.
@@ -332,7 +332,7 @@ where no LLM is approved for clinical use.
   validate RAG against MIMIC-IV public notes; one-clinic pilot deployment.
   (Code-ready: `FHIRClient` + `run_clinical_workflow` accept a live FHIR
   endpoint out of the box; pilot verification pending.)
-- **Stage 3 (enterprise)** — HIPAA / 等保三级 certification; commercial EMR
+- **Stage 3 (advanced)** — HIPAA / 等保三级 certification; commercial EMR
   (Epic / Cerner) FHIR adapter & vendor-specific SMART profiles.
 
 ---

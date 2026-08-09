@@ -33,7 +33,7 @@ When ``instructor`` or ``openai`` are not installed (the ``clinical``
 extra is optional), :func:`structured_complete` returns ``None`` and the
 caller falls back to the legacy ``from_text()`` / raw-text path. This
 keeps the clinical layer importable on a minimal install and lets an
-enterprise deployment opt into structured output by installing
+production deployment opt into structured output by installing
 ``doctoragent[clinical]``.
 
 Lifecycle

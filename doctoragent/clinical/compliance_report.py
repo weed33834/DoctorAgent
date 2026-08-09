@@ -2,7 +2,7 @@
 
 Introspects a live :class:`~doctoragent.config.AegisConfig` and (optionally)
 an on-disk audit log to produce a structured compliance-posture report
-covering the HIPAA Security Rule safeguards the platform implements:
+covering the HIPAA Security Rule safeguards the agent implements:
 
 * **encryption**        — at-rest cipher + KDF.
 * **audit_logging**     — append-only trail, entry count, HMAC integrity.

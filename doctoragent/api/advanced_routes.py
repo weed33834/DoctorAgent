@@ -1,4 +1,4 @@
-"""Advanced API routes for enterprise-grade features.
+"""Advanced API routes for agent features.
 
 Includes endpoints for:
 - Knowledge Graph management (build, query, subgraph)
@@ -3549,7 +3549,7 @@ if _FASTAPI_AVAILABLE:
                 )
         except Exception:  # noqa: BLE001
             pass
-        # Add the platform's own built-in "plugins" so the console always
+        # Add the built-in "plugins" so the console always
         # shows the user something useful.
         builtin = [
             {
@@ -4221,12 +4221,14 @@ if _FASTAPI_AVAILABLE:
             raise HTTPException(  # type: ignore[misc]
                 status_code=404, detail=f"合规项 {item_id} 不存在"
             )
-        # 读取教程文件
-        tutorial_path = Path(__file__).parent.parent.parent / item.tutorial_path
-        if tutorial_path.exists():
-            content = tutorial_path.read_text(encoding="utf-8")
-        else:
-            content = f"# {item.name}\n\n教程文档待补充：{item.tutorial_path}"
+        # 读取教程文件（如果存在）
+        content = ""
+        if item.tutorial_path:
+            tutorial_path = Path(__file__).parent.parent.parent / item.tutorial_path
+            if tutorial_path.exists():
+                content = tutorial_path.read_text(encoding="utf-8")
+            else:
+                content = f"# {item.name}\n\n教程文档待补充：{item.tutorial_path}"
         return {
             "item": item.model_dump(),
             "content": content,

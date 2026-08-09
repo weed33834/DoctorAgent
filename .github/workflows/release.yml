@@ -123,7 +123,7 @@ jobs:
             type=sha,prefix=sha-
           labels: |
             org.opencontainers.image.title=DoctorAgent
-            org.opencontainers.image.description=Enterprise clinical AI agent platform
+            org.opencontainers.image.description=Clinical AI agent for doctors
             org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
             org.opencontainers.image.licenses=MIT
 

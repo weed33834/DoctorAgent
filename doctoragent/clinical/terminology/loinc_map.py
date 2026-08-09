@@ -4,7 +4,7 @@ Why a local map?
 ----------------
 NLM does not expose a free public REST API for individual LOINC code
 lookups; the canonical LOINC release is a multi-MB zip archive (the "LOINC
-Release"). For an enterprise deployment that needs the full release, the
+Release"). For a production deployment that needs the full release, the
 operator can:
 
 1. Download the LOINC multi-axial hierarchy from

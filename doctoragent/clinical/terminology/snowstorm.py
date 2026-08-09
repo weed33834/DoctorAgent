@@ -27,7 +27,7 @@ Rate limits
 -----------
 The public browser is rate-limited (no published SLO — be polite). The
 client enforces a 30s timeout + 3 retries with exponential backoff; an
-enterprise deployment should run its own Snowstorm instance and point
+production deployment should run its own Snowstorm instance and point
 ``base_url`` at it.
 """
 

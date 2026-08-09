@@ -1,8 +1,7 @@
 # DoctorAgent 运维手册 (Operations Manual)
 
-> 适用对象：DoctorAgent 临床 AI 平台运维工程师、SRE、IT 管理员
+> 适用对象：DoctorAgent 运维工程师、SRE、IT 管理员
 > 版本：v1.0
-> 相关合规文档：参见 `docs/compliance/`（NMPA、生成式 AI 算法备案、等保三级、IRB、数据安全三法、HIPAA）
 
 ---
 
@@ -21,7 +20,7 @@
 
 ## 1. 部署架构概览
 
-DoctorAgent 是合规优先、本地化部署、可审计的临床 AI 智能体平台。两种典型部署形态如下。
+DoctorAgent 是合规优先、本地化部署、可审计的临床 AI 智能体。两种典型部署形态如下。
 
 ### 1.1 单节点部署 (Single-Node)
 
@@ -222,7 +221,7 @@ GET /health  # HTTP 200 = 健康
 doctoragent audit verify --since "5 minutes ago"
 ```
 
-校验失败必须立即告警（详见 `docs/compliance/05_数据安全合规教程.md`）。
+校验失败必须立即告警。
 
 ---
 
@@ -284,11 +283,11 @@ doctoragent key rotate-master --emergency
 ```
 
 - 立即停服 → 轮换 → 全量重加密 → 验证 → 恢复服务
-- 通知安全负责人与合规官，按 `docs/compliance/05_数据安全合规教程.md` 上报
+- 通知安全负责人与合规官，按安全事件流程上报
 
 ### 6.3 权限审计
 
-RBAC 角色与权限矩阵参见 `docs/compliance/06_HIPAA合规教程.md`。每季度执行：
+RBAC 角色与权限矩阵需按安全策略配置。每季度执行：
 
 ```bash
 doctoragent rbac audit --since "last quarter"
@@ -399,8 +398,5 @@ doctoragent support bundle --redact
 
 ## 附录：相关文档
 
-- 合规总览：`docs/compliance/00_合规总览.md`
-- 数据安全合规：`docs/compliance/05_数据安全合规教程.md`
-- HIPAA 合规：`docs/compliance/06_HIPAA合规教程.md`
 - 灾难恢复方案：`docs/DISASTER_RECOVERY.md`
 - 升级与回滚方案：`docs/UPGRADE_ROLLBACK.md`

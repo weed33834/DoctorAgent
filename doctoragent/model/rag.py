@@ -136,7 +136,7 @@ FINAL_K = 5
 CROSS_ENCODER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
 # ---------------------------------------------------------------------------
-# Enterprise-grade RAG configuration switches & tuning constants
+# RAG configuration switches & tuning constants
 # ---------------------------------------------------------------------------
 # All new capabilities are opt-in so that the default pipeline behaviour is
 # byte-for-byte identical to the previous "basic" implementation. Operators
@@ -174,7 +174,7 @@ COMPRESSION_TRIGGER_TOKENS = 2500
 
 @dataclass
 class RagConfig:
-    """Feature flags and tuning knobs for the enterprise RAG pipeline.
+    """Feature flags and tuning knobs for the RAG pipeline.
 
     Every flag defaults to ``False``/``"compact"`` so that constructing a
     :class:`RagPipeline` with no config reproduces the legacy behaviour
@@ -296,7 +296,7 @@ class RagResponse(BaseModel):
     memory_used: bool = False
     conversation_turns: int = 0
     session_id: str | None = None
-    # Enterprise: retrieval/generation quality metrics populated when
+    # Retrieval/generation quality metrics populated when
     # ``RagConfig.enable_rag_evaluation`` is on. Keys are metric names
     # (context_precision, faithfulness, ...) mapped to their scores, plus a
     # composite ``rag_score``. Empty by default for full backward compat.
@@ -1932,7 +1932,7 @@ def build_ann_index(
 class HybridRetriever:
     """Hybrid retrieval combining BM25 and Dense with RRF.
 
-    Enterprise upgrades (all opt-in via :class:`RagConfig`):
+    Advanced upgrades (all opt-in via :class:`RagConfig`):
 
     * **ANN index** — when the chunk-vector count exceeds ``config.ann_threshold``
       a NumPy-backed index (exact vectorised by default, optional LSH) replaces
@@ -2667,7 +2667,7 @@ class SubQuestionEngine:
     This implements multi-hop reasoning: each hop is an independent retrieval
     over the corpus, and the final merge composes the multi-hop chain. The
     engine reuses the owning pipeline's retriever / synthesiser so all
-    enterprise features (ANN, reranking, etc.) apply per hop.
+    advanced features (ANN, reranking, etc.) apply per hop.
     """
 
     def __init__(self, pipeline: RagPipeline) -> None:
@@ -2777,7 +2777,7 @@ class SubQuestionEngine:
 class RagPipeline:
     """Complete RAG pipeline with context engineering and memory.
 
-    Enterprise upgrades (all opt-in via :class:`RagConfig`):
+    Advanced upgrades (all opt-in via :class:`RagConfig`):
 
     * **Multi-Query + RRF** — generate diverse query rewrites, retrieve for
       each, and fuse the rankings with Reciprocal Rank Fusion (replaces the
@@ -2816,7 +2816,7 @@ class RagPipeline:
         self.task_store = task_store
         self.audit_logger = audit_logger
 
-        # Wire the config + providers into every subsystem so that enterprise
+        # Wire the config + providers into every subsystem so that advanced
         # features are consistently enabled end-to-end.
         self.memory = MemorySystem(db_path, tenant_id, embedding_provider=embedding_provider)
         self.context_engineer = ContextEngineer(

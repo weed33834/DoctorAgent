@@ -1,8 +1,8 @@
 # DoctorAgent
 
-> Clinical AI agent platform · 临床 AI 智能体平台 · 医療AIエージェント
+> Clinical AI agent for doctors · 临床 AI 医生智能体 · 臨床AI医師エージェント
 >
-> Open-source, self-hosted clinical decision support (CDS) platform combining deterministic drug-interaction / critical-value safety rules with multi-agent LLM reasoning — FHIR R4, CDS Hooks 2.0, SMART-on-FHIR, PHI de-identification, RAG document vault, HIPAA-aware audit chain.
+> Open-source, self-hosted clinical decision support (CDS) agent combining deterministic drug-interaction / critical-value safety rules with multi-agent LLM reasoning — FHIR R4, CDS Hooks 2.0, SMART-on-FHIR, PHI de-identification, RAG document vault, HIPAA-aware audit chain.
 
 [中文](README.zh.md) · [日本語](README.ja.md)
 
@@ -29,7 +29,7 @@
 
 ## What this is
 
-DoctorAgent is a self-hostable platform that combines a deterministic safety engine with multi-agent LLM reasoning to help clinicians with medication review, literature search, PHI handling, and documentation.
+DoctorAgent is a self-hostable AI agent that combines a deterministic safety engine with multi-agent LLM reasoning to help clinicians with medication review, literature search, PHI handling, and documentation.
 
 Three things make it different from the other 47 "medical AI" projects on GitHub:
 
@@ -113,7 +113,7 @@ We expect `2314 passed`. If the number drops, something broke. Don't ship that b
 
 ## What you can build on it
 
-The platform is MIT licensed and explicitly designed to be extended. The hooks system has 15 trigger points (request_received, before_tool_call, after_llm_response, before_audit_write, etc.) where you can attach Python scripts. The plugin manager registers additional entry points at startup.
+The agent is MIT licensed and explicitly designed to be extended. The hooks system has 15 trigger points (request_received, before_tool_call, after_llm_response, before_audit_write, etc.) where you can attach Python scripts. The plugin manager registers additional entry points at startup.
 
 A few directions people are already exploring in the issue tracker:
 
@@ -180,7 +180,7 @@ The deterministic safety engine (drug interactions, critical values, allergy cro
 Anything exposing an OpenAI-compatible API: Ollama (local), OpenAI, or your own gateway. The connection manager in the console stores multiple providers and lets you switch per session.
 
 **Can it integrate with my EHR?**
-The platform ships CDS Hooks 2.0 endpoints (`/cds-services`) and FHIR R4 resource handlers, plus SMART-on-FHIR authentication. The EHR-side glue (e.g. pointing your EHR's CDS Hooks client at this server) is implementation work, but the protocol side is done.
+DoctorAgent ships CDS Hooks 2.0 endpoints (`/cds-services`) and FHIR R4 resource handlers, plus SMART-on-FHIR authentication. The EHR-side glue (e.g. pointing your EHR's CDS Hooks client at this server) is implementation work, but the protocol side is done.
 
 **How is patient data protected?**
 PHI de-identification (HIPAA Safe Harbor, 18 identifier categories, 4 strategies: redact/mask/pseudonymize/hash), AES-256-GCM encryption at rest, HMAC-SHA256 signed audit chain, RBAC + API token + tenant isolation. The vault and audit chain are designed so that nothing sensitive needs to leave your infrastructure.

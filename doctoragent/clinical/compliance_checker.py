@@ -1,8 +1,6 @@
-"""
-合规检查服务。
-检测企业用户缺失的资质，返回需要完成的合规事项及教程链接。
-在系统首次使用和定期检查时调用。
-"""
+"""合规检查服务。
+检测用户缺失的资质，返回需要完成的合规事项说明。
+在系统首次使用和定期检查时调用。"""
 
 from __future__ import annotations
 
@@ -31,7 +29,7 @@ class ComplianceItem(BaseModel):
     status: str  # "not_started" / "in_progress" / "completed" / "not_required"
     description: str  # 简短描述
     legal_basis: str  # 法律依据
-    tutorial_path: str  # 教程文档路径
+    tutorial_path: str = ""  # 教程文档路径（可选）
     applicable_scenario: str  # 适用场景说明
     estimated_duration: str  # 预计周期
     authority: str  # 办理机构
@@ -51,7 +49,6 @@ class ComplianceChecker:
             status="not_started",
             description="CDS Hooks + 用药安全提醒功能可能属于二类医疗器械范畴",
             legal_basis="《医疗器械监督管理条例》《人工智能医用软件分类界定指导原则》",
-            tutorial_path="docs/compliance/01_NMPA医疗器械认证教程.md",
             applicable_scenario="产品涉及临床决策支持、用药安全提醒、危急值预警等功能时必须取得",
             estimated_duration="12-18个月",
             authority="国家药品监督管理局（NMPA）/ 省级药监局",
@@ -74,7 +71,6 @@ class ComplianceChecker:
             status="not_started",
             description="使用大模型生成临床建议，属于生成式AI服务，上线前必须完成算法备案",
             legal_basis="《互联网信息服务深度合成管理规定》《生成式人工智能服务管理暂行办法》",
-            tutorial_path="docs/compliance/02_生成式AI算法备案教程.md",
             applicable_scenario="产品使用LLM生成鉴别诊断、SOAP病历、用药建议等内容时必须备案",
             estimated_duration="2-4个月",
             authority="国家互联网信息办公室（网信办）",
@@ -96,7 +92,6 @@ class ComplianceChecker:
             status="not_started",
             description="医疗机构核心信息系统要求等保三级，是医院采购的硬门槛",
             legal_basis="《网络安全法》《网络安全等级保护条例》",
-            tutorial_path="docs/compliance/03_等保三级认证教程.md",
             applicable_scenario="产品部署在医院核心信息系统环境时必须取得等保三级备案",
             estimated_duration="4-6个月",
             authority="公安机关网络安全保卫部门",
@@ -118,7 +113,6 @@ class ComplianceChecker:
             status="not_started",
             description="涉及患者数据的临床验证必须先获得伦理委员会批准",
             legal_basis="《涉及人的生物医学研究伦理审查办法》《药物临床试验质量管理规范》",
-            tutorial_path="docs/compliance/04_IRB伦理审查教程.md",
             applicable_scenario="开展涉及患者数据的临床验证（包括回顾性研究）时必须取得",
             estimated_duration="1-3个月",
             authority="医院伦理委员会 / 区域伦理委员会",
@@ -139,7 +133,6 @@ class ComplianceChecker:
             status="not_started",
             description="个人信息保护法、数据安全法、网络安全法合规，医疗数据属敏感个人信息",
             legal_basis="《个人信息保护法》《数据安全法》《网络安全法》《医疗健康数据安全指南》",
-            tutorial_path="docs/compliance/05_数据安全合规教程.md",
             applicable_scenario="产品处理任何患者数据时必须合规",
             estimated_duration="1-2个月",
             authority="网信办 / 公安部 / 行业主管部门",
@@ -160,7 +153,6 @@ class ComplianceChecker:
             status="not_started",
             description="如产品面向美国市场或处理美国患者数据，需满足HIPAA合规",
             legal_basis="Health Insurance Portability and Accountability Act (HIPAA)",
-            tutorial_path="docs/compliance/06_HIPAA合规教程.md",
             applicable_scenario="产品面向美国市场、处理PHI、或与美国医疗机构合作时需要",
             estimated_duration="3-6个月",
             authority="美国卫生与公众服务部民权办公室（HHS OCR）",

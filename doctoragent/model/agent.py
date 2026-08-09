@@ -1,6 +1,6 @@
 """Agent framework for DoctorAgent - implements reasoning loop and tool calling.
 
-Enterprise-grade agent architecture built on top of the original ReAct loop:
+Agent architecture built on top of the original ReAct loop:
 
 - **Plan-and-Execute**: structured, dependency-ordered execution plans with
   validation, dynamic re-planning and deviation tracking (replaces the old
@@ -605,7 +605,7 @@ ORCHESTRATOR_SYNTHESIS_PROMPT = """你是协调者。多个 worker 分别完成�
 
 
 class Agent:
-    """Main agent class implementing the enterprise ReAct architecture.
+    """Main agent class implementing the ReAct architecture.
 
     The agent supports an optional :class:`~doctoragent.model.rag.MemorySystem`
     and ``task_store``. When ``enable_multi_agent`` is set and a

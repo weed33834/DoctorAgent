@@ -40,7 +40,7 @@ class SecurityConfig(BaseSettings):
     # Consumed via bool(...) in security/audit_log.py.
     audit_redact_paths: list[str] = []
 
-    # ── Enterprise security features ────────────────────────────────────
+    # ── Security features ────────────────────────────────────
     # Field-level encryption for structured metadata (summary, tags, …).
     # When enabled, FieldEncryptor encrypts eligible fields with per-field
     # AES-256-GCM keys derived from the master key via HKDF.
@@ -196,7 +196,7 @@ class ClinicalConfig(BaseSettings):
 
     Wires the clinical layer's external endpoints (FHIR R4 server, SMART-on-FHIR
     issuer, openFDA / RxNorm / PubMed knowledge sources, SNOMED CT Snowstorm
-    terminology server) so operators can point the platform at their own
+    terminology server) so operators can point the agent at their own
     infrastructure without editing source code.
 
     All fields are optional — when ``fhir_base_url`` is empty the clinical
@@ -260,7 +260,7 @@ class AegisConfig(BaseSettings):
     resources: ResourcesConfig = Field(default_factory=ResourcesConfig)
     integrations: IntegrationsConfig = Field(default_factory=IntegrationsConfig)
     hooks: HooksConfig = Field(default_factory=HooksConfig)
-    # Enterprise security: automatic key rotation and GDPR/CCPA compliance.
+    # Security: automatic key rotation and GDPR/CCPA compliance.
     auto_key_rotation: AutoKeyRotationConfig = Field(default_factory=AutoKeyRotationConfig)
     compliance: ComplianceConfig = Field(default_factory=ComplianceConfig)
     clinical: ClinicalConfig = Field(default_factory=ClinicalConfig)

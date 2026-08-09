@@ -126,7 +126,7 @@ def _build_config(**kwargs) -> AegisConfig:
 
 @click.group()
 def cli():
-    """DoctorAgent - 临床AI智能体平台，支持用药安全审查、危急值预警、病历文书生成与合规审计。"""
+    """DoctorAgent - 临床AI智能体，支持用药安全审查、危急值预警、病历文书生成与合规审计。"""
 
 
 @cli.command()

@@ -140,7 +140,7 @@ except ImportError:  # pragma: no cover — observability is part of the core pa
     _doctoragent_http_request_duration_seconds = None
     _doctoragent_http_requests_total = None
 
-# Enterprise RBAC (api/auth/). The auth package itself never hard-requires the
+# RBAC (api/auth/). The auth package itself never hard-requires the
 # ``auth`` or ``server`` extras, so this import is guarded only defensively —
 # a failure here must never block server startup. ``require_role`` / ``Role``
 # are used by the optional ``/admin/roles`` demo endpoint below.
@@ -248,7 +248,7 @@ def _check_available() -> None:
 # ---------------------------------------------------------------------------
 # Shared auth primitives (loopback set, token resolver, OIDC-configured flag,
 # local-request check) live in ``doctoragent.api.auth._guards`` so the API
-# server, the advanced enterprise router and the CDS Hooks router all share
+# server, the advanced router and the CDS Hooks router all share
 # one definition and the policy cannot drift between surfaces.
 from doctoragent.api.auth._guards import (  # noqa: E402
     LOCAL_HOSTS,
@@ -294,7 +294,7 @@ def _is_local_request(request: Any) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Optional OIDC single-sign-on (enterprise)
+# Optional OIDC single-sign-on
 # ---------------------------------------------------------------------------
 #
 # When ``DOCTORAGENT_OIDC_ISSUER`` is set, bearer tokens are treated as OIDC JWTs
@@ -963,8 +963,8 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
         title="DoctorAgent API",
         version=__version__,
         description=(
-            "Enterprise REST + real-time API for DoctorAgent, the local-first "
-            "encrypted content-management agent.\n\n"
+            "REST + real-time API for DoctorAgent, the local-first "
+            "clinical AI agent.\n\n"
             "## Channels\n"
             "* **REST** — versioned under `/api/v1` (legacy unversioned paths "
             "remain for backward compatibility).\n"
@@ -1082,7 +1082,7 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
     # tasks that outlive the server.
     app.state.sync_tasks: set[asyncio.Task[Any]] = set()
     # Expose the agent / config / subsystems on app.state so the advanced
-    # enterprise routes (and any third-party router mounted via
+    # advanced routes (and any third-party router mounted via
     # ``include_router``) can resolve them lazily without capturing closures.
     app.state.agent = agent
     app.state.config = config
@@ -2715,13 +2715,13 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
     app.include_router(router, prefix=API_V1_PREFIX)
     app.include_router(router, include_in_schema=False)
 
-    # ── Advanced enterprise routes (KG, CRAG, security, DLP, etc.) ──
+    # ── Advanced routes (KG, CRAG, security, DLP, etc.) ──
     try:
         from doctoragent.api.advanced_routes import router as advanced_router
 
         if advanced_router is not None:
             app.include_router(advanced_router)
-            logger.info("Advanced enterprise routes registered")
+            logger.info("Advanced routes registered")
     except ImportError:
         logger.debug("advanced_routes not available (FastAPI not installed)")
 
@@ -2741,15 +2741,15 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
         logger.debug("cds_hooks router not available (FastAPI not installed)")
 
     # ── MCP (Model Context Protocol) ────────────────────────────────
-    # Exposes the platform's tools over MCP so external MCP-compatible
+    # Exposes the agent's tools over MCP so external MCP-compatible
     # clients (Claude Desktop, Cursor, other agent frameworks) can
     # discover and invoke them. Two surfaces:
     #   * GET  /mcp/tools  — JSON list of tool schemas (console-friendly)
     #   * POST /mcp        — MCP JSON-RPC over HTTP (tools/list, tools/call)
-    # The tool registry is built from the platform's default tools
+    # The tool registry is built from the default tools
     # (search / list / analyze / compare / memory / extract) plus the
     # clinical tool registry when the clinical extra is installed, so the
-    # MCP surface reflects everything the platform can actually do.
+    # MCP surface reflects everything the agent can do.
     def _build_mcp_tool_registry() -> Any:
         """Assemble the tool registry exposed over MCP."""
         try:
@@ -2815,7 +2815,7 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
         tags=["MCP"],
         summary="List MCP-exposed tools (JSON)",
         description=(
-            "Returns the platform's tools (search / list / analyze / "
+            "Returns the agent's tools (search / list / analyze / "
             "compare / memory / extract + clinical tools when installed) "
             "in a JSON schema so the console and external MCP clients can "
             "discover callable tools without speaking the full MCP "

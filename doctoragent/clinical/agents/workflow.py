@@ -15,7 +15,7 @@ Two orchestration backends are supported, selected automatically:
   removing the hand-rolled ``asyncio.gather`` fan-out/fan-in.
 * **Hand-rolled fallback** — when ``langgraph`` is not installed the
   legacy :class:`ClinicalOrchestrator` (``asyncio.gather``) is used so the
-  platform keeps working in minimal installs.
+  agent keeps working in minimal installs.
 
 When ``llm_provider`` is ``None`` either backend degrades gracefully:
 only the deterministic rule engine runs, the result is flagged for human

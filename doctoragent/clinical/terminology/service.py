@@ -7,7 +7,7 @@ systems DoctorAgent supports:
 
 * **SNOMED CT** — looked up live via :class:`SnowstormClient` (preferred term
   + hierarchy, for ``is_a()`` queries the rules engine needs).
-* **LOINC** — curated local map (:mod:`loinc_map`); enterprise deployments
+* **LOINC** — curated local map (:mod:`loinc_map`); production deployments
   can append the full NLM table via :func:`load_loinc_table`.
 * **ICD-10-CM** — curated local map (:mod:`icd10_map`); CDC table can be
   appended via :func:`load_icd10_table`.

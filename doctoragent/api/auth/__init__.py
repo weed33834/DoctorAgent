@@ -1,4 +1,4 @@
-"""Enterprise authentication for the DoctorAgent API.
+"""Authentication for the DoctorAgent API.
 
 This package provides:
 

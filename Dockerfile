@@ -98,7 +98,7 @@ EXPOSE 8000
 
 # OCI 标准镜像标签（版本可追溯）
 LABEL org.opencontainers.image.title="DoctorAgent" \
-      org.opencontainers.image.description="Enterprise clinical AI agent platform" \
+      org.opencontainers.image.description="Clinical AI agent for doctors" \
       org.opencontainers.image.version="${DOCTORAGENT_VERSION}" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.source="https://github.com/weed33834/DoctorAgent"

@@ -1,4 +1,4 @@
-"""Chroma-backed vector store for enterprise scale.
+"""Chroma-backed vector store.
 
 Chroma (https://www.trychroma.com/) is an open-source embedding database
 that scales beyond what the in-process SQLite backend can handle. The

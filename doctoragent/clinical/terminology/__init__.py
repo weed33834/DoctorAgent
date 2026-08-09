@@ -18,7 +18,7 @@ Design
 * **LOINC** and **ICD-10-CM** use curated local maps (:mod:`loinc_map` and
   :mod:`icd10_map`). NLM publishes these as downloadable tab-delimited
   value-set tables; the curated subsets ship the codes the rule engine /
-  prompts / CDS Hooks integration actually need. An enterprise deployment
+  prompts / CDS Hooks integration actually need. A production deployment
   can replace them with the full NLM tables by setting
   ``DOCTORAGENT_TERMINOLOGY_LOINC_TABLE`` / ``DOCTORAGENT_ICD10_TABLE`` to point at
   a downloaded file — the loaders accept a path argument.
