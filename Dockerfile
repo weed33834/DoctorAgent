@@ -9,7 +9,7 @@
 # instructor-structured clinical workflow are available out of the box.
 
 ARG PYTHON_VERSION=3.12
-ARG DOCTORAGENT_VERSION=0.3.1
+ARG DOCTORAGENT_VERSION=0.3.3
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Builder stage: build wheels into /wheels for reuse across rebuilds.

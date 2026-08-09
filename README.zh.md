@@ -145,7 +145,7 @@ pytest tests/ -q
 
 | 标准 | 状态 | 备注 |
 |---|---|---|
-| HIPAA Safe Harbor（去标识化） | 已实现 | 18 类标识符全覆盖。 |
+| HIPAA Safe Harbor（去标识化） | 已实现 | 19 类标识符全覆盖（含身份证号）。 |
 | CDS Hooks 2.0 | 已实现 | `/cds-services` 端点按规范暴露。 |
 | FHIR R4 + SMART-on-FHIR | 已实现 | 资源处理器在 `doctoragent/api/fhir/`。 |
 | SNOMED CT / LOINC / ICD-10-CM | 已实现 | 术语绑定 + 查询辅助。 |
@@ -183,7 +183,7 @@ pytest tests/ -q
 自带 CDS Hooks 2.0 端点（`/cds-services`）、FHIR R4 资源处理器和 SMART-on-FHIR 认证。把 EHR 的 CDS Hooks 客户端指向本服务属于集成实施工作，协议侧已就绪。
 
 **患者数据怎么保护？**
-PHI 脱敏（HIPAA Safe Harbor，18 类标识符，4 种策略：redact/mask/pseudonymize/hash）、AES-256-GCM 加密存储、HMAC-SHA256 签名审计链、RBAC + API Token + 租户隔离。设计目标就是敏感数据可以不出你的基础设施。
+PHI 脱敏（HIPAA Safe Harbor，19 类标识符含身份证号，4 种策略：redact/mask/pseudonymize/hash）、AES-256-GCM 加密存储、HMAC-SHA256 签名审计链、RBAC + API Token + 租户隔离。设计目标就是敏感数据可以不出你的基础设施。
 
 **有认证吗？**
 还没有。FDA 510(k)、HIPAA 第三方认证、等保三级都在 roadmap 里，见[合规现状](#合规现状当前)。支持试点部署，不宣称已获监管批准。

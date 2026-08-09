@@ -37,7 +37,7 @@ DoctorAgent 是一个**合规优先、本地化部署**的临床 AI 智能体，
 
 1. **AI 不替代医生** —— 本智能体输出为辅助参考，不构成诊断或医嘱；所有临床行动须经执业医师签发。
 2. **引证可追溯** —— 每条临床建议必须附可追溯引证（PMID / DOI / FHIR Resource/id / 指南机构）；无引证的输出会被自动降级为「需医生确认」。
-3. **PHI 不外泄** —— 系统在调用任何外部服务前，自动对 18 类 HIPAA Safe Harbor 标识符进行脱敏；医生仍应遵循最小化原则，不在自由文本中输入不必要的 PHI。
+3. **PHI 不外泄** —— 系统在调用任何外部服务前，自动对 19 类 HIPAA Safe Harbor 标识符（含身份证号）进行脱敏；医生仍应遵循最小化原则，不在自由文本中输入不必要的 PHI。
 4. **决策可审计** —— 每次查询、每条安全预警、每个 guardrail 动作均写入防篡改审计日志，符合 FDA SaMD / 21 CFR Part 11 / HIPAA 要求，决策链可完整重建。
 
 ---
@@ -400,9 +400,9 @@ DoctorAgent 的病历生成遵循「**AI 起草 → 医生审核 → 修改 → 
 
 ### 7.3 PHI 保护
 
-- 系统在调用任何外部服务（openFDA / RxNorm / PubMed）前，**自动对 18 类 HIPAA Safe Harbor 标识符脱敏**：
+- 系统在调用任何外部服务（openFDA / RxNorm / PubMed）前，**自动对 19 类 HIPAA Safe Harbor 标识符（含身份证号）脱敏**：
   - 10 类核心临床标识：患者姓名、MRN、出生日期、电话、邮箱、SSN、地址、病历号、日期、IP 地址。
-  - 8 类扩展标识：传真号、账号、执照号、车辆标识、设备标识、URL、生物标识、面部照片引用。
+  - 9 类扩展标识：传真号、账号、执照号、车辆标识、设备标识、URL、生物标识、面部照片引用、**身份证号**。
 - 脱敏策略支持 `redact`（替换为 `[REDACTED]`）/ `pseudonymize`（稳定假名）/ `mask`（部分遮蔽）。
 - **医生责任**：遵循**最小化原则**，不要在 `query` 自由文本中输入不必要的 PHI（如患者全名、详细住址）。系统虽会脱敏，但应从源头减少风险。
 
@@ -430,7 +430,7 @@ DoctorAgent 的病历生成遵循「**AI 起草 → 医生审核 → 修改 → 
 | 药物相互作用标红但我觉得没问题，怎么办？ | 标红表示 `contraindicated`/`critical`。医生可在病历中记录**不同意 AI 建议的临床理由**并签发（留痕审计）；但不得绕过复核流程。如确属误报，请按不良事件上报。 |
 | 文献检索结果太少？ | 可能因 PubMed 客户端未配置或检索词过窄。尝试调整 `query` 用更通用的临床术语；若客户端未配置，系统会告知「文献检索不可用」，不臆造结果。 |
 | AI 生成的病历可以直接用吗？ | **不可以**。所有 SOAP 草稿均标注「待医生签发」，必须经医生审核、修改、签发后方可使用。ICD-10 编码须医生人工选择。 |
-| 我能在 query 里输入患者姓名吗？ | **不要**。系统虽会自动脱敏 18 类标识符，但医生应遵循最小化原则，使用 `patient_id` 而非姓名等直接标识符。 |
+| 我能在 query 里输入患者姓名吗？ | **不要**。系统虽会自动脱敏 19 类标识符（含身份证号），但医生应遵循最小化原则，使用 `patient_id` 而非姓名等直接标识符。 |
 | LLM 不可用怎么办？ | 系统自动降级为纯规则引擎，仍提供用药安全与危急值预警（无 LLM 输出），`requires_human_review` 必为 `true`，guardrail 动作 `flag`。 |
 | 危急值预警会不会漏报？ | 危急值由确定性规则引擎判定（非 LLM），纯逻辑可审计。但医生仍应结合临床判断，规则引擎不替代床旁评估。 |
 | 如何追溯某次决策依据的知识版本？ | 审计日志记录每次决策的规则知识库版本（当前 v1.1.0）与参考范围版本，可在「审计日志」标签页查询。 |
@@ -487,8 +487,8 @@ DoctorAgent 的病历生成遵循「**AI 起草 → 医生审核 → 修改 → 
 | PMID | PubMed ID | PubMed 文献唯一标识符 |
 | DOI | Digital Object Identifier | 数字对象标识符 |
 | PHI | Protected Health Information | 受保护健康信息 |
-| HIPAA | Health Insurance Portability and Accountability Act | 美国健康信息隐私与可携带性法案，定义 18 类 Safe Harbor 标识符 |
-| Safe Harbor | Safe Harbor | HIPAA 规定的 18 类去标识化标准 |
+| HIPAA | Health Insurance Portability and Accountability Act | 美国健康信息隐私与可携带性法案，定义 19 类 Safe Harbor 标识符（含身份证号） |
+| Safe Harbor | Safe Harbor | HIPAA 规定的 19 类去标识化标准（含身份证号） |
 | CDS Hooks | Clinical Decision Support Hooks | HL7 临床决策支持钩子标准（patient-view / order-select / order-sign） |
 | FHIR | Fast Healthcare Interoperability Resources | HL7 FHIR R4 医疗互操作资源标准 |
 | guardrail | Clinical Guardrails | LLM 输出临床护栏（引证/禁忌内容/PHI 泄露/提示注入检测） |

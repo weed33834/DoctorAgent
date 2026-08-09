@@ -60,7 +60,7 @@
 - 如需调用海外 API（openFDA/PubMed），需进行数据出境安全评估
 
 ### HIPAA 合规（国际市场）
-- [x] PHI 脱敏（HIPAA Safe Harbor 18 类标识符）
+- [x] PHI 脱敏（HIPAA Safe Harbor 19 类标识符，含身份证号）
 - [x] HMAC 审计链（21 CFR Part 11）
 - [x] AES-256-GCM 加密
 - [ ] BAA（Business Associate Agreement）模板
@@ -79,7 +79,7 @@ DoctorAgent 内置合规自检工具（`clinical/compliance_report.py`），覆�
 - 加密（AES-256-GCM + 三层密钥体系）
 - 审计日志（HMAC 签名 + 不可篡改）
 - 访问控制（RBAC + 7 角色 + 临床角色）
-- PHI 保护（18 类标识符脱敏）
+- PHI 保护（19 类标识符脱敏，含身份证号）
 - 密钥管理（轮换 + Shamir 门限）
 - 数据驻留（本地优先 + 云默认关闭）
 
