@@ -129,7 +129,7 @@ jobs:
           echo "path=/tmp/release_body.md" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.prepare.outputs.tag }}
           name: DoctorAgent v${{ needs.prepare.outputs.version }}
