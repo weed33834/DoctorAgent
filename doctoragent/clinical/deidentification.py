@@ -85,6 +85,7 @@ class PHIType(StrEnum):
     URL = "URL"  # 统一资源定位符
     BIO_METRIC = "BIO_METRIC"  # 生物标识
     FULL_FACE = "FULL_FACE"  # 面部照片引用
+    ID_CARD = "ID_CARD"  # 中国大陆18位身份证号
 
 
 # ── Detection patterns ──────────────────────────────────────────────────────
@@ -216,6 +217,8 @@ _MEDICAL_PATTERNS: dict[PHIType, str] = {
         r"\b(?i:photo|portrait)\s*:?\s*[A-Za-z0-9_-]+\.(?:jpg|jpeg|png|gif|bmp)\b"
         r"|(?:照片|头像)\s*:?\s*[A-Za-z0-9_-]+\.(?:jpg|jpeg|png|gif|bmp)\b"
     ),
+    # 中国大陆18位身份证号：以1-9开头，17位数字 + 1位数字或X/x
+    PHIType.ID_CARD: r"\b[1-9]\d{16}[\dXx]\b",
 }
 
 
@@ -393,6 +396,7 @@ class PHIDetector:
             str(PHIType.LICENSE_NUMBER),
             str(PHIType.DEVICE_ID),
             str(PHIType.VEHICLE_ID),
+            str(PHIType.ID_CARD),
         ):
             # 数字 / 字母数字标识符：保留末 4 位作为提示。
             return _keep_last4(value)
