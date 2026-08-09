@@ -7,6 +7,39 @@
 
 ## [0.3.3] - 2026-08-09
 
+### 变更
+
+#### 许可证迁移
+- **MIT → Apache-2.0**：项目许可证从 MIT 切换为 Apache License 2.0，涵盖 LICENSE 文件、pyproject.toml classifiers、server.py OpenAPI license_info、Dockerfile OCI 标签、release.yml Docker 标签、README（中/英/日）、CONTRIBUTING.md、CHANGELOG.md
+- 新增 `NOTICE` 文件（Apache 2.0 第三方归属声明）
+- 新增 `SECURITY.md`（安全漏洞报告策略）
+
+#### 发布流程调整
+- **移除 PyPI 自动发布**：release.yml 不再包含 PyPI job，仅发布 Docker GHCR + GitHub Release。PyPI 发布步骤保留在 RELEASE.md 附录中供有需要的开发者自行操作
+- `RELEASE.md` 重写：PyPI 标注为可选，版本示例更新为 0.3.3
+- `Makefile` 更新：release-tag/release 目标去掉 PyPI 引用
+
+#### 仓库清理
+- **移除 GitCode/Gitee 旧地址**：README（中/英/日）中所有 `gitcode.com/badhope` 和 `gitee.com/badhope` 引用替换为 `github.com/weed33834/DoctorAgent`
+- `start.sh` 修复：移除 Windows 专用的 `.venv/Scripts/doctoragent.exe` 路径，改为跨平台的 `doctoragent` 命令
+- `CLINICAL_CAPABILITIES.md` 修正：PHI 类型数 18 → 19，移除不存在的 DDInter/rxlabelguard 集成声明
+- `deidentification.py` docstring 修正：18 → 19，8 类 → 9 类
+
+#### 仓库上传前全面检查修复
+- **GUI 测试标记修复**：`test_vault_browser.py` / `test_connection_dialog.py` / `test_first_run_wizard.py` / `test_settings_dialog.py` / `test_tray.py` 新增 `pytestmark = pytest.mark.gui`，`test_main.py::test_create_tray_app_returns_tray_instance` 新增 `@pytest.mark.gui`。此前这 92 个测试因 `doctoragent.presentation` 模块不在仓库中而失败，但未被 `gui` marker 排除，导致 CI 会报错
+- **README 测试数量精确化**：2314+ → 2195+（中/英/日三版同步），与当前实际 `pytest` 通过数一致
+- **README PHI 类型数修正**：英文版 `18 identifier categories` → `19`（合规状态表 + FAQ 两处）
+- **README Python 版本修正**：移除未经 CI 测试的 Python 3.13，仅保留 3.10/3.11/3.12（中/英两版）
+- **Dockerfile 依赖版本对齐**：`cryptography>=44.0,<50.0` → `<55.0`、`click>=8.1,<9.0` → `>=8.4,<9.0`，与 `pyproject.toml` 一致
+- **pyproject.toml 补充 `[project.urls]`**：Homepage / Repository / Documentation / Issues / Changelog 五项，符合开源项目元数据规范
+- **SECURITY.md 修复**：将不存在的 `pyproject.toml` 邮箱引用改为 GitHub Security Advisories
+- **README 商业使用章节修复**：移除对 `pyproject.toml` 邮箱的引用（中/英两版）
+- **README.ja.md 安装指令修复**：`pip install doctoragent[...]` → `pip install -e ".[...]"`（项目未上 PyPI）
+- **bug_report.yml 版本占位符**：`0.1.0` → `0.3.3`
+- **.gitignore 清理**：移除内部 AI-RULE 仓库路径注释
+- **文档安装指令修复**：`CLINICAL_CAPABILITIES.md` 和 `UPGRADE_ROLLBACK.md` 中的 `pip install doctoragent[...]` 改为源码安装方式
+- **README.ja.md Docker 指令修复**：`doctoragent daemon --no-tray` → `doctoragent serve --host 0.0.0.0 --port 8000`，添加端口映射
+
 ### 新增
 
 #### PHI 脱敏增强
@@ -14,9 +47,8 @@
 
 #### 开源素材
 - **README 重写**：英文版（README.md）+ 中文版（README.zh.md）面向商业化开源重写，明确"确定性安全规则离线运行 / 数据留在本地硬件 / 标准集成代码路径"三大差异化定位
-- **演示视频**：`assets/demo/demo.mp4`（2.6MB / 40 秒），39 段真实交互（医生视图 + 管理视图 + 8 个核心交互）
-- **截图素材**：`assets/screenshots/01-06.png`（1440×900）涵盖主控制台 / 临床工作台 / 安全规则 / PHI 脱敏 / 系统状态 / 多租户管理
-- **商业使用条款**：MIT 许可下保留三条社区底线（不卖 PHI 数据 / 闭源 fork 必须回馈 / 衍生作品保留审计链与确定性安全规则）
+- **演示视频**：`assets/demo/demo.mp4`，临床 AI 智能体演示
+- **截图素材**：`assets/screenshots/01-06.png` 涵盖主控制台 / 临床工作台 / 安全规则 / PHI 脱敏 / 系统状态 / 多租户管理
 - **合规状态表**：8 项标准明示"已实现 / Roadmap / 不适用"三档，避免用户被误导做规划
 
 ---
@@ -111,7 +143,7 @@
 - `docs/MEDICAL_PIVOT_DESIGN.md` 标注为历史设计文档（权威说明以 CLINICAL_CAPABILITIES.md 为准），并修正设计稿中 `medkit` 依赖的过时声明（实际改用 httpx 直连官方 API）。
 - 修正 `docker-compose.yml` 中"FhirConfig 未接入 config.py"的过时注释：`ClinicalConfig` 已在 `config.py` 接线，`DOCTORAGENT_CLINICAL__FHIR_BASE_URL` 现通过环境变量注入并支持 HAPI FHIR live 读取。
 - 统一仓库与镜像 URL：README 测试徽章、`git clone` 示例、Dockerfile OCI `image.source` 标签、`server.py` OpenAPI contact、`tray.py` 文档跳转、CHANGELOG 发布链接、Makefile/RELEASE.md 动作 URL 全部对齐到权威主仓库 `github.com/weed33834/DoctorAgent`；GHCR 镜像路径对齐到 `ghcr.io/weed33834/doctoragent`（跟随 `${{ github.repository }}` 小写）。
-- 修正 `server.py` OpenAPI `license_info` 错误标注为 Apache 2.0 的问题（项目实际为 MIT）。
+- 修正 `server.py` OpenAPI `license_info` 错误标注为 MIT 的问题（项目实际为 Apache-2.0）。
 - `RELEASE.md` 将写死的 `0.3.0` 示例改为 `<VERSION>` 占位符，避免每次发版失真；移除与 `make check-version` 重复的手动 grep 校验段。
 - `README.md` 合并冗余的 "Repository" 与 "Mirrors / 镜像" 章节。
 - `AGENTS.md` "Future Enhancements" 移除已落地的并行工具执行 / 流式响应 / 多智能体协作等条目。

@@ -19,6 +19,8 @@ from .presentation_stubs import (
     restore_modules,
 )
 
+pytestmark = pytest.mark.gui
+
 
 @pytest.fixture
 def dialog_qt_stubs(monkeypatch: pytest.MonkeyPatch) -> None:

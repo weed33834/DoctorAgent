@@ -183,7 +183,7 @@ doctoragent/
 
 ## License
 
-By contributing to DoctorAgent, you agree that your contributions will be licensed under the MIT License.
+By contributing to DoctorAgent, you agree that your contributions will be licensed under the Apache License, Version 2.0.
 
 ## Thank You!
 

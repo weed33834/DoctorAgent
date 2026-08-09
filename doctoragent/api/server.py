@@ -982,8 +982,8 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
             "url": "https://github.com/weed33834/DoctorAgent",
         },
         license_info={
-            "name": "MIT",
-            "url": "https://opensource.org/licenses/MIT",
+            "name": "Apache-2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0",
         },
         terms_of_service="https://github.com/weed33834/DoctorAgent",
         servers=[

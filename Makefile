@@ -45,7 +45,7 @@ clean: ## Remove build artefacts and caches.
 
 # ── 发布相关 ──
 
-build: ## Build wheel and sdist for PyPI.
+build: ## Build wheel and sdist (for optional PyPI publishing).
 	$(PYTHON) -m pip install --upgrade build
 	$(PYTHON) -m build
 
@@ -62,12 +62,12 @@ check-version: ## Verify version consistency across pyproject, __init__, Dockerf
 		echo "✅ 版本号一致: $$PY_VER"; \
 	fi
 
-release-tag: ## Create and push a version tag (usage: make release-tag VERSION=0.3.1).
-	@if [ -z "$(VERSION)" ]; then echo "用法: make release-tag VERSION=0.3.1"; exit 1; fi
+release-tag: ## Create and push a version tag (usage: make release-tag VERSION=0.3.3).
+	@if [ -z "$(VERSION)" ]; then echo "用法: make release-tag VERSION=0.3.3"; exit 1; fi
 	@git tag v$(VERSION) && git push origin v$(VERSION)
-	@echo "✅ 已推送 tag v$(VERSION)，GitHub Actions 将自动发布到 PyPI + GHCR + GitHub Release"
+	@echo "✅ 已推送 tag v$(VERSION)，GitHub Actions 将自动发布到 GHCR + GitHub Release"
 
 release: check-version build ## Full release: verify version, build, tag and push.
-	@if [ -z "$(VERSION)" ]; then echo "用法: make release VERSION=0.3.1"; exit 1; fi
+	@if [ -z "$(VERSION)" ]; then echo "用法: make release VERSION=0.3.3"; exit 1; fi
 	@git tag v$(VERSION) && git push origin v$(VERSION)
 	@echo "🚀 发布已触发！查看进度: https://github.com/weed33834/DoctorAgent/actions"

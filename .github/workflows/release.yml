@@ -1,7 +1,8 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Release: PyPI + Docker (GHCR) + GitHub Release
+# Release: Docker (GHCR) + GitHub Release
 # 触发: 推送 v*.*.* 格式的 git tag
-# 三平台同时发布: PyPI (pip install) / Docker (ghcr.io) / GitHub Releases
+# 双平台发布: Docker (ghcr.io) / GitHub Releases
+# PyPI 发布已移除，如需自行发布请参考 RELEASE.md 中的 PyPI 可选步骤
 # ─────────────────────────────────────────────────────────────────────────────
 name: Release
 
@@ -12,21 +13,20 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "版本号 (如 0.3.1，不带 v 前缀)"
+        description: "版本号 (如 0.3.3，不带 v 前缀)"
         required: true
         type: string
 
 permissions:
   contents: write
   packages: write
-  id-token: write
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # ── Job 1: 从 pyproject.toml 提取版本号 ──
+  # ── Job 1: 从 git tag 提取版本号 ──
   prepare:
     name: Prepare Release
     runs-on: ubuntu-latest
@@ -50,46 +50,7 @@ jobs:
           echo "tag=v$VERSION" >> $GITHUB_OUTPUT
           echo "📋 发布版本: $VERSION"
 
-  # ── Job 2: 构建 Python wheel 并发布到 PyPI ──
-  publish-pypi:
-    name: 📦 Publish to PyPI
-    needs: prepare
-    runs-on: ubuntu-latest
-    environment:
-      name: pypi
-      url: https://pypi.org/project/doctoragent/
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
-      - name: Install build tools
-        run: |
-          python -m pip install --upgrade pip
-          pip install build twine
-
-      - name: Build wheel and sdist
-        run: python -m build
-
-      - name: Verify package metadata
-        run: |
-          twine check dist/*
-          echo "📦 构建产物:"
-          ls -la dist/
-
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        # 优先使用 API Token（需在 GitHub 仓库配置 PYPI_API_TOKEN secret）
-        # 若已配置 Trusted Publisher（OIDC），可注释 password 行并取消注释
-        # 下方 id-token: write（已在 permissions 中启用）
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
-
-  # ── Job 3: 构建 Docker 多架构镜像并发布到 GHCR ──
+  # ── Job 2: 构建 Docker 多架构镜像并发布到 GHCR ──
   publish-docker:
     name: 🐳 Publish to GHCR
     needs: prepare
@@ -126,7 +87,7 @@ jobs:
             org.opencontainers.image.title=DoctorAgent
             org.opencontainers.image.description=Clinical AI agent for doctors
             org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
-            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.licenses=Apache-2.0
 
       - name: Build and push multi-arch image
         uses: docker/build-push-action@v6
@@ -141,10 +102,9 @@ jobs:
           build-args: |
             PYTHON_VERSION=3.12
 
-  # ── Job 4: 创建 GitHub Release ──
+  # ── Job 3: 创建 GitHub Release ──
   publish-github:
     name: 🚀 Publish GitHub Release
-    # 不依赖 PyPI（可能未配置 token），确保 Docker + Release 仍可独立发布
     needs: [prepare, publish-docker]
     runs-on: ubuntu-latest
     steps:

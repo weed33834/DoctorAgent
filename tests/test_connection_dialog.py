@@ -20,6 +20,8 @@ from .presentation_stubs import (
     restore_modules,
 )
 
+pytestmark = pytest.mark.gui
+
 
 @pytest.fixture
 def dialog_qt_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -451,6 +453,7 @@ def test_manager_dialog_delete_cancelled(
 ) -> None:
     """Cancelling the delete confirmation keeps the connection."""
     from doctoragent.presentation.connection_dialog import ConnectionManagerDialog
+
     from tests.presentation_stubs import FakeMessageBox
 
     conn = manager.add(

@@ -24,6 +24,8 @@ from .presentation_stubs import (
     restore_modules,
 )
 
+pytestmark = pytest.mark.gui
+
 
 @pytest.fixture
 def qt_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -326,8 +328,9 @@ def test_tray_no_enabled_connections_shows_placeholder(qt_stubs: None, config: A
 
 def test_tray_remote_connection_marked_unverified(qt_stubs: None, config: AegisConfig) -> None:
     """A remote enabled connection is labelled as unverified."""
-    from doctoragent.connections.models import AuthMethod, Connection, PlatformType
     from doctoragent.presentation.tray import TrayApplication
+
+    from doctoragent.connections.models import AuthMethod, Connection, PlatformType
 
     tray = TrayApplication(config=config)
     # Remove any seeded connections and add a remote one.
@@ -496,8 +499,9 @@ def test_tray_activity_summary_with_quarantined(qt_stubs: None, config: AegisCon
 
 def test_tray_task_action_includes_tooltip(qt_stubs: None, config: AegisConfig) -> None:
     """Task actions expose a tooltip with state details."""
-    from doctoragent.api.schemas import TaskSummary
     from doctoragent.presentation.tray import TrayApplication
+
+    from doctoragent.api.schemas import TaskSummary
 
     tray = TrayApplication(config=config)
     task = TaskSummary(
@@ -553,10 +557,9 @@ def test_tray_search_vault_opens_browser(qt_stubs: None, config: AegisConfig) ->
     into ``VaultBrowser``.  This test verifies that the tray delegates to
     ``VaultBrowser`` and optionally applies a search filter.
     """
-    from PyQt6.QtWidgets import QInputDialog
-
     from doctoragent.presentation import tray as tray_module
     from doctoragent.presentation.tray import TrayApplication
+    from PyQt6.QtWidgets import QInputDialog
 
     opened: list[tuple[object, object, object]] = []
     search_queries: list[str] = []

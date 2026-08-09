@@ -107,13 +107,13 @@ Then open <http://127.0.0.1:8000/console/> in a browser. No LLM key required for
 pytest tests/ -q
 ```
 
-We expect `2314+ passed`. If the number drops, something broke. Don't ship that build.
+We expect `2195+ passed`. If the number drops, something broke. Don't ship that build.
 
 ---
 
 ## What you can build on it
 
-The agent is MIT licensed and explicitly designed to be extended. The hooks system has 15 trigger points (request_received, before_tool_call, after_llm_response, before_audit_write, etc.) where you can attach Python scripts. The plugin manager registers additional entry points at startup.
+The agent is Apache-2.0 licensed and explicitly designed to be extended. The hooks system has 15 trigger points (request_received, before_tool_call, after_llm_response, before_audit_write, etc.) where you can attach Python scripts. The plugin manager registers additional entry points at startup.
 
 A few directions people are already exploring in the issue tracker:
 
@@ -129,7 +129,7 @@ PRs that come with tests and a security note get reviewed within a week.
 
 ## Commercial use
 
-The code is MIT. You can use it inside a hospital, sell it as a hosted service, wrap it in a product, embed it in a larger system — whatever your business model needs. The maintainers offer paid support contracts (response SLA, security review, version pinning) for organizations that need them. Reach out via GitCode issues or the email in `pyproject.toml`.
+The code is Apache-2.0. You can use it inside a hospital, sell it as a hosted service, wrap it in a product, embed it in a larger system — whatever your business model needs. The maintainers offer paid support contracts (response SLA, security review, version pinning) for organizations that need them. Reach out via GitHub issues.
 
 What we will not accept:
 
@@ -145,7 +145,7 @@ The last clause is the only one we enforce. Everything else is a community norm.
 
 | Standard | Status | Notes |
 |---|---|---|
-| HIPAA Safe Harbor (de-identification) | Implemented | PHI de-identification covers the 18 identifier categories. |
+| HIPAA Safe Harbor (de-identification) | Implemented | PHI de-identification covers the 19 identifier categories. |
 | CDS Hooks 2.0 | Implemented | Endpoints exposed at `/cds-services` per spec. |
 | FHIR R4 + SMART-on-FHIR | Implemented | Resource handlers in `doctoragent/api/fhir/`. |
 | SNOMED CT / LOINC / ICD-10-CM | Implemented | Terminology bindings + lookup helpers. |
@@ -160,7 +160,7 @@ The four "Roadmap" rows are explicit because pretending they're already done was
 
 ## Test posture
 
-- **2314+ unit tests** pass on Python 3.10, 3.11, 3.12, 3.13.
+- **2195+ unit tests** pass on Python 3.10, 3.11, 3.12.
 - **66 API routes** in the console have full round-trip tests.
 - **18 CRUD workflows** (clinical workspace, vault, agents, hooks, etc.) are exercised end-to-end.
 - **Empty-shell scan** runs as a CI step — if you submit a PR that adds an endpoint or a function which doesn't actually do anything, the test fails.
@@ -171,7 +171,7 @@ The four "Roadmap" rows are explicit because pretending they're already done was
 ## FAQ
 
 **Is DoctorAgent free? Can I use it commercially?**
-Yes. MIT license, including commercial use, hosted services, and embedding in products. See [Commercial use](#commercial-use) for the three things we won't accept in derivative works.
+Yes. Apache-2.0 license, including commercial use, hosted services, and embedding in products. See [Commercial use](#commercial-use) for the three things we won't accept in derivative works.
 
 **Does it work without an LLM?**
 The deterministic safety engine (drug interactions, critical values, allergy cross-reactivity, duplicate therapy) and the document vault run fully offline — no API key, no network. The agent / chat features need an LLM backend: any OpenAI-compatible endpoint works, including a local Ollama instance (air-gapped setup is supported).
@@ -183,7 +183,7 @@ Anything exposing an OpenAI-compatible API: Ollama (local), OpenAI, or your own 
 DoctorAgent ships CDS Hooks 2.0 endpoints (`/cds-services`) and FHIR R4 resource handlers, plus SMART-on-FHIR authentication. The EHR-side glue (e.g. pointing your EHR's CDS Hooks client at this server) is implementation work, but the protocol side is done.
 
 **How is patient data protected?**
-PHI de-identification (HIPAA Safe Harbor, 18 identifier categories, 4 strategies: redact/mask/pseudonymize/hash), AES-256-GCM encryption at rest, HMAC-SHA256 signed audit chain, RBAC + API token + tenant isolation. The vault and audit chain are designed so that nothing sensitive needs to leave your infrastructure.
+PHI de-identification (HIPAA Safe Harbor, 19 identifier categories, 4 strategies: redact/mask/pseudonymize/hash), AES-256-GCM encryption at rest, HMAC-SHA256 signed audit chain, RBAC + API token + tenant isolation. The vault and audit chain are designed so that nothing sensitive needs to leave your infrastructure.
 
 **Is it certified?**
 Not yet. FDA 510(k), HIPAA third-party attestation, and 等保三级 are roadmap items, written down honestly in the [compliance table](#compliance-status-current). Pilot deployments are supported, production regulatory approval is not claimed.
@@ -195,14 +195,13 @@ v0.3.x is the current line: expanding the deterministic rule set, Postgres backe
 
 ## Related projects
 
-- [badhope/AI](https://gitcode.com/badhope/AI) — Engineering methodology, rule sets and prompt library used by DoctorAgent.
-- [badhope](https://gitcode.com/badhope) — 16 other open-source projects.
+- [weed33834/DoctorAgent](https://github.com/weed33834/DoctorAgent) — This repository.
 
 ---
 
 ## License
 
-MIT. See `LICENSE`. The included SNOMED CT, LOINC, and ICD-10-CM reference data are redistributed under their respective licenses (see `docs/COMPLIANCE_ROADMAP.md`).
+Apache-2.0. See `LICENSE`. The included SNOMED CT, LOINC, and ICD-10-CM reference data are redistributed under their respective licenses (see `docs/COMPLIANCE_ROADMAP.md`).
 
 ---
 

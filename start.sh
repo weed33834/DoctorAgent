@@ -26,4 +26,4 @@ echo "  API Docs: http://127.0.0.1:8000/docs"
 echo "  API Token: $DOCTORAGENT_API_TOKEN"
 echo ""
 
-exec "$ROOT/.venv/Scripts/doctoragent.exe" serve --host 127.0.0.1 --port 8000
+exec doctoragent serve --host 127.0.0.1 --port 8000
