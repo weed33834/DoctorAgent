@@ -67,19 +67,26 @@ def _estimate_tokens(text: str) -> int:
     :mod:`doctoragent.model.rag`), falling back to the ``len(text) // 4``
     heuristic. Kept local to avoid importing from ``rag`` (which is being
     modified independently).
+
+    tiktoken availability is cached for the process lifetime so an
+    offline / network-restricted environment doesn't retry a slow BPE
+    download on every estimate (which would otherwise add seconds of
+    blocking latency to each tool dispatch).
     """
     if not text:
         return 0
-    try:
-        import tiktoken
+    available = getattr(_estimate_tokens, "_available", None)
+    if available is None:
+        try:
+            import tiktoken
 
-        enc = getattr(_estimate_tokens, "_enc", None)
-        if enc is None:
-            enc = tiktoken.get_encoding("cl100k_base")
-            _estimate_tokens._enc = enc  # type: ignore[attr-defined]
-        return len(enc.encode(text))
-    except Exception:  # noqa: BLE001 - tiktoken unavailable / download failed
-        return max(1, len(text) // 4)
+            _estimate_tokens._enc = tiktoken.get_encoding("cl100k_base")  # type: ignore[attr-defined]
+            _estimate_tokens._available = True
+        except Exception:  # noqa: BLE001 - tiktoken unavailable / download failed
+            _estimate_tokens._available = False
+    if _estimate_tokens._available:
+        return len(_estimate_tokens._enc.encode(text))  # type: ignore[attr-defined]
+    return max(1, len(text) // 4)
 
 
 def _extract_json(text: str) -> Any:

@@ -137,6 +137,8 @@ class RecordingTool(Tool):
         self._delay = delay
         self._category = category
         self.calls: list[dict[str, Any]] = []
+        # Execution wall-clock intervals, used by concurrency assertions.
+        self._intervals: list[tuple[float, float]] = []
 
     @property
     def definition(self) -> ToolDefinition:
@@ -151,8 +153,10 @@ class RecordingTool(Tool):
 
     async def execute(self, **kwargs: Any) -> ToolResult:
         self.calls.append(kwargs)
+        start = time.monotonic()
         if self._delay:
             await asyncio.sleep(self._delay)
+        self._intervals.append((start, time.monotonic()))
         if self._failures:
             raise RuntimeError(self._failures.pop(0))
         return ToolResult(
@@ -298,7 +302,16 @@ class TestParallelToolDispatch:
     """Independent tool calls run concurrently; shared-resource calls run in order."""
 
     def test_independent_tools_run_in_parallel(self) -> None:
-        """Two tools with no shared resource key should overlap in time."""
+        """Two tools with no shared resource key should overlap in time.
+
+        The previous incarnation asserted an absolute wall-clock budget
+        (``elapsed < 2*slow``). That is fragile: any environment load or a
+        one-time blocking import in the dispatch path inflates ``elapsed``
+        and breaks the test even though the tools genuinely ran concurrently.
+        We now assert the *structural* property — the two tools' execution
+        intervals overlap in time — which is deterministic and still proves
+        parallel dispatch.
+        """
         provider = ScriptedLLMProvider(
             responses=[
                 _completion(
@@ -316,17 +329,19 @@ class TestParallelToolDispatch:
         tool_b = RecordingTool("tool_b", result_data={"b": 2}, delay=slow, category="management")
         agent = _agent(provider, _registry(tool_a, tool_b))
 
-        start = time.monotonic()
         asyncio.run(agent.run("并行问题"))
-        elapsed = time.monotonic() - start
 
-        # If serial, elapsed ≈ 2*slow = 0.30s; parallel ≈ slow = 0.15s.
-        # Allow generous headroom for CI jitter.
-        assert elapsed < 2 * slow, (
-            f"parallel dispatch expected <{2 * slow:.2f}s, got {elapsed:.3f}s"
-        )
+        # Each tool must have executed exactly once.
         assert len(tool_a.calls) == 1
         assert len(tool_b.calls) == 1
+
+        # Their execution intervals must overlap in wall-clock time — the
+        # defining evidence of concurrent (parallel) dispatch.
+        (a_start, a_end), (b_start, b_end) = tool_a._intervals[0], tool_b._intervals[0]
+        assert a_start < b_end and b_start < a_end, (
+            f"tools did not run concurrently: "
+            f"a=[{a_start:.3f},{a_end:.3f}] b=[{b_start:.3f},{b_end:.3f}]"
+        )
 
     def test_same_resource_key_runs_sequentially(self) -> None:
         """Two calls targeting the same file_path share a resource key → serial."""
