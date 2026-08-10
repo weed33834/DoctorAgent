@@ -1,27 +1,36 @@
-# Agent System
+# DoctorAgent 工程指南（Agent System）
 
-## 临床AI智能体概览
+## 项目定位
 
-DoctorAgent 是面向医疗机构的临床决策支持（CDS）智能体，核心能力包括：
+DoctorAgent 是面向医疗机构的**临床决策支持（CDS）智能体**。系统由两层构成：
 
-### 临床工作流
-- **用药安全审查**：检测药物相互作用（DDI）、过敏交叉反应、重复用药
-- **危急值预警**：生命体征（心率/血压/体温/SpO2/呼吸频率）与检验指标危急值
+1. **确定性临床安全引擎**——用药审查、危急值、过敏 / DDI 规则。纯逻辑、无网络依赖、结果优先于 LLM 推断；
+2. **LLM / RAG 文献智能体**——基于 ReAct 的多工具智能体，负责医学文献与临床指南的自然语言检索、抽取与问答，所有结论附可追溯引证。
+
+> 文档库（Vault）是上述第二层用于存放医学文献、临床指南与病历资料的知识库。`/vault/*` 系列接口服务于**临床文献检索与问答**，不应被理解为泛化的通用文档管理。
+
+## 临床工作流
+
+- **用药安全审查**：药物相互作用（DDI）、过敏交叉反应、重复用药检测
+- **危急值预警**：生命体征（心率 / 血压 / 体温 / SpO₂ / 呼吸频率）与检验指标危急值
 - **病历文书**：SOAP 格式病历生成、ICD-10 编码辅助
-- **文献检索**：PubMed/知识库 RAG 检索，所有建议附可追溯引证
+- **文献检索**：PubMed / 知识库 RAG 检索，所有建议附可追溯引证
 
-### 多智能体协作
+## 多智能体协作
+
 - 患者病史 Agent → 用药安全 Agent → 文献 Agent → 文书 Agent（固定 DAG，合规可审计）
 - 确定性规则引擎结果优先于 LLM 推断，冲突时以规则为准
 
-### 安全合规
+## 安全合规
+
 - PHI 脱敏（HIPAA Safe Harbor）、HMAC 审计链、AES-256-GCM 加密
 - CDS Hooks 2.0 集成（patient-view / order-select / order-sign）
 - FHIR R4 资源读写，SMART-on-FHIR 认证
 
-### CLI 临床命令
+## CLI 临床命令
+
 ```bash
-# 执行临床工作流分析
+# 执行临床工作流分析（确定性规则引擎 + 可选 LLM 文书）
 doctoragent clinical analyze --patient-id P001 \
   --medications "warfarin" "ibuprofen" \
   --allergies "penicillin" \
@@ -31,26 +40,15 @@ doctoragent clinical analyze --patient-id P001 \
 
 ---
 
-## 辅助功能：文档 Vault
+## Agent / RAG 子系统（文献与指南检索）
 
-以下为文档 Vault 功能，可用于医学文献、指南文档的本地化管理。
+DoctorAgent 的智能体基于 ReAct（Reasoning + Acting）模式，使 LLM 能够通过工具调用、技能执行与 RAG 检索，对医学文献与临床指南进行自然语言交互。该子系统是临床叙事的“文献层”，所有输出应回到临床工作流并被确定性规则校验。
 
-This document describes the intelligent Agent system in DoctorAgent, which enables natural language interaction with your document vault through tool calling, skill execution, and RAG-powered question answering.
-
-## Overview
-
-The Agent system implements the ReAct (Reasoning + Acting) pattern, allowing the LLM to:
-
-1. **Reason** about user requests
-2. **Act** by calling appropriate tools
-3. **Observe** the results
-4. **Iterate** until the task is complete
-
-## Architecture
+## 架构
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                         User Query                                      │
+│                         User Query（临床问题）                           │
 └─────────────────────────────────────────────────────────────────────────┘
                                 │
                                 ▼
@@ -66,26 +64,25 @@ The Agent system implements the ReAct (Reasoning + Acting) pattern, allowing the
                 ▼               ▼               ▼
         ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
         │    Tools     │ │    Skills    │ │    Memory    │
+        │ (文献检索等) │ │ (临床技能)   │ │ (会话记忆)   │
         └──────────────┘ └──────────────┘ └──────────────┘
 ```
 
 ## Components
 
-### 1. Tool System (`doctoragent/model/tools.py`)
+### 1. 工具系统 (`doctoragent/model/tools.py`)
 
-Tools are the building blocks that enable the Agent to interact with external systems. Each tool is defined using JSON Schema format, compatible with OpenAI and Anthropic function calling APIs.
-
-#### Built-in Tools
+工具是智能体与外部系统交互的基础单元，使用 JSON Schema 定义，兼容 OpenAI 与 Anthropic function calling API。内置工具面向临床文献场景：
 
 | Tool | Category | Description |
 |------|----------|-------------|
-| `search_documents` | Retrieval | Search for documents using natural language queries |
-| `list_files` | Management | List files in the vault with optional filtering |
-| `get_file_details` | Management | Get detailed information about a specific file |
-| `analyze_document` | Analysis | Analyze document content using LLM |
-| `compare_documents` | Analysis | Compare multiple documents |
-| `memory` | Memory | Store and recall information from long-term memory |
-| `extract_information` | Extraction | Extract structured information from documents |
+| `search_documents` | Retrieval | 用自然语言检索 Vault 中的医学文献 / 指南 |
+| `list_files` | Management | 列出 Vault 中文献，支持过滤 |
+| `get_file_details` | Management | 获取某篇文献的元信息 |
+| `analyze_document` | Analysis | 用 LLM 分析文献内容（如指南要点提取） |
+| `compare_documents` | Analysis | 对比多篇指南的推荐差异 |
+| `memory` | Memory | 长期记忆的存取 |
+| `extract_information` | Extraction | 从文献中抽取结构化信息（如剂量、禁忌） |
 
 #### Tool Definition Format
 
@@ -94,7 +91,7 @@ from doctoragent.model.tools import ToolDefinition, ToolParameter
 
 tool_def = ToolDefinition(
     name="search_documents",
-    description="Search for documents in the vault",
+    description="Search clinical literature in the vault",
     parameters=[
         ToolParameter(
             name="query",
@@ -134,7 +131,7 @@ class MyCustomTool(Tool):
                 ToolParameter(name="input", type="string", description="Input data"),
             ],
         )
-    
+
     async def execute(self, input: str) -> ToolResult:
         # Implement your tool logic here
         return ToolResult(success=True, data={"result": "processed"})
@@ -159,7 +156,7 @@ from doctoragent.model.agent import AgentConfig
 config = AgentConfig(
     max_iterations=10,      # Maximum reasoning iterations
     max_tool_calls=5,       # Maximum tool calls per task
-    temperature=0.7,        # LLM temperature
+    temperature=0.3,        # Lower temperature for clinical determinism
     enable_planning=True,   # Enable planning phase
     enable_reflection=True, # Enable self-reflection
     safety_mode=True,       # Enable safety guardrails
@@ -179,8 +176,8 @@ agent = create_agent(
     memory_system=your_memory_system,
 )
 
-# Run a task
-response = agent.run_sync("Analyze my financial documents")
+# Run a clinical literature task
+response = agent.run_sync("检索近三年 SGLT2 抑制剂在心衰中的循证证据并总结要点")
 
 # Get execution trajectory
 trajectory = agent.get_trajectory()
@@ -190,17 +187,17 @@ for step in trajectory.steps:
 
 ### 3. Skills System (`doctoragent/model/skills.py`)
 
-Skills are high-level task capabilities that combine multiple tools to accomplish complex document management tasks.
+Skills are high-level task capabilities that combine multiple tools to accomplish complex clinical literature tasks.
 
 #### Built-in Skills
 
 | Skill | Category | Triggers | Description |
 |-------|----------|----------|-------------|
-| `document_search` | Retrieval | search, find, 找, 搜索 | Search for documents |
-| `document_analysis` | Analysis | analyze, summarize, 总结 | Analyze document content |
-| `document_comparison` | Analysis | compare, difference, 比较 | Compare multiple documents |
-| `information_extraction` | Extraction | extract, get, 提取 | Extract structured information |
-| `conversation` | Conversation | remember, recall, 记得 | Handle multi-turn conversations |
+| `document_search` | Retrieval | search, find, 找, 搜索 | 检索医学文献 |
+| `document_analysis` | Analysis | analyze, summarize, 总结 | 分析文献内容 |
+| `document_comparison` | Analysis | compare, difference, 比较 | 对比多篇指南 |
+| `information_extraction` | Extraction | extract, get, 提取 | 抽取结构化信息（剂量 / 禁忌） |
+| `conversation` | Conversation | remember, recall, 记得 | 多轮对话记忆 |
 
 #### Skill Definition Format
 
@@ -215,13 +212,13 @@ class MySkill(Skill):
             description="My custom skill",
             category=SkillCategory.ANALYSIS,
             triggers=["analyze", "check", "verify"],
-            examples=["Analyze this document", "Check for errors"],
+            examples=["Analyze this guideline", "Check for contraindications"],
         )
-    
+
     def matches(self, query: str) -> bool:
         # Check if query matches skill triggers
         return any(trigger in query.lower() for trigger in self.definition.triggers)
-    
+
     async def execute(self, query: str, context: dict = None) -> SkillResult:
         # Implement your skill logic here
         return SkillResult(
@@ -241,7 +238,7 @@ from doctoragent.model.skills import create_default_skill_registry
 registry = create_default_skill_registry(rag_pipeline=rag)
 
 # Auto-detect and execute skill
-result = registry.execute_auto("Search for my contract files")
+result = registry.execute_auto("检索房颤抗凝的两大指南推荐")
 ```
 
 ### 4. RAG Evaluation (`doctoragent/model/evaluation.py`)
@@ -267,9 +264,9 @@ from doctoragent.model.evaluation import RAGEvaluator, LLMTestCase
 evaluator = RAGEvaluator(threshold=0.5)
 
 test_case = LLMTestCase(
-    input="What are the key terms in my contract?",
-    actual_output="The contract has a 12-month term with auto-renewal...",
-    retrieval_context=["Contract document content..."],
+    input="华法林与布洛芬合用的出血风险如何管理？",
+    actual_output="合用显著增加消化道出血风险，建议……",
+    retrieval_context=["Clinical guideline content..."],
 )
 
 # Evaluate all metrics
@@ -301,9 +298,9 @@ from doctoragent.model.rag import ContextEngineer
 engineer = ContextEngineer(memory_system=memory)
 
 context = engineer.build_context(
-    question="What are the key terms?",
+    question="围手术期使用 NSAIDs 的禁忌有哪些？",
     retrieved_chunks=[
-        {"text": "Contract content...", "vault_path": "contract.pdf"},
+        {"text": "Guideline content...", "vault_path": "guideline_nsaids.pdf"},
     ],
     session_id="session123",
     include_memory=True,
@@ -318,33 +315,37 @@ print(f"Total tokens: {context.total_tokens}")
 
 ### `doctoragent ask`
 
-Simple RAG question answering:
+Simple RAG question answering over the clinical literature vault:
 
 ```bash
-doctoragent ask "What are the key terms in my contract?"
-doctoragent ask "Summarize my financial documents" --top-k 10
-doctoragent ask "What did we discuss last time?" --session-id abc123
+doctoragent ask "围手术期使用 NSAIDs 的禁忌有哪些？"
+doctoragent ask "比较 2023 与 2024 版高血压指南的一线用药" --top-k 10
+doctoragent ask "上次我们讨论的房颤抗凝方案是什么？" --session-id abc123
 ```
 
 ### `doctoragent agent`
 
-Intelligent agent with tool calling:
+Intelligent agent with tool calling over clinical documents:
 
 ```bash
-doctoragent agent "Analyze all my contracts and identify key dates"
-doctoragent agent "Compare my insurance policies" --verbose
-doctoragent agent "Extract all financial figures from my reports" --max-iterations 15
+doctoragent agent "检索近三年 SGLT2 抑制剂在心衰中的循证证据并总结要点"
+doctoragent agent "对比两份糖尿病指南的筛查建议" --verbose
+doctoragent agent "从这批检验报告中抽取所有异常指标" --max-iterations 15
 ```
 
 ## API Endpoints
 
+### POST `/clinical/analyze`
+
+临床工作流分析（用药安全 + 危急值 + 文书），返回确定性规则结果与可追溯引证。
+
 ### POST `/vault/ask`
 
-RAG question answering:
+基于 Vault 医学文献的 RAG 问答：
 
 ```json
 {
-  "question": "What are the key terms?",
+  "question": "华法林与布洛芬合用的出血风险如何管理？",
   "top_k": 5,
   "session_id": "optional-session-id",
   "use_memory": true
@@ -355,70 +356,57 @@ Response:
 
 ```json
 {
-  "answer": "The contract has a 12-month term...",
+  "answer": "合用显著增加消化道出血风险，建议……",
   "sources": [
     {
-      "file": "contract.pdf",
+      "file": "guideline_anticoag.pdf",
       "score": 0.85,
-      "content_preview": "Contract terms..."
+      "content_preview": "Guideline terms..."
     }
   ],
-  "model_used": "glm-5.2",
+  "model_used": "qwen3:8b",
   "session_id": "abc123"
 }
 ```
 
 ### POST `/vault/agent`
 
-Agent task execution:
+面向文献的复杂智能体任务：
 
 ```json
 {
-  "task": "Analyze my financial documents",
+  "task": "检索并对比房颤抗凝的两大指南推荐",
   "max_iterations": 10,
   "verbose": false
 }
 ```
 
-Response:
-
-```json
-{
-  "answer": "Based on my analysis...",
-  "trajectory": [
-    {"step": 1, "type": "thought", "content": "Need to search for financial documents"},
-    {"step": 2, "type": "action", "tool": "search_documents", "args": {"query": "financial"}},
-    {"step": 3, "type": "observation", "content": "Found 5 documents"},
-    {"step": 4, "type": "answer", "content": "Analysis complete..."}
-  ],
-  "tool_calls": 2,
-  "execution_time_ms": 1500
-}
-```
+> 以上接口的根路径为 `/`（生产环境可加 `/api/v1` 前缀）。控制台 UI 挂载于 `/console`，根路径 `/` 重定向至 `/console/`，方便评审直接打开浏览器。
 
 ## Testing
 
 Run agent-related tests:
 
 ```bash
-# Run all agent tests
-python -m pytest tests/test_agent.py -v
+# Run all agent / RAG tests
+python -m pytest tests/ -k "agent or skill or evaluation or rag" -v
 
-# Run specific test categories
-python -m pytest tests/test_agent.py -k "Tool" -v
-python -m pytest tests/test_agent.py -k "Agent" -v
-python -m pytest tests/test_agent.py -k "Skill" -v
-python -m pytest tests/test_agent.py -k "Evaluation" -v
+# Run specific categories
+python -m pytest tests/ -k "Tool" -v
+python -m pytest tests/ -k "Agent" -v
+python -m pytest tests/ -k "Skill" -v
+python -m pytest tests/ -k "Evaluation" -v
 ```
 
 ## Design Principles
 
-1. **Modularity**: Tools, skills, and evaluation metrics are independent components
-2. **Extensibility**: Easy to add new tools, skills, or metrics
-3. **Composability**: Skills combine multiple tools for complex tasks
-4. **Observability**: Full execution trajectory recording
-5. **Safety**: Built-in guardrails and error handling
-6. **Evaluation**: Comprehensive metrics for quality assurance
+1. **确定性优先**：规则引擎结果优先于 LLM，冲突以规则为准
+2. **可审计**：所有临床建议附引证，操作进入 HMAC 审计链
+3. **模块化**：工具、技能与评估指标相互独立
+4. **可扩展**：易于新增临床工具 / 技能 / 指标
+5. **可观测**：完整执行轨迹记录
+6. **安全**：内置 guardrails 与 PHI 脱敏
+7. **评估**：RAG 质量量化指标
 
 ## Future Enhancements
 

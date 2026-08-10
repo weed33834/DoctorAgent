@@ -36,13 +36,13 @@ services:
     env_file:
       - .env
     environment:
-      # Master key password for the FilePassword provider. Without it
-      # `doctoragent serve` aborts at startup (master_key.py raises RuntimeError).
-      # The default below lets a fresh `docker compose up` boot for demos; it
-      # MUST be overridden via .env (DOCTORAGENT_SECURITY__MASTER_KEY_PASSWORD)
-      # for any real deployment. Stripping/rotating it later re-encrypts the
-      # vault, so set a strong value before ingesting any real data.
-      DOCTORAGENT_SECURITY__MASTER_KEY_PASSWORD: ${DOCTORAGENT_SECURITY__MASTER_KEY_PASSWORD:-change-me-in-production}
+      # Fail-closed: if DOCTORAGENT_SECURITY__MASTER_KEY_PASSWORD is not set in
+      # the project .env, `docker compose up` aborts at parse time with the
+      # message below instead of booting with a weak default. The FilePassword
+      # provider also hard-requires this at runtime (master_key.py raises
+      # RuntimeError when it is empty), so a real, strong value MUST be supplied
+      # via .env before ingesting any data. No weak password is ever a default.
+      DOCTORAGENT_SECURITY__MASTER_KEY_PASSWORD: ${DOCTORAGENT_SECURITY__MASTER_KEY_PASSWORD:?Set DOCTORAGENT_SECURITY__MASTER_KEY_PASSWORD to a strong value in your .env before running 'docker compose up'}
       # Point the LLM client at the ollama service when the `with-llm` profile
       # is active. Harmless when ollama is absent — the agent falls back to the
       # deterministic rule engine + keyword search (llm_provider=None path).
