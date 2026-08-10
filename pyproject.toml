@@ -9,7 +9,6 @@ keywords = ["clinical-ai", "medical-ai", "healthcare-ai", "clinical-decision-sup
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: End Users/Desktop",
-    "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
@@ -102,6 +101,11 @@ s3 = ["boto3>=1.34,<2.0"]
 auth = ["authlib>=1.3,<2.0", "casbin>=1.16,<2.0"]
 # Model Context Protocol server (agent/mcp_server.py) — 2026 table-stakes.
 mcp = ["mcp>=1.0,<3.0"]
+# Browser automation tool (tools/browser_tool.py) — M4.8 / M12.10.
+browser = ["playwright>=1.45,<2.0"]
+# Agent runtime adapters for other frameworks (agent/adapters) — M3.20.
+adapters = ["openai-agents>=0.1,<1.0", "anthropic>=0.39,<1.0",
+            "google-adk>=0.1,<1.0", "autogen-agentchat>=0.2,<1.0"]
 # Cloud KMS providers (security/kms.py). AWS KMS reuses the `s3` extra (boto3).
 kms = [
     "azure-identity>=1.16,<2.0",
@@ -153,13 +157,6 @@ all = [
 
 [project.scripts]
 doctoragent = "doctoragent.__main__:main"
-
-[project.urls]
-Homepage = "https://github.com/weed33834/DoctorAgent"
-Repository = "https://github.com/weed33834/DoctorAgent"
-Documentation = "https://github.com/weed33834/DoctorAgent#readme"
-Issues = "https://github.com/weed33834/DoctorAgent/issues"
-Changelog = "https://github.com/weed33834/DoctorAgent/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 include = ["doctoragent*", "tests*"]

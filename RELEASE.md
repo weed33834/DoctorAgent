@@ -1,8 +1,6 @@
 # 发布指南
 
-本文件说明如何将 DoctorAgent 发布到：**Docker (GHCR)** 和 **GitHub Releases**。
-
-> PyPI 发布为可选项，文档保留在文末供有需要的开发者参考。
+本文件说明如何将 DoctorAgent 发布到三大平台：**PyPI**、**Docker (GHCR)**、**GitHub Releases**。
 
 ---
 
@@ -10,7 +8,7 @@
 
 ### 1. 版本号同步
 
-发布前确保以下文件的版本号一致（以 `<VERSION>` 代指本次发布的版本号，例如 `0.3.3`）：
+发布前确保以下文件的版本号一致（以 `<VERSION>` 代指本次发布的版本号，例如 `0.3.1`）：
 
 | 文件 | 字段 | 示例 |
 |------|------|------|
@@ -25,7 +23,25 @@
 make check-version
 ```
 
-### 2. GHCR 权限
+> `check-version` 同时比对 `pyproject.toml` / `__init__.py` / `Dockerfile` 三处版本号；`CHANGELOG.md` 的版本条目需在发布前手动确认与之一致。
+
+### 2. PyPI Trusted Publisher 配置（首次发布）
+
+使用 OIDC Trusted Publishing，无需管理 API token：
+
+1. 登录 [PyPI](https://pypi.org/account/register/)
+2. 进入 Account settings → Publishing → Add a new publisher
+3. 选择 GitHub，填入：
+   - Repository owner: `doctoragent`
+   - Repository name: `doctoragent`
+   - Workflow name: `release.yml`
+   - Environment name: `pypi`
+4. 保存
+
+> 如果已配置 Trusted Publisher，`release.yml` 中的 `pypa/gh-action-pypi-publish` 会自动使用 OIDC 认证。
+> 否则取消注释 `password: ${{ secrets.PYPI_API_TOKEN }}` 并在 GitHub Secrets 中添加 `PYPI_API_TOKEN`。
+
+### 3. GHCR 权限
 
 GitHub Container Registry 使用内置的 `GITHUB_TOKEN`，无需额外配置。
 首次推送镜像后，在 GitHub → Packages → doctoragent → Settings 中设置可见性（推荐 Public）。
@@ -41,16 +57,16 @@ GitHub Container Registry 使用内置的 `GITHUB_TOKEN`，无需额外配置。
 git checkout main
 git pull origin main
 
-# 2. 更新版本号（以 0.3.3 为例）
+# 2. 更新版本号（以 0.3.1 为例）
 #    编辑 pyproject.toml, doctoragent/__init__.py, Dockerfile, CHANGELOG.md
 
 # 3. 提交版本变更
 git add -A
-git commit -m "chore: bump version to 0.3.3"
+git commit -m "chore: bump version to 0.3.1"
 
 # 4. 创建并推送 tag
-git tag v0.3.3
-git push origin v0.3.3
+git tag v0.3.1
+git push origin v0.3.1
 
 # 5. GitHub Actions 自动触发 release.yml 工作流
 #    查看: https://github.com/weed33834/DoctorAgent/actions
@@ -58,8 +74,9 @@ git push origin v0.3.3
 
 推送 tag 后，`release.yml` 会依次执行：
 
-1. **🐳 Docker GHCR** — 构建 linux/amd64 + linux/arm64 镜像 → 推送到 `ghcr.io/weed33834/doctoragent`
-2. **🚀 GitHub Release** — 从 CHANGELOG.md 提取发布说明 → 创建 GitHub Release
+1. **📦 PyPI** — 构建 wheel + sdist → 发布到 PyPI
+2. **🐳 Docker GHCR** — 构建 linux/amd64 + linux/arm64 镜像 → 推送到 `ghcr.io/weed33834/doctoragent`（镜像名跟随发布仓库 `${{ github.repository }}` 小写）
+3. **🚀 GitHub Release** — 从 CHANGELOG.md 提取发布说明 → 创建 GitHub Release
 
 ### 方式二：手动触发
 
@@ -69,12 +86,21 @@ git push origin v0.3.3
 
 ## 发布后验证
 
+### PyPI
+
+```bash
+pip install doctoragent==<VERSION>
+python -c "import doctoragent; print(doctoragent.__version__)"
+```
+
+访问 https://pypi.org/project/doctoragent/ 确认页面已更新。
+
 ### Docker
 
 ```bash
-docker pull ghcr.io/weed33834/doctoragent:0.3.3
-docker run --rm ghcr.io/weed33834/doctoragent:0.3.3 --version
-docker inspect ghcr.io/weed33834/doctoragent:0.3.3 --format '{{.Config.Labels}}'
+docker pull ghcr.io/weed33834/doctoragent:<VERSION>
+docker run --rm ghcr.io/weed33834/doctoragent:<VERSION> --version
+docker inspect ghcr.io/weed33834/doctoragent:<VERSION> --format '{{.Config.Labels}}'
 ```
 
 ### GitHub Release
@@ -90,7 +116,7 @@ docker inspect ghcr.io/weed33834/doctoragent:0.3.3 --format '{{.Config.Labels}}'
 | 标签 | 说明 | 示例 |
 |------|------|------|
 | `latest` | 最新稳定版 | `ghcr.io/weed33834/doctoragent:latest` |
-| `x.y.z` | 精确版本 | `ghcr.io/weed33834/doctoragent:0.3.3` |
+| `x.y.z` | 精确版本 | `ghcr.io/weed33834/doctoragent:0.3.1` |
 | `x.y` | 次版本（最新补丁） | `ghcr.io/weed33834/doctoragent:0.3` |
 | `sha-xxxxxxx` | Git commit SHA | `ghcr.io/weed33834/doctoragent:sha-a1b2c3d` |
 
@@ -101,13 +127,16 @@ docker inspect ghcr.io/weed33834/doctoragent:0.3.3 --format '{{.Config.Labels}}'
 如果发布出现问题：
 
 ```bash
-# 1. 从 GHCR 删除镜像版本
+# 1. 从 PyPI 撤回（不可删除，只能 yank）
+#    https://pypi.org/manage/project/doctoragent/releases/
+
+# 2. 从 GHCR 删除镜像版本
 #    GitHub → Packages → doctoragent → Package settings → Manage versions
 
-# 2. 删除 GitHub Release
+# 3. 删除 GitHub Release
 #    GitHub → Releases → 对应版本 → Delete
 
-# 3. 删除 tag（谨慎操作）
+# 4. 删除 tag（谨慎操作）
 git tag -d v<VERSION>
 git push origin :refs/tags/v<VERSION>
 ```
@@ -120,50 +149,4 @@ git push origin :refs/tags/v<VERSION>
 |--------|------|----------|------|
 | CI | `.github/workflows/ci.yml` | push/PR to main | Lint (ruff) + 测试 (pytest) + 覆盖率 |
 | Security | `.github/workflows/security.yml` | push/PR + 每周一 | bandit + pip-audit |
-| Release | `.github/workflows/release.yml` | push tag `v*.*.*` | Docker GHCR + GitHub Release |
-
----
-
-## 附录：PyPI 发布（可选）
-
-本项目默认不走 PyPI。如需自行发布到 PyPI，请按以下步骤操作：
-
-### 1. 配置 PyPI Trusted Publisher（首次）
-
-使用 OIDC Trusted Publishing，无需管理 API token：
-
-1. 登录 [PyPI](https://pypi.org/account/register/)
-2. 进入 Account settings → Publishing → Add a new publisher
-3. 选择 GitHub，填入：
-   - Repository owner: `weed33834`
-   - Repository name: `DoctorAgent`
-   - Workflow name: `release.yml`
-   - Environment name: `pypi`
-4. 保存
-
-### 2. 构建 wheel 和 sdist
-
-```bash
-pip install build
-python -m build
-twine check dist/*
-```
-
-### 3. 发布
-
-如果已配置 Trusted Publisher，取消 `release.yml` 中 PyPI job 的注释并推送 tag。
-否则，使用 API Token：
-
-```bash
-pip install twine
-twine upload dist/*
-```
-
-### 4. 验证
-
-```bash
-pip install doctoragent==<VERSION>
-python -c "import doctoragent; print(doctoragent.__version__)"
-```
-
-访问 https://pypi.org/project/doctoragent/ 确认页面已更新。
+| Release | `.github/workflows/release.yml` | push tag `v*.*.*` | PyPI + Docker GHCR + GitHub Release |

@@ -18,7 +18,12 @@
   <header class="topbar">
     <div class="brand">
       <button id="sidebarToggleBtn" class="sidebar-toggle" title="折叠/展开侧边栏" aria-label="切换侧边栏">☰</button>
-      <span class="logo" aria-hidden="true">⚕</span>
+      <span class="brand-mark" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 21s-7-4.35-9-9c-.8-2 .2-4.5 2-5 2-1 4 .3 4 0 .6-3 2.4-5 3-5s2.4 2 3 5c0 .3 2-1 4 0 1.8.5 2.8 3 2 5-2 4.65-9 9-9 9z"/>
+          <path d="M9 12h6M12 9v6"/>
+        </svg>
+      </span>
       <span class="title">DoctorAgent 控制台</span>
       <span id="serverVersion" class="version"></span>
     </div>
@@ -60,15 +65,16 @@
     <button class="sidebar-item" data-view="rl" role="tab">🎯 强化学习</button>
     <button class="sidebar-item" data-view="collab" role="tab">👥 多智能体协作</button>
     <div class="sidebar-section">运维 & 管理</div>
+    <button class="sidebar-item" data-view="system" role="tab">📡 系统状态</button>
     <button class="sidebar-item" data-view="config" role="tab">⚙️ 配置管理</button>
     <button class="sidebar-item" data-view="connections" role="tab">🔗 连接</button>
     <button class="sidebar-item" data-view="tenants" role="tab">🏢 租户</button>
-    <button class="sidebar-item" data-view="system" role="tab">📡 系统状态</button>
     <button class="sidebar-item" data-view="audit" role="tab">📋 审计日志</button>
     <button class="sidebar-item" data-view="compliance" role="tab">✅ 合规管理</button>
     <button class="sidebar-item" data-view="ops" role="tab">🔧 集成运维</button>
-    <div class="sidebar-section">扩展</div>
+    <button class="sidebar-item" data-view="enterprise" role="tab">🏛 企业平台</button>
     <button class="sidebar-item" data-view="settings" role="tab">🎛 设置中心</button>
+    <div class="sidebar-section">扩展</div>
     <button class="sidebar-item" data-view="hooks" role="tab">🪝 生命周期钩子</button>
     <button class="sidebar-item" data-view="obs" role="tab">📈 可观测性</button>
     <button class="sidebar-item" data-view="plugins" role="tab">🧩 插件管理</button>
@@ -122,6 +128,14 @@
               <button id="chatWebBtn" class="chat-tool-btn" title="联网搜索（注入联网提示）">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
                 <span>联网</span>
+              </button>
+              <button id="chatVoiceBtn" class="chat-tool-btn voice-btn" title="语音输入（点击录音，再次点击停止）">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                <span id="chatVoiceLabel">语音</span>
+              </button>
+              <button id="chatTtsBtn" class="chat-tool-btn" title="朗读最后一条回复（TTS）">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/><path d="M19.07 4.93a10 10 0 010 14.14"/></svg>
+                <span>朗读</span>
               </button>
               <div id="chatAttachedFiles" class="chat-attached-files"></div>
               <button class="chat-export-btn chat-tool-btn" title="导出为 Markdown" data-format="md">📄</button>
@@ -815,6 +829,58 @@
             <button id="inboxSubmitBtn" class="btn btn-primary">投递并分类</button>
           </div>
           <div id="inboxResult" class="result-area compact"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 企业平台 (M14) ============ -->
+    <section id="view-enterprise" class="view">
+      <div class="panel">
+        <h2>🏛 企业平台管理</h2>
+        <div class="ent-cards">
+          <div class="ent-card"><div class="ent-num" id="entOrgCount">0</div><div class="ent-label">组织</div></div>
+          <div class="ent-card"><div class="ent-num" id="entUserCount">0</div><div class="ent-label">用户</div></div>
+          <div class="ent-card"><div class="ent-num" id="entAnnCount">0</div><div class="ent-label">公告</div></div>
+          <div class="ent-card"><div class="ent-num" id="entMaintenance">–</div><div class="ent-label">维护中</div></div>
+        </div>
+
+        <div class="form-row">
+          <label>创建组织</label>
+          <input id="entOrgName" type="text" placeholder="组织名称" />
+          <button class="btn" onclick="enterpriseCreateOrg()">创建</button>
+        </div>
+        <div id="entOrgList" class="ent-list"></div>
+
+        <hr style="border-color:var(--border);margin:18px 0" />
+        <div class="form-row">
+          <label>新建用户（需已有组织 ID）</label>
+          <input id="entUserOrg" type="text" placeholder="org id" style="width:130px" />
+          <input id="entUserEmail" type="text" placeholder="邮箱" />
+          <input id="entUserPwd" type="password" placeholder="密码" />
+          <input id="entUserName" type="text" placeholder="姓名" />
+          <button class="btn" onclick="enterpriseCreateUser()">建号</button>
+        </div>
+        <div id="entUserList" class="ent-list"></div>
+
+        <hr style="border-color:var(--border);margin:18px 0" />
+        <div class="form-row">
+          <label>预算（scope_id=组织ID）</label>
+          <input id="entBudgetScope" type="text" value="org" style="width:90px" />
+          <input id="entBudgetScopeId" type="text" placeholder="scope_id" style="width:150px" />
+          <input id="entBudgetAmt" type="number" placeholder="月预算 $" style="width:120px" />
+          <button class="btn" onclick="enterpriseSetBudget()">设置预算</button>
+        </div>
+        <div class="form-row">
+          <label>维护模式</label>
+          <input id="entMaintMsg" type="text" placeholder="维护说明" />
+          <button class="btn" onclick="enterpriseSetMaintenance(true)">开启</button>
+          <button class="btn btn-ghost" onclick="enterpriseSetMaintenance(false)">关闭</button>
+        </div>
+        <div class="form-row">
+          <label>发布公告</label>
+          <input id="entAnnTitle" type="text" placeholder="标题" style="width:200px" />
+          <input id="entAnnContent" type="text" placeholder="内容" />
+          <button class="btn" onclick="enterpriseCreateAnn()">发布</button>
         </div>
       </div>
     </section>

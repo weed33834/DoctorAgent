@@ -894,6 +894,49 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
             loop = None
         broadcaster.attach_loop(loop)
         logger.info("DoctorAgent API server starting (API version %s)", CURRENT_API_VERSION)
+        # Connect to externally-configured MCP servers (M4.16) and import their
+        # tools, best-effort and non-blocking so a slow/unreachable server
+        # never blocks startup.
+        _mcp_specs = getattr(config.integrations, "mcp_servers", None) or []
+        if _mcp_specs:
+            _mcp_specs = list(_mcp_specs)
+            _client_cache = app.state.mcp_clients
+            _mcp_registry = app.state.mcp_tool_registry
+            _mcp_registry_ref = _mcp_registry
+
+            async def _import_configured_mcp_servers() -> None:
+                if _mcp_registry_ref is None:
+                    return
+                try:
+                    from doctoragent.agent.mcp_client import MCPClient, import_mcp_tools
+                except ImportError:
+                    logger.warning("mcp extra not installed; skipping configured MCP servers")
+                    return
+                for spec in _mcp_specs:
+                    name = spec.get("name", "external")
+                    try:
+                        client = MCPClient(
+                            name,
+                            transport=spec.get("transport", "stdio"),
+                            command=spec.get("command"),
+                            args=spec.get("args") or [],
+                            url=spec.get("url"),
+                            http_headers=spec.get("http_headers") or {},
+                        )
+                        imported = await import_mcp_tools(
+                            client, _mcp_registry_ref, prefix=spec.get("prefix", "")
+                        )
+                        _client_cache[name] = client
+                        logger.info(
+                            "Imported %d tool(s) from MCP server %s",
+                            len(imported),
+                            name,
+                        )
+                    except Exception as exc:  # noqa: BLE001 — best-effort
+                        logger.warning("Failed to import MCP server %s: %s", name, exc)
+
+            _startup_task = asyncio.create_task(_import_configured_mcp_servers())
+            app.state.mcp_startup_task = _startup_task
         # Verify audit-log integrity on startup so tampered logs are detected
         # immediately rather than being silently read on demand. This makes
         # HMAC verification fail-closed by default instead of opt-in.
@@ -982,8 +1025,8 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
             "url": "https://github.com/weed33834/DoctorAgent",
         },
         license_info={
-            "name": "Apache-2.0",
-            "url": "https://www.apache.org/licenses/LICENSE-2.0",
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT",
         },
         terms_of_service="https://github.com/weed33834/DoctorAgent",
         servers=[
@@ -1077,6 +1120,117 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
     app.state.rate_limiter = rate_limiter
     app.state.agent_factory = agent_factory
     app.state.agent_tasks: dict[str, asyncio.Task[Any]] = {}
+    # External MCP server connections created via POST /mcp/connect are kept
+    # here so their sessions stay reusable across tool calls.
+    app.state.mcp_clients: dict[str, Any] = {}
+    # Enterprise / organization platform service (M14). Lazily built from the
+    # task-store database path so the console can manage orgs/users/budgets.
+    try:
+        from doctoragent.enterprise import EnterpriseService, EnterpriseStore
+
+        _ent_db = Path(config.paths.index) / "enterprise.db"
+        _ent_store = EnterpriseStore(_ent_db)
+        _ent_audit = getattr(agent, "audit_logger", None)
+        app.state.enterprise_service = EnterpriseService(
+            _ent_store, audit_logger=_ent_audit
+        )
+        app.state.enterprise_store = _ent_store
+    except Exception as exc:  # noqa: BLE001 — enterprise must never block startup
+        app.state.enterprise_service = None
+        app.state.enterprise_store = None
+        logger.debug("Enterprise service not available: %s", exc)
+    # Governance / pricing / semantic cache / cost dashboard services (M20/M21/M23).
+    try:
+        from doctoragent.governance import GovernanceService, GovernanceStore
+
+        _gov_store = GovernanceStore(Path(config.paths.index) / "governance.db")
+        app.state.governance_service = GovernanceService(_gov_store)
+        app.state.governance_store = _gov_store
+    except Exception as exc:  # noqa: BLE001
+        app.state.governance_service = None
+        app.state.governance_store = None
+        logger.debug("governance service not available: %s", exc)
+    try:
+        from doctoragent.model.pricing import ModelPricing
+
+        app.state.pricing = ModelPricing()
+    except Exception:  # noqa: BLE001
+        app.state.pricing = None
+    try:
+        from doctoragent.model.semantic_cache import SemanticCache
+
+        app.state.semantic_cache = SemanticCache(
+            embedding_provider=getattr(agent, "_embedding_provider", None),
+            persist_path=Path(config.paths.index) / "semantic_cache.db",
+            sensitive_prefixes=("病历", "患者", "diagnosis", "patient"),
+        )
+    except Exception:  # noqa: BLE001
+        app.state.semantic_cache = None
+    app.state.cost_tracker = getattr(agent, "cost_tracker", None)
+    if app.state.cost_tracker is None:
+        try:
+            from doctoragent.model.cost_tracker import CostTracker
+
+            app.state.cost_tracker = CostTracker(Path(config.paths.index) / "costs.db")
+        except Exception:  # noqa: BLE001
+            app.state.cost_tracker = None
+    # Interop (M27) / AI security (M25) / disaster recovery (M29) services.
+    try:
+        from doctoragent.interop import InteropService, InteropStore
+
+        app.state.interop_service = InteropService(
+            InteropStore(Path(config.paths.index) / "interop.db"),
+            a2a_client=getattr(app.state, "a2a_client", None),
+        )
+    except Exception:  # noqa: BLE001
+        app.state.interop_service = None
+    try:
+        from doctoragent.security.threat import ThreatService, ThreatStore
+
+        app.state.threat_service = ThreatService(
+            ThreatStore(Path(config.paths.index) / "threat.db")
+        )
+    except Exception:  # noqa: BLE001
+        app.state.threat_service = None
+    try:
+        from doctoragent.disaster import DisasterService, DisasterStore
+
+        app.state.disaster_service = DisasterService(
+            DisasterStore(Path(config.paths.index) / "disaster.db")
+        )
+    except Exception:  # noqa: BLE001
+        app.state.disaster_service = None
+    # Multimodal (M26) / data pipeline (M28) / KB manager (M14 D) / task center (M14 K).
+    try:
+        from doctoragent.multimodal import MultimodalService, MultimodalStore
+
+        app.state.multimodal_service = MultimodalService(
+            MultimodalStore(Path(config.paths.index) / "multimodal.db")
+        )
+    except Exception:  # noqa: BLE001
+        app.state.multimodal_service = None
+    try:
+        from doctoragent.datapipeline import PipelineService, PipelineStore
+
+        app.state.pipeline_service = PipelineService(
+            PipelineStore(Path(config.paths.index) / "pipeline.db")
+        )
+    except Exception:  # noqa: BLE001
+        app.state.pipeline_service = None
+    try:
+        from doctoragent.knowledge_base import KnowledgeBaseManager
+
+        app.state.kb_manager = KnowledgeBaseManager(
+            Path(config.paths.index) / "kb.db", config.paths.vault
+        )
+    except Exception:  # noqa: BLE001
+        app.state.kb_manager = None
+    try:
+        from doctoragent.taskcenter import TaskCenter
+
+        app.state.task_center = TaskCenter(Path(config.paths.index) / "tasks.db")
+    except Exception:  # noqa: BLE001
+        app.state.task_center = None
     # Background sync tasks created by POST /sync/trigger are tracked here so
     # the lifespan shutdown handler can cancel them instead of leaving orphan
     # tasks that outlive the server.
@@ -2740,6 +2894,50 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
     except ImportError:
         logger.debug("cds_hooks router not available (FastAPI not installed)")
 
+    # ── Enterprise / organization platform router (M14) ──
+    try:
+        from doctoragent.enterprise.routes import get_router as _get_ent_router
+
+        _ent_router = _get_ent_router()
+        if _ent_router is not None:
+            app.include_router(_ent_router)
+            logger.info("Enterprise router registered at /api/v1/enterprise")
+    except ImportError:
+        logger.debug("enterprise router not available (FastAPI not installed)")
+
+    # ── Platform router (governance / pricing / cache / cost) ──
+    try:
+        from doctoragent.api.platform_routes import get_router as _get_platform_router
+
+        _platform_router = _get_platform_router()
+        if _platform_router is not None:
+            app.include_router(_platform_router)
+            logger.info("Platform router registered (governance/pricing/cache/cost)")
+    except ImportError:
+        logger.debug("platform router not available (FastAPI not installed)")
+
+    # ── Security / interop / disaster router (M25/M27/M29) ──
+    try:
+        from doctoragent.api.security_routes import get_router as _get_security_router
+
+        _security_router = _get_security_router()
+        if _security_router is not None:
+            app.include_router(_security_router)
+            logger.info("Security/interop/DR router registered")
+    except ImportError:
+        logger.debug("security router not available (FastAPI not installed)")
+
+    # ── Ops router (multimodal / pipeline / kb / tasks / analytics) ──
+    try:
+        from doctoragent.api.ops_routes import get_router as _get_ops_router
+
+        _ops_router = _get_ops_router()
+        if _ops_router is not None:
+            app.include_router(_ops_router)
+            logger.info("Ops router registered (multimodal/pipeline/kb/tasks/analytics)")
+    except ImportError:
+        logger.debug("ops router not available (FastAPI not installed)")
+
     # ── MCP (Model Context Protocol) ────────────────────────────────
     # Exposes the agent's tools over MCP so external MCP-compatible
     # clients (Claude Desktop, Cursor, other agent frameworks) can
@@ -2809,6 +3007,113 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
             logger.info("MCP server not available: %s", exc)
     else:
         app.state.mcp_server = None
+
+    # ── A2A (Agent-to-Agent) protocol ──────────────────────────────
+    # Exposes this agent to *other* agents per the A2A spec (Google):
+    #   * GET  /.well-known/agent.json  → Agent Card (capability discovery)
+    #   * POST /a2a/rpc                → JSON-RPC 2.0 (task/send, task/get,
+    #                                     task/cancel, agents/list)
+    # Both are registered on `app` (not the versioned router) so the paths
+    # match the A2A spec exactly. The client half (A2AClient) lets this agent
+    # delegate subtasks to the peer agents in config.a2a.peer_agents.
+    a2a_server: Any = None
+    a2a_client: Any = None
+    try:
+        from doctoragent.a2a import A2AClient, A2AServer, build_default_handler
+
+        if config.a2a.enabled:
+            a2a_handler = build_default_handler(agent)
+            a2a_server = A2AServer(
+                name=config.a2a.agent_name,
+                description=config.a2a.agent_description,
+                url=config.a2a.base_url,
+                handler=a2a_handler,
+                auth_type=config.a2a.auth_type,
+            )
+            a2a_client = A2AClient(
+                timeout=config.a2a.timeout_seconds,
+                headers={
+                    k: ("Bearer " + v)
+                    for k, v in config.a2a.bearer_tokens.items()
+                },
+            )
+            app.state.a2a_server = a2a_server
+            app.state.a2a_client = a2a_client
+            app.state.a2a_peer_agents = list(config.a2a.peer_agents)
+            logger.info("A2A server built (agent=%s)", config.a2a.agent_name)
+    except Exception as exc:  # noqa: BLE001 — A2A must never block startup
+        app.state.a2a_server = None
+        app.state.a2a_client = None
+        app.state.a2a_peer_agents = []
+        logger.debug("A2A server not available: %s", exc)
+
+    @app.get(  # type: ignore[name-defined]
+        "/.well-known/agent.json",
+        tags=["A2A"],
+        summary="A2A Agent Card (capability discovery)",
+        description=(
+            "Declares this agent's capabilities for A2A discovery. Remote "
+            "agents and orchestrators fetch this card to learn how to submit "
+            "tasks to this agent."
+        ),
+        include_in_schema=True,
+    )
+    async def a2a_agent_card() -> dict[str, Any]:
+        """Return the A2A Agent Card."""
+        server = getattr(app.state, "a2a_server", None)
+        if server is None:
+            raise HTTPException(  # type: ignore[misc]
+                status_code=404, detail="A2A is not enabled on this server"
+            )
+        return server.card_dict()
+
+    @app.post(  # type: ignore[name-defined]
+        "/a2a/rpc",
+        tags=["A2A"],
+        summary="A2A JSON-RPC 2.0 task endpoint",
+        description=(
+            "Handles A2A JSON-RPC 2.0 methods: task/send, task/get, "
+            "task/cancel, task/list, agents/list, ping."
+        ),
+        include_in_schema=True,
+    )
+    async def a2a_rpc(request: Request) -> dict[str, Any]:  # type: ignore[name-defined]
+        """Dispatch an A2A JSON-RPC 2.0 request to the A2A server."""
+        server = getattr(app.state, "a2a_server", None)
+        if server is None:
+            return {
+                "jsonrpc": "2.0",
+                "id": None,
+                "error": {"code": -32000, "message": "A2A is not enabled on this server"},
+            }
+        try:
+            payload = await request.json()
+        except Exception as exc:  # noqa: BLE001
+            return {
+                "jsonrpc": "2.0",
+                "id": None,
+                "error": {"code": -32700, "message": f"Parse error: {exc}"},
+            }
+        if not isinstance(payload, dict):
+            return {
+                "jsonrpc": "2.0",
+                "id": None,
+                "error": {"code": -32600, "message": "Invalid Request"},
+            }
+        return await server.handle_rpc(payload)
+
+    @app.get(  # type: ignore[name-defined]
+        "/a2a/tasks",
+        tags=["A2A"],
+        summary="List A2A tasks (in-process store)",
+        include_in_schema=True,
+    )
+    async def a2a_tasks() -> dict[str, Any]:
+        """List tasks currently tracked by the in-process A2A server."""
+        server = getattr(app.state, "a2a_server", None)
+        if server is None:
+            return {"tasks": [], "total": 0}
+        return {"tasks": server.list_tasks(), "total": server.task_count()}
 
     @router.get(  # type: ignore[name-defined]
         "/mcp/tools",
@@ -2927,6 +3232,80 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
                 "code": -32601,
                 "message": f"method not found: {method}",
             },
+        }
+
+    # ── MCP client: connect to external MCP servers & import tools ──
+    # Implements the M4.16 client half: connect to an external MCP server
+    # (stdio or HTTP), discover its tools, and register them into the agent's
+    # tool registry so the ReAct loop can call remote tools.
+    @router.post(
+        "/mcp/connect",
+        tags=["MCP"],
+        summary="Connect to an external MCP server and import its tools",
+        description=(
+            "Accepts an MCP server connection spec "
+            "(``{name, transport: stdio|http, command, args, url, "
+            "http_headers, prefix}``), connects to it, and registers its "
+            "tools into the agent's tool registry. Returns the imported "
+            "tool names. Requires the `mcp` extra."
+        ),
+        responses=_error_responses(400, 401, 500),
+    )
+    async def mcp_connect(payload: dict[str, Any]) -> dict[str, Any]:
+        """Connect to an external MCP server and import its tools."""
+        registry = getattr(app.state, "mcp_tool_registry", None)
+        if registry is None:
+            raise HTTPException(  # type: ignore[misc]
+                status_code=500, detail="Tool registry not available"
+            )
+        try:
+            from doctoragent.agent.mcp_client import MCPClient, import_mcp_tools
+
+            client = MCPClient(
+                payload.get("name", "external"),
+                transport=payload.get("transport", "stdio"),
+                command=payload.get("command"),
+                args=payload.get("args") or [],
+                url=payload.get("url"),
+                http_headers=payload.get("http_headers") or {},
+            )
+            imported = await import_mcp_tools(
+                client, registry, prefix=payload.get("prefix", "")
+            )
+            # Keep the client alive so its session can be reused for calls.
+            clients = getattr(app.state, "mcp_clients", {})
+            clients[payload.get("name", "external")] = client
+            app.state.mcp_clients = clients
+            return {"connected": True, "imported": imported, "count": len(imported)}
+        except ImportError as exc:  # mcp extra missing
+            raise HTTPException(  # type: ignore[misc]
+                status_code=500, detail=str(exc)
+            ) from exc
+        except Exception as exc:  # noqa: BLE001 — surface connection failures cleanly
+            logger.exception("MCP connect failed")
+            raise HTTPException(  # type: ignore[misc]
+                status_code=400, detail=f"MCP connect failed: {exc}"
+            ) from exc
+
+    @router.get(
+        "/mcp/clients",
+        tags=["MCP"],
+        summary="List connected external MCP servers",
+        responses=_error_responses(401, 500),
+    )
+    async def mcp_clients_list() -> dict[str, Any]:
+        """List the external MCP servers currently connected and their tools."""
+        registry = getattr(app.state, "mcp_tool_registry", None)
+        clients = getattr(app.state, "mcp_clients", {})
+        remote_tools = []
+        if registry is not None:
+            remote_tools = [
+                td.name for td in registry.list_tools() if td.category == "mcp_remote"
+            ]
+        return {
+            "clients": [{"name": n} for n in clients],
+            "remote_tools": remote_tools,
+            "count": len(clients),
         }
 
     # ── API version endpoint (registered on app, not the router) ─────

@@ -37,7 +37,17 @@ logger = logging.getLogger(__name__)
 
 _FASTAPI_AVAILABLE = False
 try:
-    from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
+    from fastapi import (
+        APIRouter,
+        Body,
+        Depends,
+        File,
+        HTTPException,
+        Query,
+        Request,
+        Response,
+        UploadFile,
+    )
     from fastapi.security import HTTPBearer
 
     _bearer_scheme = HTTPBearer(auto_error=False)
@@ -2848,6 +2858,165 @@ if _FASTAPI_AVAILABLE:
                 status_code=500, detail=f"Failed to list episodes: {exc}"
             ) from exc
         return {"total": len(items), "items": _serialize(items)}
+
+    @router.post(
+        "/memory/consolidate",
+        tags=["Memory"],
+        summary="Run long-horizon memory consolidation (episodic → semantic)",
+        description=(
+            "Triggers the episodic → semantic compaction pass: un-consolidated "
+            "episodes are distilled into durable semantic facts (deduplicated "
+            "against existing long-term memory) so knowledge survives the "
+            "episode-level TTL / forgetting. Idempotent — already-consolidated "
+            "episodes are skipped."
+        ),
+        responses=_error_responses(401, 503, 500),
+    )
+    async def memory_consolidate(
+        request: Request,  # type: ignore[name-defined]
+        batch_size: int = Body(100, ge=1, le=2000),  # type: ignore[name-defined]  # noqa: B008
+        prune: bool = Body(True),  # type: ignore[name-defined]  # noqa: B008
+        _auth: Any = Depends(_auth_dependency),  # type: ignore[name-defined]  # noqa: B008
+    ) -> dict[str, Any]:
+        ms = _get_memory_system(request)
+        if ms is None:
+            raise _service_unavailable("Memory System")
+        if not hasattr(ms, "consolidate_memories"):
+            raise HTTPException(  # type: ignore[misc]
+                status_code=501,
+                detail="This MemorySystem version does not support consolidation",
+            )
+        try:
+            stats = ms.consolidate_memories(batch_size=batch_size, prune_after=prune)
+            return {"status": "ok", **stats}
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(  # type: ignore[misc]
+                status_code=500, detail=f"Memory consolidation failed: {exc}"
+            ) from exc
+
+    # ===================================================================
+    # 12.5 Voice conversation chain (ASR + TTS)
+    # ===================================================================
+
+    def _get_voice_service(request: Request) -> Any:  # type: ignore[name-defined]
+        """Resolve (or lazily construct) the configured VoiceService."""
+        svc = getattr(request.app.state, "voice_service", None)
+        if svc is not None:
+            return svc
+        try:
+            from doctoragent.config import VoiceConfig
+            from doctoragent.voice.service import VoiceService
+
+            config = _get_config(request)
+            voice_config = getattr(config, "voice", None) or VoiceConfig()
+            svc = VoiceService(voice_config)
+            setattr(request.app.state, "voice_service", svc)
+            return svc
+        except Exception:  # noqa: BLE001
+            logger.exception("Failed to build VoiceService")
+            return None
+
+    @router.get(
+        "/voice/status",
+        tags=["Voice"],
+        summary="Voice service capability status",
+        responses=_error_responses(401),
+    )
+    async def voice_status(
+        request: Request,  # type: ignore[name-defined]
+        _auth: Any = Depends(_auth_dependency),  # type: ignore[name-defined]  # noqa: B008
+    ) -> dict[str, Any]:
+        svc = _get_voice_service(request)
+        if svc is None:
+            return {"enabled": False, "transcribe": False, "tts": False}
+        return svc.availability()
+
+    @router.post(
+        "/voice/transcribe",
+        tags=["Voice"],
+        summary="Transcribe an audio clip to text (ASR)",
+        description=(
+            "Accepts an audio file upload (webm/wav/mp3) and returns the "
+            "transcribed text via the configured OpenAI-compatible speech-to-"
+            "text endpoint. Returns 501 when transcription is not configured."
+        ),
+        responses=_error_responses(400, 401, 501, 500),
+    )
+    async def voice_transcribe(
+        request: Request,  # type: ignore[name-defined]
+        file: UploadFile = File(...),  # type: ignore[name-defined]  # noqa: B008
+        language: str | None = Query(None),  # type: ignore[name-defined]  # noqa: B008
+        _auth: Any = Depends(_auth_dependency),  # type: ignore[name-defined]  # noqa: B008
+    ) -> dict[str, Any]:
+        svc = _get_voice_service(request)
+        if svc is None or not svc.transcribe_available:
+            raise HTTPException(  # type: ignore[misc]
+                status_code=501, detail="Voice transcription is not configured"
+            )
+        data = await file.read()
+        config = _get_config(request)
+        max_bytes = (
+            getattr(getattr(config, "voice", None), "max_audio_bytes", 10 * 1024 * 1024)
+            if config is not None
+            else 10 * 1024 * 1024
+        )
+        if len(data) > max_bytes:
+            raise HTTPException(  # type: ignore[misc]
+                status_code=413,
+                detail=f"Audio exceeds {max_bytes} byte upload limit",
+            )
+        try:
+            text = await svc.transcribe(
+                data,
+                filename=file.filename or "audio.webm",
+                mime=file.content_type or "audio/webm",
+                language=language,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Voice transcription failed")
+            raise HTTPException(  # type: ignore[misc]
+                status_code=500, detail=f"Transcription failed: {exc}"
+            ) from exc
+        return {"text": text}
+
+    @router.post(
+        "/voice/synthesize",
+        tags=["Voice"],
+        summary="Synthesize speech audio from text (TTS)",
+        description=(
+            "Takes ``{text, voice?}`` and returns synthesized audio (mp3) via "
+            "the configured OpenAI-compatible text-to-speech endpoint. Returns "
+            "501 when synthesis is not configured."
+        ),
+        responses=_error_responses(400, 401, 501, 500),
+    )
+    async def voice_synthesize(
+        request: Request,  # type: ignore[name-defined]
+        payload: dict[str, Any] = Body(...),  # type: ignore[name-defined]  # noqa: B008
+        _auth: Any = Depends(_auth_dependency),  # type: ignore[name-defined]  # noqa: B008
+    ) -> Response:
+        svc = _get_voice_service(request)
+        if svc is None or not svc.tts_available:
+            raise HTTPException(  # type: ignore[misc]
+                status_code=501, detail="Voice synthesis is not configured"
+            )
+        text = str(payload.get("text", "")).strip()
+        if not text:
+            raise HTTPException(  # type: ignore[misc]
+                status_code=400, detail="'text' is required"
+            )
+        try:
+            audio = await svc.synthesize(text, voice=payload.get("voice"))
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Voice synthesis failed")
+            raise HTTPException(  # type: ignore[misc]
+                status_code=500, detail=f"Synthesis failed: {exc}"
+            ) from exc
+        return Response(
+            content=audio,
+            media_type="audio/mpeg",
+            headers={"Content-Disposition": "inline; filename=speech.mp3"},
+        )
 
     # ===================================================================
     # 12. Lifecycle Hooks Management

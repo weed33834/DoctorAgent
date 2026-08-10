@@ -107,13 +107,33 @@ bash start.sh
 pytest tests/ -q
 ```
 
-期望 `2195+ passed`。如果数字掉了，说明哪里坏了。别发那个版本。
+期望 `2314+ passed`。如果数字掉了，说明哪里坏了。别发那个版本。
 
 ---
 
 ## 你可以在它上面做什么
 
-代码 Apache-2.0 许可，明确设计为可扩展。钩子系统有 15 个触发点（request_received / before_tool_call / after_llm_response / before_audit_write 等），可以挂载 Python 脚本。插件管理器在启动时注册额外入口点。
+代码 MIT 许可，明确设计为可扩展。钩子系统有 15 个触发点（request_received / before_tool_call / after_llm_response / before_audit_write 等），可以挂载 Python 脚本。插件管理器在启动时注册额外入口点。
+
+### 企业级与平台能力（对照 Universal Agent Builder 完整版 M0–M23）
+
+DoctorAgent 在核心临床能力之外，已落地一整套**可上线、可信、可观测、可企业化**的平台能力：
+
+- **A2A 跨 Agent 协议**（`doctoragent/a2a/`）：`/.well-known/agent.json` + `/a2a/rpc`，可与其它 Agent 框架互操作
+- **MCP 客户端**：连接外部 MCP 服务器并导入工具（`POST /mcp/connect`）
+- **企业级平台**（`doctoragent/enterprise/`）：组织/部门树、用户生命周期、TOTP MFA 双因子、账号锁定、预算阶梯超限、配额、公告、维护模式、API Key、审计导出
+- **数据治理目录**（`doctoragent/governance/`）：数据资产/血缘/质量/敏感度分类（含 PHI）
+- **语义缓存**（`model/semantic_cache.py`）：按查询语义命中缓存，降低 TTFT 与成本
+- **模型比价/成本看板**（`model/pricing.py` + `/api/v1/cost/*`）
+- **语音对话链路**（`doctoragent/voice/`）：ASR + TTS，控制台语音输入/朗读
+- **浏览器自动化 / 多框架适配器 / 群聊编排**（`tools/browser_tool.py`、`agent/adapters.py`、`orchestration/group_chat.py`）
+- **生产部署资产**（`deploy/k8s/`、`deploy/grafana/`）+ 质量门禁（`scripts/eval_gate.py`、`scripts/security_smoke.py`）
+- **AI 安全威胁库+红队**（`security/threat.py`）：威胁用例/注入检测/安全事件/红队演练
+- **Agent 互操作**（`interop/`）：外部 Agent 目录/信任等级/互操作策略/A2A 任务监控
+- **容灾与连续性**（`disaster/`）：备份任务/DR 计划/演练(实测 RTO-RPO)/故障注入/连续性看板
+- **多模态资产库**（`multimodal/`）+ **数据管道**（`datapipeline/`）+ **知识库管理**（`knowledge_base.py`）+ **任务中心**（`taskcenter.py`）+ **用量分析**（`/analytics/overview`）
+
+完整差距对照见 [docs/GAP_ANALYSIS.md](docs/GAP_ANALYSIS.md)。
 
 议题跟踪里已经有人在探索的方向：
 
@@ -129,7 +149,7 @@ pytest tests/ -q
 
 ## 商业使用
 
-代码 Apache-2.0。医院内部用、做成托管服务卖、裹进产品卖、嵌入更大系统——按你的商业模式来。维护者提供付费支持合同（响应 SLA、安全审查、版本钉死），有需要的机构通过 GitHub 议题联系我们。
+代码 MIT。医院内部用、做成托管服务卖、裹进产品卖、嵌入更大系统——按你的商业模式来。维护者提供付费支持合同（响应 SLA、安全审查、版本钉死），有需要的机构联系我们（GitCode 议题或 pyproject.toml 里的邮箱）。
 
 我们不接受的：
 
@@ -160,7 +180,7 @@ pytest tests/ -q
 
 ## 测试姿态
 
-- **2195+ 个单元测试**，在 Python 3.10/3.11/3.12 全过。
+- **2314+ 个单元测试**，在 Python 3.10/3.11/3.12/3.13 全过。
 - 控制台里 **66 条 API 路由**有完整往返测试。
 - **18 个 CRUD 工作流**（临床工作台、文档库、智能体、钩子等）端到端跑过。
 - **空壳扫描** 是 CI 一步——你 PR 加了一个不干活的端点或函数，测试会失败。
@@ -171,7 +191,7 @@ pytest tests/ -q
 ## 常见问题
 
 **免费吗？能商用吗？**
-能。Apache-2.0 许可，商用、托管服务、嵌入产品都行。衍生作品的底线见[商业使用](#商业使用)三条。
+能。MIT 许可，商用、托管服务、嵌入产品都行。衍生作品的底线见[商业使用](#商业使用)三条。
 
 **不用 LLM 能用吗？**
 确定性安全引擎（药物相互作用/危急值/过敏交叉/重复用药）和文档库**完全离线可用**，不需要 API key、不需要网络。智能对话等智能体功能需要接 LLM 后端：任何 OpenAI 兼容端点都行，包括本地 Ollama（可完全断网运行）。
@@ -192,13 +212,14 @@ PHI 脱敏（HIPAA Safe Harbor，19 类标识符含身份证号，4 种策略：
 
 ## 相关项目
 
-- [weed33834/DoctorAgent](https://github.com/weed33834/DoctorAgent) — 本仓库。
+- [badhope/AI](https://gitcode.com/badhope/AI) — DoctorAgent 用到的方法论、规则集、提示词库。
+- [badhope](https://gitcode.com/badhope) — 其他 16 个开源项目。
 
 ---
 
 ## 许可证
 
-Apache-2.0，见 `LICENSE`。内置的 SNOMED CT、LOINC、ICD-10-CM 参考数据按各自许可证再分发（见 `docs/COMPLIANCE_ROADMAP.md`）。
+MIT，见 `LICENSE`。内置的 SNOMED CT、LOINC、ICD-10-CM 参考数据按各自许可证再分发（见 `docs/COMPLIANCE_ROADMAP.md`）。
 
 ---
 

@@ -129,7 +129,9 @@
     const headers = Object.assign({}, opts.headers || {});
     const token = getToken();
     if (token) headers["Authorization"] = "Bearer " + token;
-    if (opts.body && typeof opts.body === "object") {
+    if (opts.body && typeof opts.body === "object"
+        && !(opts.body instanceof FormData)
+        && !(opts.body instanceof Blob)) {
       headers["Content-Type"] = "application/json";
       opts.body = JSON.stringify(opts.body);
     }
@@ -3198,6 +3200,114 @@
 
     // 发送按钮
     document.getElementById("chatSendBtn").addEventListener("click", sendChatMessage);
+
+    // ── 语音输入（ASR）：MediaRecorder 录音 → /api/v1/voice/transcribe ──
+    let voiceRecorder = null;
+    let voiceChunks = [];
+    let voiceStream = null;
+    const voiceBtn = document.getElementById("chatVoiceBtn");
+    const voiceLabel = document.getElementById("chatVoiceLabel");
+    const ttsBtn = document.getElementById("chatTtsBtn");
+
+    async function checkVoiceStatus() {
+      try {
+        const r = await api("/api/v1/voice/status");
+        if (!r || !r.transcribe) voiceBtn.classList.add("hidden");
+      } catch (e) { /* 保持按钮可见，点击时再报错 */ }
+    }
+    checkVoiceStatus();
+
+    function setVoiceRecording(on) {
+      if (!voiceBtn) return;
+      voiceBtn.classList.toggle("recording", on);
+      if (voiceLabel) voiceLabel.textContent = on ? "停止" : "语音";
+      voiceBtn.title = on ? "点击停止录音" : "语音输入（点击录音）";
+    }
+
+    async function startVoiceRecording() {
+      if (!window.MediaRecorder) { alert("当前浏览器不支持 MediaRecorder 录音"); return; }
+      try {
+        voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (e) {
+        alert("无法访问麦克风：" + e.message);
+        return;
+      }
+      voiceChunks = [];
+      const mime = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "";
+      voiceRecorder = new MediaRecorder(voiceStream, mime ? { mimeType: mime } : undefined);
+      voiceRecorder.ondataavailable = function (ev) { if (ev.data && ev.data.size > 0) voiceChunks.push(ev.data); };
+      voiceRecorder.onstop = transcribeVoice;
+      voiceRecorder.start();
+      setVoiceRecording(true);
+    }
+
+    function stopVoiceRecording() {
+      if (voiceRecorder && voiceRecorder.state !== "inactive") voiceRecorder.stop();
+      if (voiceStream) { voiceStream.getTracks().forEach(function (t) { t.stop(); }); voiceStream = null; }
+      setVoiceRecording(false);
+    }
+
+    async function transcribeVoice() {
+      if (voiceChunks.length === 0) return;
+      const blob = new Blob(voiceChunks, { type: voiceChunks[0].type || "audio/webm" });
+      const fd = new FormData();
+      fd.append("file", blob, "voice.webm");
+      const input = document.getElementById("chatInput");
+      if (input) input.placeholder = "转写中…";
+      try {
+        const r = await api("/api/v1/voice/transcribe", { method: "POST", body: fd });
+        if (input && r && r.text) {
+          input.value = input.value ? input.value + " " + r.text : r.text;
+          input.dispatchEvent(new Event("input"));
+          input.focus();
+        } else if (input) { input.placeholder = "转写失败，请重试"; }
+      } catch (e) {
+        console.error("Voice transcribe failed", e);
+        if (input) input.placeholder = "语音转写失败";
+      } finally {
+        setTimeout(function () { if (input) input.placeholder = "输入消息，Enter 发送，Shift+Enter 换行…"; }, 1500);
+      }
+    }
+
+    if (voiceBtn) {
+      voiceBtn.addEventListener("click", function () {
+        if (voiceRecorder && voiceRecorder.state === "recording") stopVoiceRecording();
+        else startVoiceRecording();
+      });
+    }
+
+    // ── 语音输出（TTS）：朗读最后一条助手回复 ──
+    async function speakLastReply() {
+      const current = chatState.sessions.find(function (s) { return s.id === chatState.currentId; });
+      if (!current) return;
+      let last = null;
+      for (let i = current.messages.length - 1; i >= 0; i--) {
+        if (current.messages[i].role === "assistant" && current.messages[i].content) {
+          last = current.messages[i].content; break;
+        }
+      }
+      if (!last) { alert("还没有可朗读的回复"); return; }
+      const text = typeof last === "string" ? last : (last.text || "");
+      if (!text) { alert("回复为空"); return; }
+      try {
+        const resp = await fetch("/api/v1/voice/synthesize", {
+          method: "POST",
+          headers: Object.assign({ "Content-Type": "application/json" }, getToken() ? { Authorization: "Bearer " + getToken() } : {}),
+          body: JSON.stringify({ text: text }),
+        });
+        if (!resp.ok) {
+          const body = await resp.json().catch(function () { return {}; });
+          alert("语音合成不可用：" + (body.detail || resp.status));
+          return;
+        }
+        const audioBlob = await resp.blob();
+        const url = URL.createObjectURL(audioBlob);
+        const audio = new Audio(url);
+        audio.onended = function () { URL.revokeObjectURL(url); };
+        audio.play();
+      } catch (e) { console.error("TTS failed", e); alert("语音朗读失败：" + e.message); }
+    }
+    if (ttsBtn) ttsBtn.addEventListener("click", speakLastReply);
 
     // 停止按钮
     document.getElementById("chatStopBtn").addEventListener("click", () => {
@@ -7750,6 +7860,96 @@
       try { localStorage.setItem("doctoragent_sidebar_collapsed", isCollapsed ? "1" : "0"); } catch (e) {}
     });
   })();
+
+  // ── 企业平台 (M14) ─────────────────────────────────────────────
+  const ENT_PREFIX = "/api/v1/enterprise";
+  async function entApi(path, opts) {
+    return await api(ENT_PREFIX + path, opts || {});
+  }
+
+  window.enterpriseLoad = async function () {
+    try {
+      const s = await entApi("/status");
+      document.getElementById("entOrgCount").textContent = s.orgs;
+      document.getElementById("entUserCount").textContent = s.users;
+      document.getElementById("entAnnCount").textContent = s.announcements;
+      document.getElementById("entMaintenance").textContent = s.maintenance ? "是" : "否";
+    } catch (e) { console.error("enterprise status", e); }
+    try {
+      const orgs = await entApi("/orgs");
+      const list = document.getElementById("entOrgList");
+      list.innerHTML = (orgs.items || []).map(function (o) {
+        return '<div class="ent-row"><b>' + esc(o.name) + '</b> <span>' + o.id + '</span> <em>' + o.status + '</em></div>';
+      }).join("");
+    } catch (e) {}
+  };
+
+  window.enterpriseCreateOrg = async function () {
+    const name = document.getElementById("entOrgName").value.trim();
+    if (!name) { alert("请输入组织名称"); return; }
+    try {
+      const org = await entApi("/orgs", { method: "POST", body: { name: name } });
+      alert("创建成功: " + org.id);
+      window.enterpriseLoad();
+    } catch (e) { alert("创建失败: " + e.message); }
+  };
+
+  window.enterpriseCreateUser = async function () {
+    const org = document.getElementById("entUserOrg").value.trim();
+    const email = document.getElementById("entUserEmail").value.trim();
+    const pwd = document.getElementById("entUserPwd").value;
+    const name = document.getElementById("entUserName").value.trim();
+    if (!org || !email || !pwd) { alert("组织ID/邮箱/密码必填"); return; }
+    try {
+      await entApi("/orgs/" + org + "/users", { method: "POST", body: { email: email, password: pwd, display_name: name } });
+      alert("用户创建成功");
+    } catch (e) { alert("创建失败: " + e.message); }
+  };
+
+  window.enterpriseSetBudget = async function () {
+    const scope = document.getElementById("entBudgetScope").value || "org";
+    const scopeId = document.getElementById("entBudgetScopeId").value.trim();
+    const amt = parseFloat(document.getElementById("entBudgetAmt").value);
+    if (!scopeId || !(amt > 0)) { alert("scope_id 与预算金额必填"); return; }
+    try {
+      await entApi("/governance/budget", { method: "PUT", body: { scope: scope, scope_id: scopeId, amount_usd: amt, hard_limit: true } });
+      alert("预算已设置");
+    } catch (e) { alert("设置失败: " + e.message); }
+  };
+
+  window.enterpriseSetMaintenance = async function (enabled) {
+    const msg = document.getElementById("entMaintMsg").value || "系统维护中";
+    try {
+      await entApi("/maintenance", { method: "PUT", body: { enabled: enabled, message: msg, readonly: enabled } });
+      window.enterpriseLoad();
+    } catch (e) { alert("操作失败: " + e.message); }
+  };
+
+  window.enterpriseCreateAnn = async function () {
+    const title = document.getElementById("entAnnTitle").value.trim();
+    const content = document.getElementById("entAnnContent").value.trim();
+    if (!title) { alert("标题必填"); return; }
+    try {
+      await entApi("/announcements", { method: "POST", body: { title: title, content: content } });
+      alert("公告已发布");
+      window.enterpriseLoad();
+    } catch (e) { alert("发布失败: " + e.message); }
+  };
+
+  // 挂载企业面板初始化：切换视图时刷新
+  document.addEventListener("click", function (ev) {
+    if (ev.target.closest && ev.target.closest('.sidebar-item[data-view="enterprise"]')) {
+      setTimeout(window.enterpriseLoad, 150);
+    }
+  });
+  // 页面加载时若为企业视图则初始化
+  document.addEventListener("DOMContentLoaded", function () {
+    if (document.getElementById("view-enterprise") && document.getElementById("view-enterprise").classList.contains("active")) {
+      window.enterpriseLoad();
+    }
+  });
+
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
 
 })();
 

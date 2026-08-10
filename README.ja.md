@@ -2,9 +2,9 @@
 
 [English](README.md) | [中文](README.zh.md) | [日本語](README.ja.md)
 
-[![Tests](https://img.shields.io/badge/tests-2195%2B%20passed-brightgreen.svg)](https://github.com/weed33834/DoctorAgent)
+[![Tests](https://img.shields.io/badge/tests-2314%20passed-brightgreen.svg)](https://github.com/weed33834/DoctorAgent)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
-[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-green.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://docs.astral.sh/ruff/)
 [![FHIR](https://img.shields.io/badge/FHIR-R4-1d4ed8.svg)](https://hl7.org/fhir/R4/)
 
@@ -47,9 +47,14 @@ doctoragent agent "把所有财务相关的文件整理一下"
 
 ```bash
 # インストール（Python 3.10+ が必要）
-git clone https://github.com/weed33834/DoctorAgent.git
-cd DoctorAgent
-pip install -e ".[server]"
+pip install doctoragent[gui,server]
+
+# ローカルモデルを起動（Ollama が最も簡単）
+ollama pull qwen3:8b
+ollama serve
+
+# DoctorAgent を起動し、~/DoctorAgent/Inbox にファイルを投入
+doctoragent daemon
 ```
 
 初回実行時にディレクトリ構成が自動作成されます。Inbox に置かれたファイルは分類・暗号化・アーカイブされます。
@@ -111,32 +116,33 @@ pip install -e ".[server]"
 
 ```bash
 # ベース
-pip install -e "."
+pip install doctoragent
 
 # 臨床AIエージェント（FHIR R4 + openFDA/RxNorm/PubMed + ルールエンジン + ガードレール）
-pip install -e ".[clinical]"
+pip install doctoragent[clinical]
 
 # デスクトップ GUI
-pip install -e ".[gui]"
+pip install doctoragent[gui]
 
 # セマンティック検索
-pip install -e ".[semantic]"
+pip install doctoragent[semantic]
 
 # REST API
-pip install -e ".[server]"
+pip install doctoragent[server]
 
 # 全機能
-pip install -e ".[gui,semantic,sync,server,multimodal,clinical]"
+pip install doctoragent[gui,semantic,sync,server,multimodal,clinical]
 ```
 
 Docker：
 
 ```bash
 docker build -t doctoragent .
-docker run --rm -it -p 8000:8000 \
+docker run --rm -it \
+  --user $(id -u):$(id -g) \
   -v /path/to/inbox:/inbox \
   -v /path/to/vault:/vault \
-  doctoragent serve --host 0.0.0.0 --port 8000
+  doctoragent daemon --no-tray
 ```
 
 ---
@@ -246,16 +252,20 @@ ruff format doctoragent/
 
 ---
 
-## リポジトリ
+## ミラー / Mirrors
 
-本リポジトリは **GitHub** でホストされています。
+本リポジトリは主に **GitHub** でホストされ、アクセス向上のため GitCode と Gitee にミラーしています。
 
 | 配布元 | URL |
 |----------|-----|
-| **GitHub** | https://github.com/weed33834/DoctorAgent |
+| **GitHub**（主リポジトリ） | https://github.com/weed33834/DoctorAgent |
+| GitCode（ミラー） | https://gitcode.com/badhope/DoctorAgent |
+| Gitee（ミラー） | https://gitee.com/badhope/DoctorAgent |
+
+> 各リポジトリのコンテンツは手動同期され、GitHub が権威あるソースです。
 
 ---
 
 ## ライセンス
 
-[Apache License 2.0](LICENSE)
+[MIT License](LICENSE)

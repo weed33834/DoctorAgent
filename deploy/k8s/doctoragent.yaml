@@ -1,0 +1,107 @@
+# DoctorAgent 生产部署清单（M9.14）
+# 用法: kubectl apply -f deploy/k8s/
+# 说明: 将 SQLite 数据挂载到 PVC；如需多副本请把 SQLite 换成 Postgres 并
+#       关闭 stateful 的本地文件假设。默认单副本以保证本地文件一致性。
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: doctoragent-config
+data:
+  DOCTORAGENT_ENV: "prod"
+  DOCTORAGENT_PATHS__INBOX: "/data/Inbox"
+  DOCTORAGENT_PATHS__VAULT: "/data/Vault"
+  DOCTORAGENT_PATHS__INDEX: "/data/Index"
+  DOCTORAGENT_PATHS__LOGS: "/data/Logs"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: doctoragent-data
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: doctoragent
+  labels:
+    app: doctoragent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: doctoragent
+  template:
+    metadata:
+      labels:
+        app: doctoragent
+    spec:
+      containers:
+        - name: doctoragent
+          image: doctoragent:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: doctoragent-config
+          env:
+            # 通过 Secret 注入（kubectl create secret generic doctoragent-secrets \
+            #   --from-literal=DOCTORAGENT_API_TOKEN=... \
+            #   --from-literal=DOCTORAGENT_SECURITY__MASTER_KEY_PASSWORD=...)
+            - name: DOCTORAGENT_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: doctoragent-secrets
+                  key: DOCTORAGENT_API_TOKEN
+                  optional: true
+            - name: DOCTORAGENT_SECURITY__MASTER_KEY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: doctoragent-secrets
+                  key: DOCTORAGENT_SECURITY__MASTER_KEY_PASSWORD
+                  optional: true
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /api/version
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "0.5"
+              memory: "512Mi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: doctoragent-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: doctoragent
+  labels:
+    app: doctoragent
+spec:
+  selector:
+    app: doctoragent
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

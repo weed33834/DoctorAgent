@@ -113,6 +113,20 @@ def _count_tokens(text: str) -> int:
     return max(1, len(text) // 4)
 
 
+def _split_fact_candidates(text: str) -> list[str]:
+    """Split a text into sentence-length fact candidates.
+
+    Used by memory consolidation as a heuristic fallback when no extractor is
+    supplied. Splits on sentence boundaries and drops very short fragments.
+    """
+    if not text:
+        return []
+    import re
+
+    candidates = re.split(r"(?<=[。！？.!?；;])\s*", text)
+    return [c.strip() for c in candidates if c.strip()]
+
+
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
@@ -341,6 +355,12 @@ class MemorySystem:
         self._low_importance_threshold = 0.2  # 重要性低于此值且过期时优先清理
         self._cleanup_interval = 50  # 每50次写入自动清理一次
         self._write_count = 0  # 写入计数器
+        # Long-horizon memory consolidation: every N episodes the semantic
+        # compaction pass runs, distilling episodic memory into long-term facts
+        # (episodic → semantic, M5.11) so durable knowledge survives the
+        # episode-level TTL / forgetting (M5.12).
+        self._consolidation_interval = 20
+        self._episodes_since_consolidation = 0
         self._init_db()
 
     def _connect(self) -> sqlite3.Connection:
@@ -414,6 +434,26 @@ class MemorySystem:
             )
 
             conn.commit()
+
+        self._ensure_episode_consolidated_column()
+
+    def _ensure_episode_consolidated_column(self) -> None:
+        """Add the ``consolidated`` marker column to memory_episodic if missing.
+
+        Existing deployments created the table without this column; adding it
+        lazily lets consolidation track which episodes have already been
+        compacted into long-term semantic memory without a migration step.
+        """
+        try:
+            with self._connect() as conn:
+                cols = {row[1] for row in conn.execute("PRAGMA table_info(memory_episodic)")}
+                if "consolidated" not in cols:
+                    conn.execute(
+                        "ALTER TABLE memory_episodic ADD COLUMN consolidated INTEGER DEFAULT 0"
+                    )
+                    conn.commit()
+        except Exception:  # noqa: BLE001 — consolidation is best-effort
+            pass
 
     # --- Long-term Memory ---
 
@@ -561,6 +601,16 @@ class MemorySystem:
                 ),
             )
             conn.commit()
+
+        # Long-horizon consolidation: every N stored episodes run the episodic →
+        # semantic compaction pass so durable knowledge survives episode TTL.
+        self._episodes_since_consolidation += 1
+        if self._episodes_since_consolidation >= self._consolidation_interval:
+            self._episodes_since_consolidation = 0
+            try:
+                self.consolidate_memories()
+            except Exception:  # noqa: BLE001 — consolidation must never break storage
+                pass
         return memory_id
 
     def recall_episodes(self, query: str, limit: int = 3) -> list[dict[str, Any]]:
@@ -829,6 +879,147 @@ class MemorySystem:
         except Exception:
             pass
         return stats
+
+    # --- Long-horizon memory consolidation (episodic → semantic) ---
+
+    def consolidate_memories(
+        self,
+        batch_size: int = 100,
+        extractor: Any | None = None,
+        prune_after: bool = True,
+    ) -> dict[str, int]:
+        """Compaction pass: distil un-consolidated episodes into semantic facts.
+
+        Implements the **M5.11 / M5.12** long-horizon memory pipeline: episodic
+        memories (past interactions) that have not yet been compacted are read
+        oldest-first, reduced to durable *facts* (deduplicated against existing
+        long-term memory), and stored as ``memory_type="semantic"`` facts so
+        they survive the episode-level TTL / forgetting. Once consolidated, an
+        episode is marked so the pass is idempotent.
+
+        Args:
+            batch_size:
+                Maximum number of episodes to process per pass.
+            extractor:
+                Optional callable ``(user_message, assistant_response,
+                context_summary) -> list[str]`` producing candidate facts. When
+                ``None`` a heuristic is used that prefers the episode's stored
+                ``key_facts`` and falls back to splitting the assistant response
+                into sentences.
+            prune_after:
+                Whether to run :meth:`prune_memories` after consolidation so
+                consolidated episodes age out and low-importance facts decay
+                (enforces the forgetting half of M5.12).
+
+        Returns:
+            A stats dict: ``episodes_considered``, ``episodes_consolidated``,
+            ``facts_added``, ``facts_skipped``.
+        """
+        stats = {
+            "episodes_considered": 0,
+            "episodes_consolidated": 0,
+            "facts_added": 0,
+            "facts_skipped": 0,
+        }
+        try:
+            with self._connect() as conn:
+                rows = conn.execute(
+                    """
+                    SELECT memory_id, session_id, user_message, assistant_response,
+                           context_summary, key_facts, timestamp
+                    FROM memory_episodic
+                    WHERE tenant_id = ? AND (consolidated IS NULL OR consolidated = 0)
+                    ORDER BY timestamp ASC
+                    LIMIT ?
+                    """,
+                    (self.tenant_id, batch_size),
+                ).fetchall()
+            if not rows:
+                return stats
+            stats["episodes_considered"] = len(rows)
+
+            # Load existing fact texts once to dedup cheaply.
+            with self._connect() as conn:
+                existing = {
+                    row[0]
+                    for row in conn.execute(
+                        "SELECT content FROM memory_long_term WHERE tenant_id = ?",
+                        (self.tenant_id,),
+                    ).fetchall()
+                }
+
+            consolidated_ids: list[str] = []
+            for row in rows:
+                memory_id, session_id, user_msg, assistant_resp, ctx_summary = row[:5]
+                key_facts = json.loads(row[5]) if row[5] else []
+                facts = self._extract_facts(
+                    user_msg, assistant_resp, ctx_summary, key_facts, extractor
+                )
+                for fact in facts:
+                    fact = (fact or "").strip()
+                    if not fact:
+                        continue
+                    content_hash = hashlib.sha256(fact.encode()).hexdigest()[:16]
+                    if content_hash in existing or fact in existing:
+                        stats["facts_skipped"] += 1
+                        continue
+                    self.store_fact(
+                        content=fact,
+                        memory_type="semantic",
+                        importance=0.6,  # consolidated knowledge is durable
+                        metadata={"source": "consolidation", "session_id": session_id},
+                    )
+                    existing.add(fact)
+                    existing.add(content_hash)
+                    stats["facts_added"] += 1
+                consolidated_ids.append(memory_id)
+
+            if consolidated_ids:
+                with self._connect() as conn:
+                    conn.execute(
+                        f"UPDATE memory_episodic SET consolidated = 1 "
+                        f"WHERE memory_id IN ({','.join('?' * len(consolidated_ids))})",
+                        consolidated_ids,
+                    )
+                    conn.commit()
+                stats["episodes_consolidated"] = len(consolidated_ids)
+        except Exception:  # noqa: BLE001 — consolidation must never break the agent
+            return stats
+
+        if prune_after:
+            self._decay_importance()
+            self.prune_memories()
+        return stats
+
+    @staticmethod
+    def _extract_facts(
+        user_message: str,
+        assistant_response: str,
+        context_summary: str,
+        key_facts: list[str],
+        extractor: Any | None,
+    ) -> list[str]:
+        """Produce candidate durable facts from a single episode."""
+        if extractor is not None:
+            try:
+                extracted = extractor(user_message, assistant_response, context_summary)
+                if extracted:
+                    return [str(f) for f in extracted if str(f).strip()]
+            except Exception:  # noqa: BLE001 — fall back to heuristic
+                pass
+
+        facts: list[str] = []
+        seen: set[str] = set()
+        for candidate in list(key_facts or []) + _split_fact_candidates(assistant_response):
+            candidate = (candidate or "").strip()
+            if not candidate or candidate in seen:
+                continue
+            # Only keep reasonably self-contained statements (short Chinese
+            # facts such as drug names / contraindications are still valuable).
+            if 3 <= len(candidate) <= 500:
+                seen.add(candidate)
+                facts.append(candidate)
+        return facts
 
     def get_memory_stats(self) -> dict:
         """获取记忆系统统计信息。"""

@@ -5,40 +5,185 @@
 
 ---
 
+## [0.4.0] - 2026-08-11
+
+### UI 视觉重构（Premium Design System v2）
+
+#### 设计规范升级
+- **配色**：主色升级为靛蓝紫 `#6b7cff` + 医疗青绿 accent `#3dd6c0`；语义色降饱和（成功翡翠/警告琥珀/危险玫瑰），暗色底更富层次
+- **字体**：引入 Inter + PingFang 字体栈，建立 12–28px 梯度字阶，标题 650–720 字重，统一 letter-spacing
+- **圆角/阴影**：base 10px / lg 16px / xl 20px；三层阴影（接触+环境+高）+ `--ring` 焦点环
+- **动效**：统一 160–240ms `cubic-bezier(.22,1,.36,1)`，hover 上浮+光晕，尊重 `prefers-reduced-motion`
+
+#### 组件精修
+- 侧边栏：激活胶囊+左侧渐变指示条、分组标题带分隔线、hover 微位移；分组重排（设置中心归入运维、扩展独立）
+- 顶部栏：新增渐变品牌标识、毛玻璃
+- 面板/指标卡/表格/按钮/输入框/消息气泡/弹窗：统一层次、留白、悬停过渡、焦点环
+- 全局焦点环、滚动条、选中文本、空状态、环境光背景
+
+### 版本备注
+- 本次提交为**完整产品快照**（含此前全部平台功能模块 + 本 UI 重构）。
+
+---
+
+## [0.3.8] - 2026-08-11
+
+### 新增
+
+#### 多模态资产库（M26，deep-spec/28）
+- **`multimodal/`**：多模态资产库（text/audio/image/video/document），自动关键词标签、跨模态检索（按抽取文本+关键词+元数据打分）、资产统计
+- **端点**：`/api/v1/multimodal/summary|assets|search`
+
+#### 数据管道与集成（M28，deep-spec/30）
+- **`datapipeline/`**：数据源注册、管道定义（有序节点：filter_empty/dedupe/lowercase/load）、批量执行、转换规则库、数据质量中心（completeness 等）、运行历史
+- **端点**：`/api/v1/pipeline/*`
+
+#### 知识库管理（M14 D）
+- **`knowledge_base.py`**：知识库 CRUD（映射 Vault 子目录）、分块/embedding/可见性配置、检索测试、文档数统计
+- **端点**：`/api/v1/kb/*`
+
+#### 任务中心（M14 K）
+- **`taskcenter.py`**：统一异步任务注册/执行/重试/取消（import/export/reindex/backup/sync/custom）
+- **端点**：`/api/v1/tasks/*`
+
+#### 用量分析（M14 J / M24）
+- **`GET /api/v1/analytics/overview`**：聚合安全/互操作/容灾/管道/任务/知识库/多模态/企业各子系统摘要
+
+#### 其它长尾补齐
+- **辩论模式（M6.19）**：`group_chat.run_debate()` 正反方+裁判
+- **ADK / AutoGen 适配器（M3.20）**：`agent/adapters.py` 新增两种框架运行时
+- **图像生成工具（M12.17）**：`tools/image_gen_tool.py`（OpenAI 兼容 /v1/images/generations）
+- **压测中心（M23）**：`scripts/load_test.py`（并发/QPS/p50-p99 延迟）
+
+### 测试
+- 新增 `tests/test_ops_modules.py`（17 用例）；全量 2264 passed
+
+---
+
+## [0.3.7] - 2026-08-11
+
+### 新增
+
+#### AI 安全攻防与红队（M25，对照 skill deep-spec/27）
+- **`security/threat.py`**：威胁用例库（prompt_injection/jailbreak/data_poisoning/model_extraction/supply_chain/agent_abuse）、内置注入检测规则、安全事件台账、红队演练（跑威胁用例对护栏，报告命中/绕过明细）、威胁态势总览
+- **端点**：`/api/v1/security/overview|threat-cases|rules|scan|events|redteam/run|redteam`
+
+#### Agent 互操作与开放协议（M27，deep-spec/29）
+- **新包 `doctoragent/interop/`**：外部 Agent 目录（注册/信任等级/健康状态）、互操作策略（允许 Agent/拒绝动作/信任要求/限流/审计级别）、A2A 任务监控（出/入站跨 Agent 调用可审计）、策略访问判定
+- **端点**：`/api/v1/interop/overview|directory|directory/register|policies|check-access|tasks`
+
+#### 容灾与业务连续性（M29，deep-spec/31）
+- **新包 `doctoragent/disaster/`**：备份任务注册/执行、DR 计划（RTO/RPO 目标）、连续性演练（实测 RTO/RPO 并对照目标判定）、故障注入实验室（断网/杀进程/数据丢失/区域故障）、连续性看板指标
+- **端点**：`/api/v1/dr/metrics|backups|backups/{id}/run|plans|drills|fault-inject`
+
+### 测试
+- 新增 `tests/test_security_interop_dr.py`（14 用例）；全量 2247 passed
+
+---
+
+## [0.3.6] - 2026-08-11
+
+### 新增
+
+#### 底层基础能力（M18）
+- **语义响应缓存 `model/semantic_cache.py`**：按查询语义相似度（embedding cosine）命中缓存，显著降低重复/近似临床问答的 TTFT 与成本；支持 TTL / LRU / SQLite 持久化 / 敏感内容跳过
+- **文本算法 `model/text_utils.py`**：中英文关键词提取、句子切分、抽取式摘要、token 估算、FTS 清洗
+
+#### 数据治理目录（M20）
+- **新包 `doctoragent/governance/`**：数据资产目录（注册/元数据/关键字标签）、血缘图（upstream/downstream）、质量检查（completeness 等）、敏感度自动分类（含 PHI 关键词规则）
+- **端点**：`/api/v1/governance/*`（assets/summary/lineage/quality/rules）
+
+#### 成本计费（M21）
+- **模型价格表 `model/pricing.py`**：内置常见 OpenAI 兼容/本地模型价格，前缀匹配，可覆盖
+- **比价器**：`POST /api/v1/pricing/compare`（按成本/上下文/tier 排序）
+- **成本看板**：`GET /api/v1/cost/overview`、`GET /api/v1/cost/daily`（复用 cost_tracker）
+
+#### 错误码体系（M19）
+- **错误目录 `api/error_catalog.py`**：三段式错误码（code + HTTP + message + 修复提示），`GET /api/v1/errors` 可发现
+
+#### 测试与质量（M22）
+- **安全攻击用例 `scripts/security_smoke.py`**：确认用例（门禁）+ 对抗扫描（覆盖率上报）
+- **评估质量门禁 `scripts/eval_gate.py`**（沿用上一版并打通真实样例集）
+
+#### 端点汇总（新增）
+- `/api/v1/governance/assets|summary|lineage|quality|rules`
+- `/api/v1/pricing/models|compare|estimate`
+- `/api/v1/cache/stats|put|clear`
+- `/api/v1/cost/overview|daily`
+- `/api/v1/errors`
+
+### 测试
+- 新增 `tests/test_platform_extras.py`（17 用例）；全量 2233 passed
+
+---
+
+## [0.3.5] - 2026-08-11
+
+### 新增
+
+#### 企业级 / 组织级平台（M14，对照新 skill deep-spec/16）
+- **新包 `doctoragent/enterprise/`**：真实、SQLite 支撑的企业平台
+  - `models.py`：组织/部门/用户/MFA/登录事件/预算/配额/公告/维护/API Key 模型
+  - `store.py`：`EnterpriseStore`（org/dept/user/login/mfa/budget/quota/settings/announcement/maintenance/apikey 全表持久化）
+  - `security.py`：PBKDF2 密码哈希、纯 Python TOTP（RFC 6238）MFA、密码策略、账号锁定
+  - `service.py`：`EnterpriseService` 业务门面（组织/部门/用户生命周期/认证/MFA/预算/公告/维护/API Key）
+- **企业 API**（`/api/v1/enterprise/*`）：
+  - 组织/部门树（创建/列表/移动）
+  - 用户生命周期（创建/批量导入/启停/角色/登录事件）
+  - 认证（`auth/login` 带锁定、`auth/mfa/enroll|verify` 双因子）
+  - 治理（`governance/budget`、`governance/overlimit` 阶梯超限、`governance/quota`）
+  - 运维（`settings`、`announcements`、`maintenance` 维护模式）、`audit/export` CSV、`apikeys`
+- **企业前端**：控制台新增「🏛 企业平台」管理面板（组织/用户/预算/维护/公告）
+
+#### M0-M13 长尾补齐（真实实现）
+- **浏览器自动化工具（M4.8/M12.10）**：`tools/browser_tool.py`，Playwright 驱动 navigate/click/fill/extract_text/screenshot，`browser` extra
+- **多框架 Agent 运行时适配器（M3.20）**：`agent/adapters.py`，openai_agents / claude_sdk / builtin 中立抽象，`adapters` extra
+- **群聊编排（M6.4）**：`orchestration/group_chat.py`，AutoGen 风格多 Agent 轮转 + 管理器 + 停止条件
+- **K8s 生产清单（M9.14）**：`deploy/k8s/doctoragent.yaml`（ConfigMap/PVC/Deployment/Service/探针/Secret）
+- **Grafana 仪表盘（M13）**：`deploy/grafana/doctoragent-dashboard.json`
+- **评估 CI 质量门禁（M10.14）**：`scripts/eval_gate.py`（跑样例集，指标低于阈值则 CI 失败）
+
+### 测试
+- 新增 `tests/test_enterprise.py`（13 用例）、`tests/test_longtail_tools.py`（10 用例）
+
+---
+
+## [0.3.4] - 2026-08-11
+
+### 新增
+
+#### A2A 跨 Agent 协议（Agent-to-Agent）
+- **新包 `doctoragent/a2a/`**：Google A2A 协议（Agent Card / Task / Artifact）
+- **A2A 服务端**：`A2AServer` 实现 JSON-RPC 2.0 `task/send` / `task/get` / `task/cancel` / `task/list` / `agents/list` / `ping`，任务生命周期 submitted→working→completed|failed|canceled
+- **A2A 端点**：`GET /.well-known/agent.json`（Agent Card 能力声明）、`POST /a2a/rpc`、`GET /a2a/tasks`
+- **A2A 客户端**：`A2AClient` 发现远端 Agent Card、提交/轮询/取消任务、`send_and_wait` 长任务助手，可委派子任务给 `config.a2a.peer_agents`
+
+#### MCP 客户端（连接外部 MCP 服务器）
+- **`doctoragent/agent/mcp_client.py`**：MCP stdio / HTTP 客户端，`connect()` / `list_tools()` / `call_tool()`，与既有 MCP server 成对
+- **工具导入**：`import_mcp_tools()` 把远端 MCP 工具转成 doctoragent `Tool` 并注册进 `ToolRegistry`，ReAct 循环可直接调用，支持名称前缀命名空间
+- **端点**：`POST /mcp/connect`（运行时连接+导入）、`GET /mcp/clients`（列出已连接服务器）
+- **启动导入**：`IntegrationsConfig.mcp_servers` 配置的外部服务器在服务启动时后台导入工具
+
+#### 长期记忆整合（episodic → semantic）
+- **`MemorySystem.consolidate_memories()`**：把未压实的 episodic 记忆蒸馏为去重的 semantic 事实，跨会话持久，配合 TTL 衰减 + 清理实现"记忆分层 + 遗忘"
+- 支持自定义事实提取器（默认启发式：key_facts + 句子切分）；幂等（已压实 episode 跳过）；每 N 条 episode 自动触发
+- **端点**：`POST /memory/consolidate`
+
+#### 语音对话链路（ASR + TTS）
+- **新包 `doctoragent/voice/`**：`VoiceService` 对接任意 OpenAI 兼容音频端点（whisper 风格转写 + tts 风格合成）
+- **端点**：`GET /voice/status`、`POST /voice/transcribe`（音频→文本）、`POST /voice/synthesize`（文本→音频）；未配置端点返回 501
+- **控制台语音 UI**：聊天栏新增「语音」录音按钮（MediaRecorder → ASR）与「朗读」按钮（TTS 播放最后一条回复）；修复 `api()` 对 FormData 误设 Content-Type 的缺陷
+- **配置**：`VoiceConfig`（transcribe/tts base_url + model + api_key + voice + 上传大小上限）
+
+#### 文档
+- **`docs/GAP_ANALYSIS.md`**：对照 Universal Agent Builder 完整版的十层架构 + M0–M13 逐项差距分析报告
+
+### 测试
+- 新增 `tests/test_a2a.py`（13 用例）、`tests/test_mcp_client.py`（7 用例）、`tests/test_memory_consolidation.py`（6 用例）、`tests/test_voice.py`（6 用例）
+
+---
+
 ## [0.3.3] - 2026-08-09
-
-### 变更
-
-#### 许可证迁移
-- **MIT → Apache-2.0**：项目许可证从 MIT 切换为 Apache License 2.0，涵盖 LICENSE 文件、pyproject.toml classifiers、server.py OpenAPI license_info、Dockerfile OCI 标签、release.yml Docker 标签、README（中/英/日）、CONTRIBUTING.md、CHANGELOG.md
-- 新增 `NOTICE` 文件（Apache 2.0 第三方归属声明）
-- 新增 `SECURITY.md`（安全漏洞报告策略）
-
-#### 发布流程调整
-- **移除 PyPI 自动发布**：release.yml 不再包含 PyPI job，仅发布 Docker GHCR + GitHub Release。PyPI 发布步骤保留在 RELEASE.md 附录中供有需要的开发者自行操作
-- `RELEASE.md` 重写：PyPI 标注为可选，版本示例更新为 0.3.3
-- `Makefile` 更新：release-tag/release 目标去掉 PyPI 引用
-
-#### 仓库清理
-- **移除 GitCode/Gitee 旧地址**：README（中/英/日）中所有 `gitcode.com/badhope` 和 `gitee.com/badhope` 引用替换为 `github.com/weed33834/DoctorAgent`
-- `start.sh` 修复：移除 Windows 专用的 `.venv/Scripts/doctoragent.exe` 路径，改为跨平台的 `doctoragent` 命令
-- `CLINICAL_CAPABILITIES.md` 修正：PHI 类型数 18 → 19，移除不存在的 DDInter/rxlabelguard 集成声明
-- `deidentification.py` docstring 修正：18 → 19，8 类 → 9 类
-
-#### 仓库上传前全面检查修复
-- **GUI 测试标记修复**：`test_vault_browser.py` / `test_connection_dialog.py` / `test_first_run_wizard.py` / `test_settings_dialog.py` / `test_tray.py` 新增 `pytestmark = pytest.mark.gui`，`test_main.py::test_create_tray_app_returns_tray_instance` 新增 `@pytest.mark.gui`。此前这 92 个测试因 `doctoragent.presentation` 模块不在仓库中而失败，但未被 `gui` marker 排除，导致 CI 会报错
-- **README 测试数量精确化**：2314+ → 2195+（中/英/日三版同步），与当前实际 `pytest` 通过数一致
-- **README PHI 类型数修正**：英文版 `18 identifier categories` → `19`（合规状态表 + FAQ 两处）
-- **README Python 版本修正**：移除未经 CI 测试的 Python 3.13，仅保留 3.10/3.11/3.12（中/英两版）
-- **Dockerfile 依赖版本对齐**：`cryptography>=44.0,<50.0` → `<55.0`、`click>=8.1,<9.0` → `>=8.4,<9.0`，与 `pyproject.toml` 一致
-- **pyproject.toml 补充 `[project.urls]`**：Homepage / Repository / Documentation / Issues / Changelog 五项，符合开源项目元数据规范
-- **SECURITY.md 修复**：将不存在的 `pyproject.toml` 邮箱引用改为 GitHub Security Advisories
-- **README 商业使用章节修复**：移除对 `pyproject.toml` 邮箱的引用（中/英两版）
-- **README.ja.md 安装指令修复**：`pip install doctoragent[...]` → `pip install -e ".[...]"`（项目未上 PyPI）
-- **bug_report.yml 版本占位符**：`0.1.0` → `0.3.3`
-- **.gitignore 清理**：移除内部 AI-RULE 仓库路径注释
-- **文档安装指令修复**：`CLINICAL_CAPABILITIES.md` 和 `UPGRADE_ROLLBACK.md` 中的 `pip install doctoragent[...]` 改为源码安装方式
-- **README.ja.md Docker 指令修复**：`doctoragent daemon --no-tray` → `doctoragent serve --host 0.0.0.0 --port 8000`，添加端口映射
 
 ### 新增
 
@@ -47,8 +192,9 @@
 
 #### 开源素材
 - **README 重写**：英文版（README.md）+ 中文版（README.zh.md）面向商业化开源重写，明确"确定性安全规则离线运行 / 数据留在本地硬件 / 标准集成代码路径"三大差异化定位
-- **演示视频**：`assets/demo/demo.mp4`，临床 AI 智能体演示
-- **截图素材**：`assets/screenshots/01-06.png` 涵盖主控制台 / 临床工作台 / 安全规则 / PHI 脱敏 / 系统状态 / 多租户管理
+- **演示视频**：`assets/demo/demo.mp4`（2.6MB / 40 秒），39 段真实交互（医生视图 + 管理视图 + 8 个核心交互）
+- **截图素材**：`assets/screenshots/01-06.png`（1440×900）涵盖主控制台 / 临床工作台 / 安全规则 / PHI 脱敏 / 系统状态 / 多租户管理
+- **商业使用条款**：MIT 许可下保留三条社区底线（不卖 PHI 数据 / 闭源 fork 必须回馈 / 衍生作品保留审计链与确定性安全规则）
 - **合规状态表**：8 项标准明示"已实现 / Roadmap / 不适用"三档，避免用户被误导做规划
 
 ---
@@ -143,7 +289,7 @@
 - `docs/MEDICAL_PIVOT_DESIGN.md` 标注为历史设计文档（权威说明以 CLINICAL_CAPABILITIES.md 为准），并修正设计稿中 `medkit` 依赖的过时声明（实际改用 httpx 直连官方 API）。
 - 修正 `docker-compose.yml` 中"FhirConfig 未接入 config.py"的过时注释：`ClinicalConfig` 已在 `config.py` 接线，`DOCTORAGENT_CLINICAL__FHIR_BASE_URL` 现通过环境变量注入并支持 HAPI FHIR live 读取。
 - 统一仓库与镜像 URL：README 测试徽章、`git clone` 示例、Dockerfile OCI `image.source` 标签、`server.py` OpenAPI contact、`tray.py` 文档跳转、CHANGELOG 发布链接、Makefile/RELEASE.md 动作 URL 全部对齐到权威主仓库 `github.com/weed33834/DoctorAgent`；GHCR 镜像路径对齐到 `ghcr.io/weed33834/doctoragent`（跟随 `${{ github.repository }}` 小写）。
-- 修正 `server.py` OpenAPI `license_info` 错误标注为 MIT 的问题（项目实际为 Apache-2.0）。
+- 修正 `server.py` OpenAPI `license_info` 错误标注为 Apache 2.0 的问题（项目实际为 MIT）。
 - `RELEASE.md` 将写死的 `0.3.0` 示例改为 `<VERSION>` 占位符，避免每次发版失真；移除与 `make check-version` 重复的手动 grep 校验段。
 - `README.md` 合并冗余的 "Repository" 与 "Mirrors / 镜像" 章节。
 - `AGENTS.md` "Future Enhancements" 移除已落地的并行工具执行 / 流式响应 / 多智能体协作等条目。

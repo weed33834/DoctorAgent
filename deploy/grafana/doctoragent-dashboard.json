@@ -1,0 +1,70 @@
+# DoctorAgent Grafana 仪表盘（M13）
+# 指标来源: GET /metrics（Prometheus exposition format）
+# 用法: 在 Grafana 导入此 JSON（Dashboards → Import），数据源名 doctoragent-prometheus
+{
+  "dashboard": {
+    "title": "DoctorAgent 运行总览",
+    "uid": "doctoragent-overview",
+    "tags": ["doctoragent"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "title": "HTTP 请求速率 (qps)",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{service=\"doctoragent\"}[5m])) by (route)",
+            "legendFormat": "{{route}}"
+          }
+        ]
+      },
+      {
+        "title": "HTTP 延迟 p95 (s)",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service=\"doctoragent\"}[5m])) by (le))",
+            "legendFormat": "p95"
+          }
+        ]
+      },
+      {
+        "title": "错误率",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 8, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{service=\"doctoragent\",status=~\"5..\"}[5m])) / clamp_min(sum(rate(http_requests_total{service=\"doctoragent\"}[5m])), 1)",
+            "legendFormat": "5xx"
+          }
+        ]
+      },
+      {
+        "title": "LLM 成本 (USD/日)",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 8, "x": 8, "y": 8},
+        "targets": [
+          {
+            "expr": "sum(increase(doctoragent_llm_cost_usd[24h]))",
+            "legendFormat": "USD"
+          }
+        ]
+      },
+      {
+        "title": "令牌用量 (tokens)",
+        "type": "timeseries",
+        "gridPos": {"h": 6, "w": 8, "x": 16, "y": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(doctoragent_tokens_total[5m])) by (type)",
+            "legendFormat": "{{type}}"
+          }
+        ]
+      }
+    ],
+    "schemaVersion": 39,
+    "version": 1
+  }
+}

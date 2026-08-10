@@ -3,17 +3,21 @@
 Detects and removes protected health information identifiers before content
 is sent to an external LLM or stored outside the trust boundary.
 
-Covers all 19 HIPAA Safe Harbor identifier classes that surface in
+Covers all 18 HIPAA Safe Harbor identifier classes that surface in
 unstructured clinical text — the 10 original clinical categories (patient
 name, MRN, DOB, phone, email, SSN, address, medical record, dates, IP
-address) plus 9 additional classes: fax numbers, account numbers, license
+address) plus 8 additional classes: fax numbers, account numbers, license
 numbers, vehicle identifiers, device identifiers, URLs, biometric
-identifiers, full-face photo references and Chinese ID card numbers.
+identifiers and full-face photo references. (The remaining Safe Harbor
+classes — certificate/license numbers for the *provider* and sub-state
+geography — are governed by the upstream :mod:`doctoragent.security.dlp`
+scanner; the geographic subset is intentionally not redacted here to
+preserve clinical locality context.)
 
 Detection reuses :mod:`doctoragent.security.dlp`'s regex catalogue (phone,
 email, SSN, IP) so this module stays consistent with the existing DLP
 scanner; medical-context identifiers (MRN, DOB, dates, patient-name
-heuristics, street addresses) and the 9 new identifier classes are added
+heuristics, street addresses) and the 8 new identifier classes are added
 here. Three de-identification strategies are supported:
 
 * ``redact``       — replace each match with ``[REDACTED]``.
@@ -58,8 +62,8 @@ class PHIType(StrEnum):
     """PHI identifier categories covered by the Safe Harbor method.
 
     The first ten members are the original clinical subset; the remaining
-    nine (``FAX`` … ``ID_CARD``) extend coverage toward the full Safe
-    Harbor 19-identifier list.
+    eight (``FAX`` … ``FULL_FACE``) extend coverage toward the full Safe
+    Harbor 18-identifier list.
     """
 
     PATIENT_NAME = "PATIENT_NAME"
@@ -72,7 +76,7 @@ class PHIType(StrEnum):
     MEDICAL_RECORD = "MEDICAL_RECORD"
     DATE = "DATE"
     IP_ADDRESS = "IP_ADDRESS"
-    # —— 新增 9 类（补齐 HIPAA Safe Harbor 缺失项）——
+    # —— 新增 8 类（补齐 HIPAA Safe Harbor 缺失项）——
     FAX = "FAX"  # 传真号码
     ACCOUNT_NUMBER = "ACCOUNT_NUMBER"  # 账号
     LICENSE_NUMBER = "LICENSE_NUMBER"  # 执照 / 许可证号

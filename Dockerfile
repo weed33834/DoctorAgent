@@ -44,9 +44,9 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     python -m pip install --upgrade pip wheel setuptools \
     && pip wheel --no-deps -w /wheels ".[server,clinical]" \
     && pip wheel -w /wheels \
-        "click>=8.4,<9.0" "pydantic>=2.11,<3.0" "pydantic-settings>=2.6,<3.0" \
+        "click>=8.1,<9.0" "pydantic>=2.11,<3.0" "pydantic-settings>=2.6,<3.0" \
         "python-dotenv>=1.0,<2.0" "httpx>=0.28,<1.0" "watchdog>=5.0,<7.0" \
-        "cryptography>=44.0,<55.0" "argon2-cffi>=24.1,<26.0" "tenacity>=9.0,<10.0" \
+        "cryptography>=44.0,<50.0" "argon2-cffi>=24.1,<26.0" "tenacity>=9.0,<10.0" \
         "numpy>=1.26,<3.0" "json5>=0.9,<1.0" "tiktoken>=0.7,<1.0" "structlog>=24.1,<27.0" \
         "jieba>=0.42,<1.0" \
         "fastapi>=0.115,<1.0" "uvicorn[standard]>=0.30,<1.0" "python-multipart>=0.0.18" \
@@ -103,7 +103,7 @@ EXPOSE 8000
 LABEL org.opencontainers.image.title="DoctorAgent" \
       org.opencontainers.image.description="Clinical AI agent for doctors" \
       org.opencontainers.image.version="${DOCTORAGENT_VERSION}" \
-      org.opencontainers.image.licenses="Apache-2.0" \
+      org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.source="https://github.com/weed33834/DoctorAgent"
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

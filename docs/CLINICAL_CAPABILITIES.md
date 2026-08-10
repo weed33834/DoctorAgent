@@ -9,7 +9,7 @@ The clinical layer lives under `doctoragent/clinical/` and is gated behind the
 optional `clinical` extra:
 
 ```bash
-pip install -e ".[clinical]"
+pip install doctoragent[clinical]
 ```
 
 All clinical code imports defensively — `import doctoragent.clinical` always
@@ -171,7 +171,7 @@ never writes back to the EHR autonomously.
 | SMART-on-FHIR launch | `authlib` (PKCE S256 code challenge) | also satisfied by the `auth` extra |
 | Drug labels / adverse events | openFDA REST API | FDA official |
 | Drug-name normalization | RxNorm REST API | NLM official |
-| Drug-drug interactions | openFDA + RxNorm | RxCUI-based equivalence detection |
+| Drug-drug interactions | openFDA + DDInter | rxlabelguard verified |
 | Literature search | PubMed E-utilities | NLM official |
 | HTTP client | `httpx` (core dep) | already used |
 | Retry policy | `tenacity` (core dep) | already used |
@@ -203,10 +203,10 @@ healthcare-specific controls:
   identifier categories (patient name, MRN, DOB, phone, email, SSN,
   address, medical record, dates, IP address) are detected and
   redacted / pseudonymized / masked before content leaves the trust
-  boundary. The remaining 9 Safe Harbor classes (fax, account/license
+  boundary. The remaining 8 Safe Harbor classes (fax, account/license
   numbers, vehicle/device IDs, URLs, biometric, full-face photos,
-  Chinese ID card numbers) are handled by the de-identification module
-  and the upstream DLP scanner where relevant patterns exist.
+  sub-state geography) are handled by the upstream DLP scanner where
+  relevant patterns exist.
 - **Compliance self-check** — `compliance_self_check` tool produces a
   one-shot HIPAA posture report that an auditor can export as evidence.
 

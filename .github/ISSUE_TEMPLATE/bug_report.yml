@@ -77,7 +77,7 @@ body:
     attributes:
       label: DoctorAgent Version
       description: What version of DoctorAgent are you using?
-      placeholder: "0.3.3"
+      placeholder: "0.1.0"
     validations:
       required: true
 

@@ -103,7 +103,6 @@ def test_run_headless_starts_monitoring() -> None:
     mock_loop.call_soon.assert_called_once_with(mock_loop.stop)
 
 
-@pytest.mark.gui
 def test_create_tray_app_returns_tray_instance(tmp_path: Path) -> None:
     """_create_tray_app returns a TrayApplication configured for the given config."""
     from doctoragent.config import AegisConfig

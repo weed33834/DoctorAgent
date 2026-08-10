@@ -208,10 +208,8 @@ doctoragent index verify
 doctoragent daemon stop
 doctoragent serve stop
 
-# 2. 安装旧版本（从 git tag 检出）
-git fetch --tags
-git checkout v<旧版本>
-pip install -e "."
+# 2. 安装旧版本
+pip install doctoragent==<旧版本>
 
 # 3. 校验版本
 doctoragent --version

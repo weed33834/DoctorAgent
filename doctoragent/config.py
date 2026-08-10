@@ -169,6 +169,19 @@ class IntegrationsConfig(BaseSettings):
     # Prefix applied to all remote objects (lets one bucket host multiple vaults).
     storage_key_prefix: str = "doctoragent/"
 
+    # ── External MCP servers (M4.16) ───────────────────────────────────
+    # Each entry is a dict describing an external MCP server to connect to at
+    # startup and import its tools into the agent's registry:
+    #   {
+    #     "name": "pubmed",                     # used to namespace imported tools
+    #     "transport": "stdio" | "http",
+    #     "command": "npx", "args": ["-y", "@modelcontextprotocol/server-..."] (stdio),
+    #     "url": "http://host:port/mcp"          (http),
+    #     "http_headers": {"Authorization": "Bearer ..."} (http, optional),
+    #     "prefix": "pubmed_"                    # optional name prefix
+    #   }
+    mcp_servers: list[dict[str, Any]] = Field(default_factory=list)
+
 
 class HooksConfig(BaseSettings):
     """Pre/Post-Consume hook configuration.
@@ -237,6 +250,54 @@ class ClinicalConfig(BaseSettings):
     loinc_table_path: str = ""
 
 
+class A2AConfig(BaseSettings):
+    """A2A (Agent-to-Agent) protocol configuration (Google A2A).
+
+    Controls whether DoctorAgent exposes an A2A Agent Card and JSON-RPC task
+    server, and pre-registers remote agent base URLs that the orchestrator may
+    delegate subtasks to. See ``doctoragent/a2a/``.
+    """
+
+    # Expose this agent over A2A: serves /.well-known/agent.json + /a2a/rpc.
+    enabled: bool = True
+    agent_name: str = "DoctorAgent"
+    agent_description: str = (
+        "Clinical decision-support agent: deterministic safety rules + "
+        "LLM/RAG literature reasoning, FHIR/CDS Hooks integrations."
+    )
+    base_url: str = "http://127.0.0.1:8000"
+    # auth_type exposed on the Agent Card ("none" | "bearer").
+    auth_type: str = "none"
+    # Remote agents (base URLs) this agent may delegate tasks to.
+    peer_agents: list[str] = Field(default_factory=list)
+    # Optional bearer token map: peer base URL -> token.
+    bearer_tokens: dict[str, str] = Field(default_factory=dict)
+    # Client timeout for outbound A2A calls (seconds).
+    timeout_seconds: float = 30.0
+
+
+class VoiceConfig(BaseSettings):
+    """Voice conversation configuration (ASR + TTS).
+
+    Both layers plug into any OpenAI-compatible endpoint so a single gateway
+    (e.g. Ollama + a speech model, or a cloud provider) can serve both. When no
+    endpoint is configured the voice API is disabled (endpoints return 501).
+    """
+
+    enabled: bool = True
+    # Transcription (speech-to-text) — OpenAI /v1/audio/transcriptions.
+    transcribe_base_url: str = ""
+    transcribe_model: str = ""
+    transcribe_api_key: str = ""
+    # Synthesis (text-to-speech) — OpenAI /v1/audio/speech.
+    tts_base_url: str = ""
+    tts_model: str = ""
+    tts_voice: str = "alloy"
+    tts_api_key: str = ""
+    # Max upload size for an audio clip (bytes).
+    max_audio_bytes: int = 10 * 1024 * 1024
+
+
 class AegisConfig(BaseSettings):
     """Global application settings."""
 
@@ -264,6 +325,8 @@ class AegisConfig(BaseSettings):
     auto_key_rotation: AutoKeyRotationConfig = Field(default_factory=AutoKeyRotationConfig)
     compliance: ComplianceConfig = Field(default_factory=ComplianceConfig)
     clinical: ClinicalConfig = Field(default_factory=ClinicalConfig)
+    a2a: A2AConfig = Field(default_factory=A2AConfig)
+    voice: VoiceConfig = Field(default_factory=VoiceConfig)
 
     def validate_environment(self) -> list[str]:
         """Return a list of environment-specific configuration problems.
