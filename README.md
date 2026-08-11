@@ -45,6 +45,14 @@ The current release is v0.3.3, marked as Beta. It's stable enough for pilot depl
 
 [Watch the 40-second walkthrough →](assets/demo/demo.mp4)
 
+![DoctorAgent cover](assets/demo/doctoragent_cover.png)
+
+**Real-model promo** (step-3.5-flash real multi-turn clinical conversation + full module tour, edited):
+[▶ Play `assets/demo/doctoragent_demo_edit.mp4`](assets/demo/doctoragent_demo_edit.mp4)
+- Full walkthrough: `assets/demo/doctoragent_live_demo.mp4`
+- Module screenshots: `assets/demo/final/`
+- Real chat content: `assets/demo/final/real_chat_content.json`
+
 Or browse the screenshots below. They're from the actual console running against a local SQLite + Ollama instance — no demo data was faked for the README.
 
 | Clinical workstation | Safety rules engine |

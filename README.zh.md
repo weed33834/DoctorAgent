@@ -45,6 +45,16 @@ DoctorAgent 把"确定性安全规则"和"多智能体 LLM 推理"结合在一�
 
 [看 40 秒走查 →](assets/demo/demo.mp4)
 
+![DoctorAgent 宣传封面](assets/demo/doctoragent_cover.png)
+
+**真实模型宣传片**（step-3.5-flash 真实多轮临床对话 + 全模块巡览，已剪辑去冗）：
+[▶ 播放 `assets/demo/doctoragent_demo_edit.mp4`](assets/demo/doctoragent_demo_edit.mp4)
+
+- 完整走查视频：`assets/demo/doctoragent_live_demo.mp4`
+- 全模块截图：`assets/demo/final/`（对话/临床/安全/PHI/Vault/高级RAG/编排/系统/企业/记忆/评估/亮色）
+- 真实对话内容：`assets/demo/final/real_chat_content.json`（华法林/肝硬化/剂量计算）
+- 宣传用主图：`assets/demo/doctoragent_cover.png`
+
 **控制台全流程走查**（引导页 → 多轮医疗对话 → 角色切换 → 全模块巡览 → 主题切换）：
 [`assets/demo/demo_console.mp4`](assets/demo/demo_console.mp4) · 全模块截图见 `assets/demo/`（00 引导 / 01-02 对话 / 03-09 临床·安全·PHI·Vault·编排·系统·企业 / 20-21 会话）。
 
