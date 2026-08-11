@@ -150,3 +150,33 @@ def test_manage_tools_registered_and_callable(ws: WorkspaceConfig, registry: obj
     # The change is visible in the shared store (management UI reads this).
     assert ws.get_prompt("专家提示")["template"] == "你是{domain}专家"
     assert ws.list_experts()[0]["name"] == "药师"
+
+
+# ── sandbox security (malicious code must be contained) ───────────────
+
+
+@pytest.mark.asyncio
+async def test_sandbox_blocks_host_secrets() -> None:
+    """Malicious code must not read host secrets when OS isolation is effective."""
+    from doctoragent.security.sandbox import SandboxManager
+    from doctoragent.tools.code_exec_tool import CodeExecTool
+
+    if not SandboxManager.isolation_effective():
+        # No real isolation available → code_exec must REFUSE (fail-closed).
+        t = CodeExecTool()
+        r = await t.execute(code="print('x')")
+        assert r.success is False
+        assert "refused" in (r.error or "").lower() or "sandbox" in (r.error or "").lower()
+        return
+    t = CodeExecTool()
+    r = await t.execute(code=(
+        "import pathlib\n"
+        "try:\n"
+        "  leaked = pathlib.Path('/etc/passwd').read_text()[:20]\n"
+        "  print('LEAK', leaked)\n"
+        "except Exception:\n"
+        "  print('BLOCKED')\n"
+    ))
+    out = (r.data or {}).get("stdout", "")
+    assert "LEAK" not in out  # host secret must never leak
+    assert "BLOCKED" in out   # the read was refused

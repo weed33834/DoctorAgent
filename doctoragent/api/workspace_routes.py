@@ -69,12 +69,25 @@ def get_router() -> APIRouter:
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
         from doctoragent.security.sandbox import SandboxManager
+        import os
         import sys
 
         code = payload.get("code", "")
         if not code.strip():
             raise HTTPException(status_code=400, detail="'code' is required")
-        sandbox = SandboxManager(enable_strong_isolation=False)
+        # Fail-closed security: refuse untrusted code unless a real OS sandbox
+        # is available, or the operator explicitly opts into unsafe mode.
+        forced = os.environ.get("DOCTORAGENT_ALLOW_UNSAFE_CODE") == "1"
+        if not forced and not SandboxManager.isolation_effective():
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "code execution disabled: no secure OS sandbox (needs bwrap/"
+                    "chroot/container). Set DOCTORAGENT_ALLOW_UNSAFE_CODE=1 to force "
+                    "unsafe subprocess mode on a trusted host."
+                ),
+            )
+        sandbox = SandboxManager(enable_strong_isolation=True)
         work = Path(sandbox.work_dir)
         (work / "code.py").write_text(code, encoding="utf-8")
         python = sys.executable or "python3"

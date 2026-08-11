@@ -135,6 +135,51 @@ class SandboxManager:
     def platform(self) -> str:
         return self._platform
 
+    @staticmethod
+    def isolation_effective() -> bool:
+        """Return True only when a real filesystem-confinement backend works.
+
+        A bare ``subprocess`` or a non-effective ``unshare``/``bwrap`` does
+        NOT confine the process (the child can still read host files such as
+        ``/etc/passwd``). This probe actually runs a test program that tries
+        to read ``/etc/passwd`` and returns True only if the read is blocked.
+        Callers that run *untrusted* code MUST gate on this.
+        """
+        return SandboxManager._probe_isolation_effective()
+
+
+    @staticmethod
+    def _probe_isolation_effective() -> bool:
+        """Return True if the Linux unshare+mount masking backend actually hides
+        /etc/passwd from the child. This is the same mechanism
+        :meth:`_prepare_linux` uses, so a True result means code execution is
+        genuinely confined (not a bare subprocess)."""
+        import tempfile
+
+        if not sys.platform.startswith("linux"):
+            return False
+        unshare = shutil.which("unshare")
+        if unshare is None:
+            return False
+        try:
+            with tempfile.TemporaryDirectory() as wd:
+                script = wd + "/probe.py"
+                Path(script).write_text(
+                    "import pathlib\nprint('OK' if pathlib.Path('/etc/passwd').exists() else 'BLOCKED')",
+                    encoding="utf-8",
+                )
+                cmd = [
+                    unshare, "--user", "--map-root-user", "--mount", "--pid", "--fork",
+                    "--", "/bin/sh", "-c",
+                    "mount -t tmpfs none /etc >/dev/null 2>&1 && "
+                    f"exec {sys.executable} -u {script}",
+                ]
+                out = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
+                return out.returncode == 0 and "BLOCKED" in out.stdout
+        except Exception:  # noqa: BLE001
+            return False
+
+
     def run_sandboxed(
         self,
         command: str | Sequence[str],
@@ -306,17 +351,35 @@ class SandboxManager:
             "/bin/sh",
             "-c",
         ]
-        mount_script = self._linux_mount_script(allowed)
+        mount_script = self._linux_mount_script(allowed, cwd)
         shell_cmd = mount_script + " exec " + " ".join(self._shell_quote(c) for c in full_cmd)
         wrapper.append(shell_cmd)
         return "unshare-namespace", wrapper, env, cwd
 
     @staticmethod
-    def _linux_mount_script(allowed: list[str]) -> str:
+    def _linux_mount_script(allowed: list[str], cwd: Path) -> str:
+        # The child runs as "root" inside its own user+mount namespace but maps
+        # to a non-privileged host uid, so it cannot write to host / — it CAN
+        # write inside its work directory (cwd). Strategy:
+        #   * stage a cleaned copy of /etc under cwd, remove sensitive files
+        #     (passwd/shadow/gshadow/ssh keys/ssl private), bind it over /etc.
+        #   * mask /root /home /opt /var/run /var/lib /srv with empty tmpfs.
+        #   * bind-mount each allowed path read-only into cwd-relative targets.
+        w = SandboxManager._shell_quote(str(cwd))
+        etc = f"{w}/etc-clean"
         lines: list[str] = []
         lines.append("set -e")
+        lines.append(f"mkdir -p {etc}")
+        lines.append(f"cp -r /etc/. {etc}/ 2>/dev/null || true")
+        for secret in ("passwd", "shadow", "gshadow", "master.passwd", "security/opasswd"):
+            lines.append(f"rm -f {etc}/{secret} 2>/dev/null || true")
+        lines.append(f"rm -f {etc}/ssh/authorized_keys {etc}/ssh/ssh_host_*_key {etc}/ssh/ssh_host_*_key.pub 2>/dev/null || true")
+        lines.append(f"rm -rf {etc}/ssl/private {etc}/pki/private 2>/dev/null || true")
+        lines.append(f"mount --bind {etc} /etc")
+        for p in ("/root", "/home", "/opt", "/var/run", "/var/lib", "/srv"):
+            lines.append(f"mount -t tmpfs none {SandboxManager._shell_quote(p)} 2>/dev/null || true")
         for idx, path in enumerate(allowed):
-            target = f"/sandbox/allowed_{idx}"
+            target = f"{w}/allowed_{idx}"
             lines.append(f"mkdir -p {target}")
             lines.append(f"mount --bind {SandboxManager._shell_quote(path)} {target}")
             lines.append(f"mount -o remount,ro,bind {target}")

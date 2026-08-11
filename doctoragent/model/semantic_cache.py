@@ -74,6 +74,7 @@ class SemanticCache:
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(str(self._persist))
+        conn.execute("PRAGMA busy_timeout=5000")
         conn.row_factory = sqlite3.Row
         return conn
 

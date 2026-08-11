@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import base64
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
@@ -53,6 +54,21 @@ class CodeExecTool(Tool):
         code = kwargs.get("code", "")
         if not code.strip():
             return ToolResult(success=False, error="empty code", tool_name="code_exec")
+        # Fail-closed: refuse to run untrusted code unless a real OS-level
+        # confinement backend is available (bwrap / effective unshare+chroot /
+        # container). Otherwise a bare subprocess can read host files such as
+        # /etc/passwd. Operators on trusted hosts may force unsafe mode with
+        # DOCTORAGENT_ALLOW_UNSAFE_CODE=1.
+        if not self._isolation_ok():
+            return ToolResult(
+                success=False,
+                error=(
+                    "code execution refused: no secure OS sandbox available "
+                    "(needs bwrap / chroot / container). On a trusted host set "
+                    "DOCTORAGENT_ALLOW_UNSAFE_CODE=1 to force unsafe subprocess mode."
+                ),
+                tool_name="code_exec",
+            )
         timeout = float(kwargs.get("timeout") or self.timeout)
         try:
             result = self._run(code, timeout)
@@ -77,13 +93,24 @@ class CodeExecTool(Tool):
             )
         return ToolResult(success=True, data=data, tool_name="code_exec")
 
+    @staticmethod
+    def _isolation_ok() -> bool:
+        if os.environ.get("DOCTORAGENT_ALLOW_UNSAFE_CODE") == "1":
+            return True
+        try:
+            from doctoragent.security.sandbox import SandboxManager
+
+            return SandboxManager.isolation_effective()
+        except Exception:  # noqa: BLE001
+            return False
+
     def _run(self, code: str, timeout: float) -> Any:
         import sys
 
         if self.sandbox is None:
             from doctoragent.security.sandbox import SandboxManager
 
-            self.sandbox = SandboxManager(enable_strong_isolation=False)
+            self.sandbox = SandboxManager(enable_strong_isolation=True)
         work = Path(self.sandbox.work_dir)
         work.mkdir(parents=True, exist_ok=True)
         script = work / "code.py"

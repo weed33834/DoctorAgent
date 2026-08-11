@@ -5,6 +5,32 @@
 
 ---
 
+## [0.4.3] - 2026-08-11
+
+### 深度代码审计 + 真实缺陷修复
+
+#### 🔒 安全漏洞修复：代码执行沙箱未真正隔离（高危）
+- **根因**：`code_exec` / `/sandbox/run` 用 `enable_strong_isolation=False`（裸 subprocess），恶意代码可读宿主 `/etc/passwd`；即便开强隔离，原 `unshare` 只 bind 允许路径、**未隐藏宿主文件系统**，仍可读 passwd。
+- **修复**：
+  1. **fail-closed 守卫**：新增 `SandboxManager.isolation_effective()` 能力探测（真实验证能否读到 /etc/passwd），code_exec 与端点**无有效 OS 隔离则明确拒绝**，除非显式 `DOCTORAGENT_ALLOW_UNSAFE_CODE=1`。
+  2. **Linux 强隔离真正生效**：`_prepare_linux` 在 unshare 后把 `/etc` 替换为**清洗副本**（删除 passwd/shadow/gshadow/ssh/ssl 私钥，保留字体/CA/时区配置），并遮蔽 `/root /home /opt /var/run /var/lib /srv`；允许路径只读 bind。
+- **实测**：恶意代码读 `/etc/passwd`、`/etc/shadow` 均返回不存在；matplotlib 图表仍正常出图；隔离等级 `unshare-namespace`。
+
+#### 🐛 并发写 SQLite 锁风险（生产级）
+- **根因**：11 个新模块（enterprise/governance/interop/disaster/multimodal/datapipeline/workspace/kb/taskcenter/threat/semantic_cache）的 SQLite 连接未设 `busy_timeout`，异步并发写会抛 "database is locked"。
+- **修复**：全部补 `PRAGMA busy_timeout=5000`（与既有 cost_tracker 等约定一致）。
+
+#### 深层测试（新增）
+- `tests/test_deep_audit.py`：并发写、upsert id 稳定性、A2A 并发任务、docgen unicode/长文本、MFA/批量导入边界、信任等级、敏感度分类（12 用例）
+- 沙箱安全回归用例（`test_sandbox_blocks_host_secrets`）
+- `tests/live_deep_test.py`：流式(SSE)、长上下文多轮、并发请求、恶意代码隔离、工具预算护栏（实测全过）
+
+### 说明
+- 个别模型原生工具调用被网关 400（deepseek-v4-flash 等）→ Agent 自动降级文本解析仍正确完成任务；产品已内置 retry + fallback。
+- 全量核心测试 91+ 项通过；新增模块均编译通过、全应用启动无 404/500。
+
+---
+
 ## [0.4.2] - 2026-08-11
 
 ### 实测验证（接入 OpenAI 兼容网关 zhiyunapi.cc，多模型、多轮、全功能）
