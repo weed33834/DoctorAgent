@@ -5,6 +5,20 @@
 
 ---
 
+## [0.5.2] - 2026-08-11
+
+### 细化补全：服务端会话持久化 + 管理 + 反馈 + 分叉
+
+此前对话只存在浏览器 localStorage（跨设备/重载丢失、无法全局搜索）。新增：
+- **`conversations.py`（SQLite 服务端会话库）**：创建 / 列表（含内容搜索）/ 查看 / 重命名 / 删除 / **分叉** / 消息 / **赞踩反馈**
+- **API**：`/api/v1/conversations/*`（create/list?q=/get/add message/patch/fork/feedback/delete/stats）
+- 会话跨设备持久、可按内容全局搜索；点赞点踩进入统计（可用于质量评估）
+
+### 测试
+- `tests/test_conversations.py`：增删改查/搜索/反馈/分叉/统计（5 用例）；实测 API 全链路通过
+
+---
+
 ## [0.5.1] - 2026-08-11
 
 ### 通用智能体功能完整性补全

@@ -1266,6 +1266,13 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
         app.state.task_center = TaskCenter(Path(config.paths.index) / "tasks.db")
     except Exception:  # noqa: BLE001
         app.state.task_center = None
+    # Server-side conversation store (persist/search/fork/feedback).
+    try:
+        from doctoragent.conversations import ConversationStore
+
+        app.state.conversation_store = ConversationStore(Path(config.paths.index) / "conversations.db")
+    except Exception:  # noqa: BLE001
+        app.state.conversation_store = None
     # Background sync tasks created by POST /sync/trigger are tracked here so
     # the lifespan shutdown handler can cancel them instead of leaving orphan
     # tasks that outlive the server.
@@ -3072,6 +3079,17 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
             logger.info("Clinical roles router registered (/api/v1/clinical/*)")
     except ImportError:
         logger.debug("clinical roles router not available (FastAPI not installed)")
+
+    # ── Conversation management router (server-side persistence) ──
+    try:
+        from doctoragent.api.conversation_routes import get_router as _get_conv_router
+
+        _conv_router = _get_conv_router()
+        if _conv_router is not None:
+            app.include_router(_conv_router)
+            logger.info("Conversation router registered (/api/v1/conversations)")
+    except ImportError:
+        logger.debug("conversation router not available (FastAPI not installed)")
 
     # ── MCP (Model Context Protocol) ────────────────────────────────
     # Exposes the agent's tools over MCP so external MCP-compatible
