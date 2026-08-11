@@ -45,6 +45,9 @@ DoctorAgent 把"确定性安全规则"和"多智能体 LLM 推理"结合在一�
 
 [看 40 秒走查 →](assets/demo/demo.mp4)
 
+**控制台全流程走查**（引导页 → 多轮医疗对话 → 角色切换 → 全模块巡览 → 主题切换）：
+[`assets/demo/demo_console.mp4`](assets/demo/demo_console.mp4) · 全模块截图见 `assets/demo/`（00 引导 / 01-02 对话 / 03-09 临床·安全·PHI·Vault·编排·系统·企业 / 20-21 会话）。
+
 或者看下面这些截图——它们来自真实控制台（本地 SQLite + Ollama 跑出来的），README 里没有 P 图。
 
 | 临床工作台 | 安全规则引擎 |
