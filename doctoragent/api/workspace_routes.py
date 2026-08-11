@@ -88,28 +88,31 @@ def get_router() -> APIRouter:
                 ),
             )
         sandbox = SandboxManager(enable_strong_isolation=True)
-        work = Path(sandbox.work_dir)
-        (work / "code.py").write_text(code, encoding="utf-8")
-        python = sys.executable or "python3"
-        result = sandbox.run_sandboxed([python, "-u", "code.py"],
-                                       timeout=float(payload.get("timeout", 30)))
-        data: dict[str, Any] = {
-            "returncode": result.returncode,
-            "stdout": result.stdout[-6000:],
-            "stderr": result.stderr[-4000:],
-            "timed_out": result.timed_out,
-            "isolation": result.isolation_level,
-        }
-        # Capture a generated image if present.
-        for f in sorted(work.iterdir()):
-            if f.is_file() and f.suffix.lower() in {".png", ".jpg", ".jpeg", ".svg", ".gif"}:
-                mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-                        ".svg": "image/svg+xml", ".gif": "image/gif"}.get(f.suffix.lower(), "application/octet-stream")
-                import base64
+        try:
+            work = Path(sandbox.work_dir)
+            (work / "code.py").write_text(code, encoding="utf-8")
+            python = sys.executable or "python3"
+            result = sandbox.run_sandboxed([python, "-u", "code.py"],
+                                           timeout=float(payload.get("timeout", 30)))
+            data: dict[str, Any] = {
+                "returncode": result.returncode,
+                "stdout": result.stdout[-6000:],
+                "stderr": result.stderr[-4000:],
+                "timed_out": result.timed_out,
+                "isolation": result.isolation_level,
+            }
+            # Capture a generated image if present.
+            for f in sorted(work.iterdir()):
+                if f.is_file() and f.suffix.lower() in {".png", ".jpg", ".jpeg", ".svg", ".gif"}:
+                    mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+                            ".svg": "image/svg+xml", ".gif": "image/gif"}.get(f.suffix.lower(), "application/octet-stream")
+                    import base64
 
-                data["image"] = f"data:{mime};base64,{base64.b64encode(f.read_bytes()).decode()}"
-                break
-        sandbox.close()
+                    data["image"] = f"data:{mime};base64,{base64.b64encode(f.read_bytes()).decode()}"
+                    break
+        finally:
+            # Always release the sandbox work directory (even on timeout/error).
+            sandbox.close()
         return data
 
     # ── conversation-management: prompts ────────────────────────────
@@ -187,16 +190,32 @@ def get_router() -> APIRouter:
             raise HTTPException(status_code=400, detail="format must be md|pdf|docx")
         if not messages:
             raise HTTPException(status_code=400, detail="'messages' is required")
-        out = Path(tempfile.gettempdir()) / f"doctoragent-export-{title[:30]}.{fmt}"
+        out = Path(tempfile.gettempdir()) / f"doctoragent-export-{_safe_title(title)}.{fmt}"
         try:
             export_messages(messages, fmt, out)
+            content = out.read_bytes()
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(status_code=500, detail=f"export failed: {exc}") from exc
+        finally:
+            # Remove the temp file to avoid leaking into /tmp.
+            try:
+                if out.exists():
+                    out.unlink()
+            except OSError:  # pragma: no cover
+                pass
         media = {"md": "text/markdown", "pdf": "application/pdf", "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}[fmt]
         return Response(
-            content=out.read_bytes(),
+            content=content,
             media_type=media,
-            headers={"Content-Disposition": f'attachment; filename="doctoragent-{title[:30]}.{fmt}"'},
+            headers={"Content-Disposition": f'attachment; filename="doctoragent-{_safe_title(title)}.{fmt}"'},
         )
 
     return router
+
+
+def _safe_title(title: str) -> str:
+    """Sanitize a title for use in a filename (prevent path traversal)."""
+    import re
+
+    cleaned = re.sub(r"[^\w\u4e00-\u9fa5.\-]", "_", title or "对话")
+    return cleaned[:40]

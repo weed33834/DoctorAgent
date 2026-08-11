@@ -161,3 +161,27 @@ def test_error_catalog_nonempty() -> None:
     assert len(items) >= 10
     codes = {i["code"] for i in items}
     assert len(codes) == len(items)  # unique codes
+
+
+# ── tool schema type normalization (fixes native tool-calling 400) ─────
+
+
+def test_tool_schema_normalizes_list_to_array() -> None:
+    """Invalid JSON Schema types (list/float/int) must be normalized so
+    OpenAI-compatible gateways accept the tool and native calling works."""
+    from doctoragent.model.tools import ToolDefinition, ToolParameter
+
+    td = ToolDefinition(
+        name="t",
+        description="x",
+        parameters=[
+            ToolParameter(name="tags", type="list", required=True, description="a"),
+            ToolParameter(name="ratio", type="float", required=False, description="b"),
+            ToolParameter(name="count", type="int", required=False, description="c"),
+        ],
+    )
+    props = td.to_json_schema()["function"]["parameters"]["properties"]
+    assert props["tags"]["type"] == "array"
+    assert props["tags"]["items"] == {"type": "string"}
+    assert props["ratio"]["type"] == "number"
+    assert props["count"]["type"] == "integer"

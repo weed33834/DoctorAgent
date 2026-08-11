@@ -5,6 +5,24 @@
 
 ---
 
+## [0.4.4] - 2026-08-11
+
+### 深度修复（二）：工具 schema 非法类型导致原生工具调用 400 + 资源泄漏/路径穿越
+
+#### 🐛 高危：工具调用整体失效的根因
+- **根因**：工作区管理工具（`register_skill`/`create_expert` 等）参数声明 `type:"list"`——这不是合法 JSON Schema（应为 `array`），OpenAI 兼容网关对**整批 tools** 返回 HTTP 400，导致 Agent 原生工具调用全程失败、被迫降级文本解析（模型因此声称"工具未启用"，专家/记忆不落地）。
+- **修复**：`ToolDefinition.to_json_schema()` 统一用 `_json_schema_type()` 规范化类型（`list→array`（带 `items`）、`float/int→number/integer`、`dict→object`、`bool→boolean`），`to_openai_tools()` 复用该逻辑。
+- **实测**：修复后 Agent 原生工具调用正常，复杂多工具链（创建专家+代码计算+记忆）全部真实落地。
+
+#### 🐛 资源泄漏与路径穿越
+- `/sandbox/run`：异常时 `sandbox.close()` 未执行（泄漏 work 目录）→ 改为 `try/finally` 确保释放。
+- `/doc/export`：临时文件不清理 + **标题未消毒可做路径穿越/HTTP 头注入** → 新增 `_safe_title()`（正则清洗 + 截断）并在 finally 删除临时文件。
+
+#### 回归
+- `tests/test_platform_extras.py` 新增 schema 类型规范化用例；197+ 项相关测试通过。
+
+---
+
 ## [0.4.3] - 2026-08-11
 
 ### 深度代码审计 + 真实缺陷修复

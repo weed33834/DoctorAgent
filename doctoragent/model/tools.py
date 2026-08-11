@@ -36,6 +36,31 @@ class ToolChoice(str, Enum):
     REQUIRED = "required"  # Force tool use
 
 
+def _json_schema_type(t: str) -> str:
+    """Normalize a declared parameter type to a valid JSON Schema type.
+
+    Some tool definitions declare ``list`` / ``float`` / ``int`` / ``bool``
+    which are NOT valid JSON Schema ``type`` values; OpenAI-compatible gateways
+    reject such schemas with HTTP 400, silently breaking native tool calling.
+    Map them to the canonical JSON Schema types.
+    """
+    return {
+        "list": "array",
+        "float": "number",
+        "int": "integer",
+        "double": "number",
+        "dict": "object",
+        "bool": "boolean",
+        "string": "string",
+        "integer": "integer",
+        "number": "number",
+        "boolean": "boolean",
+        "array": "array",
+        "object": "object",
+        "null": "string",
+    }.get(str(t).lower(), "string")
+
+
 class ToolParameter(BaseModel):
     """Define a single parameter for a tool."""
 
@@ -64,7 +89,9 @@ class ToolDefinition(BaseModel):
         required = []
 
         for param in self.parameters:
-            prop: dict[str, Any] = {"type": param.type, "description": param.description}
+            prop: dict[str, Any] = {"type": _json_schema_type(param.type), "description": param.description}
+            if prop["type"] == "array":
+                prop["items"] = {"type": "string"}
             if param.enum:
                 prop["enum"] = param.enum
             if param.default is not None:
