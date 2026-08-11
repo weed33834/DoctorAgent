@@ -5,6 +5,34 @@
 
 ---
 
+## [0.4.2] - 2026-08-11
+
+### 实测验证（接入 OpenAI 兼容网关 zhiyunapi.cc，多模型、多轮、全功能）
+
+#### 测试脚本（可复用，密钥从环境变量读取）
+- `tests/live_test_harness.py`：多模型 × 多轮上下文/记忆、工具调用、注入防护、空输出防护、沙箱出图、文档导出(MD/PDF/DOCX)、对话管理→管理存储同步
+- `tests/live_agent_test.py`：完整 ReAct Agent 循环（代码执行 + 记忆 + 反射纠错）
+
+#### 结果（5 模型全过）
+| 模型 | 多轮记忆 | 工具调用 | 注入防护 | 空输出 | 完整Agent循环 |
+|---|---|---|---|---|---|
+| deepseek-v4-flash | ✅ | ✅ | ✅ | ✅ | ✅ |
+| glm-5.2 | ✅ | ✅ | ✅ | ✅ | — |
+| gpt-5.6-sol | ✅ | ✅ | ✅ | ✅ | — |
+| gemini-3.1-pro | ✅ | ✅ | ✅ | ✅ | — |
+| claude-sonnet-5 | ✅ | ✅ | ✅ | ✅ | — |
+
+- 沙箱代码执行：Python 计算 + matplotlib 出图（返回 PNG）✅
+- 文档导出：`.md` / `.pdf`(reportlab) / `.docx`(python-docx) ✅
+- 对话内管理工具 → 管理界面同库同步 ✅
+- 完整 ReAct 循环：多工具任务、长期记忆写入/召回、错误自动修复重试 ✅
+
+#### 说明 / 预防
+- 个别模型不可用（qwen/qwen3 EOL、kimi-k2.5 无渠道）为**网关侧**问题，非产品缺陷；产品已内置 tenacity 自动重试 + `set_fallback_model` 降级
+- 测试脚本发现的 `chat_completion(temperature=)` 属脚本笔误（temperature 由 Provider 构造参数决定），已修正
+
+---
+
 ## [0.4.1] - 2026-08-11
 
 ### 对话内能力（让"大部分操作都能在对话里完成"）
