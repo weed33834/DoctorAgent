@@ -8084,6 +8084,38 @@
   }
   maybeSkipLanding();
 
+  // ── 临床科室角色切换器 ───────────────────────────────────────
+  const roleSelect = document.getElementById("clinicalRoleSelect");
+  if (roleSelect) {
+    function loadRoles() {
+      try {
+        api("/api/v1/clinical/roles").then(function (d) {
+          const items = d && d.items ? d.items : [];
+          if (!items.length) return;
+          const current = (d.current || "");
+          roleSelect.innerHTML = items.map(function (r) {
+            return '<option value="' + esc(r.code) + '">' + esc(r.name) + "</option>";
+          }).join("");
+          // 尽量保持当前角色
+          const active = (localStorage.getItem("doctoragent_clinical_role") || "").trim();
+          if (active && items.some(function (r) { return r.code === active; })) roleSelect.value = active;
+        }).catch(function () {});
+      } catch (e) {}
+    }
+    roleSelect.addEventListener("change", function () {
+      const code = roleSelect.value;
+      try {
+        api("/api/v1/clinical/roles/" + code + "/activate", { method: "POST", body: {} }).then(function (r) {
+          try { localStorage.setItem("doctoragent_clinical_role", code); } catch (e2) {}
+          toast("已切换为「" + (r && r.name ? r.name : code) + "」", "success");
+        }).catch(function (e) { toast("切换失败：" + e.message, "error"); });
+      } catch (e) {}
+    });
+    // 页面加载后异步填充
+    setTimeout(loadRoles, 600);
+  }
+
 })();
+
 
 

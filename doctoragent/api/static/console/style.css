@@ -5570,3 +5570,19 @@ html.theme-transition *, html.theme-transition *::before, html.theme-transition 
   padding: 1px 6px; border-radius: 999px; vertical-align: 2px;
   color: #04322b; background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 70%, #fff));
 }
+
+/* ── 临床科室角色切换器 ── */
+.role-picker {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 8px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--panel-2); cursor: pointer;
+}
+.role-picker-label { font-size: 11px; color: var(--text-muted); }
+.role-picker select {
+  appearance: none; -webkit-appearance: none; border: none; outline: none;
+  background: transparent; color: var(--text); font-size: 12px; font-family: inherit; cursor: pointer;
+  max-width: 120px;
+}
+.role-picker select option { background: var(--panel); color: var(--text); }
+.role-picker:focus-within { box-shadow: var(--ring); border-color: var(--primary); }
+@media (max-width: 720px) { .role-picker { display: none; } }

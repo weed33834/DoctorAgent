@@ -1145,6 +1145,33 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
         app.state.workspace_config = WorkspaceConfig(Path(config.paths.index) / "workspace.db")
     except Exception:  # noqa: BLE001
         app.state.workspace_config = None
+    # Clinical specialty persona (default general) + built-in knowledge seed.
+    app.state.clinical_role = "general"
+    try:
+        _ws_for_role = getattr(app.state, "workspace_config", None)
+        if _ws_for_role is not None:
+            saved = _ws_for_role.get_setting("clinical_role", "general")
+            if saved:
+                from doctoragent.clinical.roles import get_role
+
+                if get_role(saved):
+                    app.state.clinical_role = saved
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from doctoragent.clinical.knowledge import seed_knowledge
+
+        _n = seed_knowledge(config.paths.vault)
+        if _n:
+            logger.info("Seeded %d built-in clinical knowledge doc(s) into Vault", _n)
+        _ws_k = getattr(app.state, "workspace_config", None)
+        if _ws_k is not None:
+            try:
+                _ws_k.set_settings({"knowledge_seeded": str(_n)})
+            except Exception:  # noqa: BLE001
+                pass
+    except Exception:  # noqa: BLE001 — knowledge seeding must never block startup
+        logger.debug("clinical knowledge seed skipped: %s", "")
         app.state.enterprise_store = None
         logger.debug("Enterprise service not available: %s", exc)
     # Governance / pricing / semantic cache / cost dashboard services (M20/M21/M23).
@@ -2053,7 +2080,14 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
             smart_agent._short_term_history = list(request.history)
 
         try:
-            answer = await asyncio.to_thread(smart_agent.run_sync, request.task)
+            from doctoragent.clinical.roles import default_role, get_role
+
+            _role = get_role(getattr(app.state, "clinical_role", None) or "general") or default_role()
+            task = (
+                f"【当前身份】{_role.name}（{_role.title}）。\n"
+                f"{_role.prompt} {_role.disclaimer}\n\n任务：{request.task}"
+            )
+            answer = await asyncio.to_thread(smart_agent.run_sync, task)
         except Exception as exc:
             logger.exception("Agent execution failed")
             raise HTTPException(  # type: ignore[misc]
@@ -2135,7 +2169,14 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
             app.state.agent_tasks[run_id] = asyncio.current_task()  # type: ignore[assignment]
             try:
                 yield _sse_format({"type": "status", "content": f"Agent started (run_id={run_id})"})
-                answer = await asyncio.to_thread(smart_agent.run_sync, request.task)
+                from doctoragent.clinical.roles import default_role, get_role
+
+                _role = get_role(getattr(app.state, "clinical_role", None) or "general") or default_role()
+                task = (
+                    f"【当前身份】{_role.name}（{_role.title}）。\n"
+                    f"{_role.prompt} {_role.disclaimer}\n\n任务：{request.task}"
+                )
+                answer = await asyncio.to_thread(smart_agent.run_sync, task)
                 trajectory = smart_agent.get_trajectory()
                 for step in trajectory.steps:
                     step_type = (
@@ -2956,6 +2997,17 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
             logger.info("Workspace router registered (sandbox/prompts/skills/experts/doc-export)")
     except ImportError:
         logger.debug("workspace router not available (FastAPI not installed)")
+
+    # ── Clinical roles + built-in knowledge router (specialty personas) ──
+    try:
+        from doctoragent.clinical.roles_routes import get_router as _get_roles_router
+
+        _roles_router = _get_roles_router()
+        if _roles_router is not None:
+            app.include_router(_roles_router)
+            logger.info("Clinical roles router registered (/api/v1/clinical/*)")
+    except ImportError:
+        logger.debug("clinical roles router not available (FastAPI not installed)")
 
     # ── MCP (Model Context Protocol) ────────────────────────────────
     # Exposes the agent's tools over MCP so external MCP-compatible

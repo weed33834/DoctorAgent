@@ -16,6 +16,11 @@ from doctoragent.clinical.knowledge.drug_interactions import (
 from doctoragent.clinical.knowledge.openfda import OpenFDAClient
 from doctoragent.clinical.knowledge.pubmed import PubMedClient
 from doctoragent.clinical.knowledge.rxnorm import RxNormClient
+from doctoragent.clinical.knowledge.seed import (
+    KNOWLEDGE_DOCS,
+    list_knowledge,
+    seed_knowledge,
+)
 
 __all__ = [
     "DrugInteractionResult",

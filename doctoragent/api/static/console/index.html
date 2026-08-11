@@ -98,6 +98,12 @@
       <button class="view-tab" data-view="admin" title="管理视图">⚙️ 管理</button>
     </div>
     <div class="auth">
+      <label class="role-picker" title="切换科室角色">
+        <span class="role-picker-label">角色</span>
+        <select id="clinicalRoleSelect" aria-label="临床科室角色">
+          <option value="general">全科医生</option>
+        </select>
+      </label>
       <button id="cmdPaletteBtn" class="cmd-trigger" title="命令面板" aria-label="打开命令面板">⌘K</button>
       <button id="helpBtn" class="help-trigger" title="帮助" aria-label="打开使用文档">?</button>
       <button id="themeToggle" class="theme-toggle" title="切换主题" aria-label="切换暗色/亮色主题">🌙</button>
