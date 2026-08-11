@@ -5,6 +5,24 @@
 
 ---
 
+## [0.5.3] - 2026-08-11
+
+### 继续补全：会话分享/自动命名/摘要 + 全局快捷键 + 移动端适配
+
+#### 会话高级功能
+- **分享链接**：`POST /conversations/{cid}/share`（默认 7 天 TTL）→ 公开无鉴权查看 `GET /conversations/shared/{token}`；`POST /shares/{token}/revoke` 撤销（撤销后 404）
+- **自动命名**：创建会话传 `first_message` 自动生成标题（截断+省略号）
+- **会话摘要**：`POST /conversations/{cid}/summarize`（无 LLM 用启发式；配置 LLM 则用模型精炼）
+
+#### 前端
+- **全局快捷键**：`Cmd/Ctrl+Enter` 发送、`Cmd/Ctrl+N` 新建、`Cmd/Ctrl+K` 命令面板、`Cmd/Ctrl+F` 聚焦侧栏搜索、`Cmd/Ctrl+L` 切换主题、`Esc` 停止
+- **移动端适配**：窄屏侧栏收窄为图标、临床/指标网格单列、引导页单列
+
+### 测试
+- `tests/test_conversations.py` 扩至 8 用例（分享/撤销/自动命名/摘要）
+
+---
+
 ## [0.5.2] - 2026-08-11
 
 ### 细化补全：服务端会话持久化 + 管理 + 反馈 + 分叉

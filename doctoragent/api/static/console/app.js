@@ -8169,4 +8169,28 @@
     });
   }
 
+
+  // ── 全局键盘快捷键 ─────────────────────────────────────────
+  document.addEventListener("keydown", function (e) {
+    const mod = e.ctrlKey || e.metaKey;
+    // 避免在输入框中触发部分快捷键
+    const tag = (e.target && e.target.tagName || "").toUpperCase();
+    const typing = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+    if (mod && e.key.toLowerCase() === "enter" && typing) {
+      // Cmd/Ctrl+Enter 发送
+      e.preventDefault();
+      if (typeof sendChatMessage === "function") sendChatMessage();
+      return;
+    }
+    if (typing) return;
+    if (mod && e.key.toLowerCase() === "n") { e.preventDefault(); if (typeof createChatSession === "function") createChatSession(); }
+    else if (mod && e.key.toLowerCase() === "k") { e.preventDefault(); const b=document.getElementById("cmdPaletteBtn"); if(b) b.click(); }
+    else if (mod && e.key.toLowerCase() === "f") { e.preventDefault(); const si=document.getElementById("sidebarSearch"); if(si) si.focus(); }
+    else if (mod && e.key.toLowerCase() === "l") { e.preventDefault(); const t=document.getElementById("themeToggle"); if(t) t.click(); }
+    else if (e.key === "Escape") {
+      const stop=document.getElementById("chatStopBtn");
+      if (stop && !stop.classList.contains("hidden")) stop.click();
+    }
+  });
+
 })();

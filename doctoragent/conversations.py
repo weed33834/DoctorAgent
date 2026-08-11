@@ -56,10 +56,73 @@ class ConversationStore:
                     content TEXT, ts TEXT, feedback INTEGER DEFAULT 0,
                     feedback_comment TEXT
                 );
+                CREATE TABLE IF NOT EXISTS conv_shares (
+                    token TEXT PRIMARY KEY, conversation_id TEXT,
+                    created_at TEXT, expires_at TEXT
+                );
                 CREATE INDEX IF NOT EXISTS idx_conv_msgs_conv ON conv_messages(conversation_id);
                 """
             )
             conn.commit()
+
+    # ── share links ──────────────────────────────────────────────────
+
+    def share(self, conversation_id: str, ttl_hours: int = 168) -> dict[str, Any] | None:
+        """Generate a share token for a conversation (default 7-day TTL)."""
+        if self.get(conversation_id) is None:
+            return None
+        token = uuid.uuid4().hex[:24]
+        expires = datetime.now(timezone.utc).timestamp() + ttl_hours * 3600
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT INTO conv_shares (token,conversation_id,created_at,expires_at) VALUES (?,?,?,?)",
+                (token, conversation_id, _now(), expires),
+            )
+            conn.commit()
+        return {"token": token, "conversation_id": conversation_id,
+                "expires_at": expires, "ttl_hours": ttl_hours}
+
+    def get_shared(self, token: str) -> dict[str, Any] | None:
+        """Resolve a share token to a conversation (for public view)."""
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT conversation_id, expires_at FROM conv_shares WHERE token=?",
+                (token,),
+            ).fetchone()
+        if not row:
+            return None
+        if row["expires_at"] and datetime.now(timezone.utc).timestamp() > float(row["expires_at"]):
+            return None
+        return self.get(row["conversation_id"])
+
+    def revoke_share(self, token: str) -> bool:
+        with self._connect() as conn:
+            cur = conn.execute("DELETE FROM conv_shares WHERE token=?", (token,))
+            conn.commit()
+        return cur.rowcount > 0
+
+    # ── auto-title / summary ─────────────────────────────────────────
+
+    @staticmethod
+    def auto_title(first_user_message: str, fallback: str = "新对话") -> str:
+        """Generate a concise title from the first user message."""
+        text = (first_user_message or "").strip()
+        if not text:
+            return fallback
+        text = " ".join(text.split())
+        return text[:24] + ("…" if len(text) > 24 else "")
+
+    def summarize(self, conversation_id: str) -> str | None:
+        """Heuristic summary from the conversation messages (head + tail)."""
+        conv = self.get(conversation_id)
+        if not conv:
+            return None
+        msgs = conv.get("messages", [])
+        if not msgs:
+            return "（空对话）"
+        user_msgs = [m["content"] for m in msgs if m["role"] == "user"][:3]
+        last = msgs[-1]["content"]
+        return "；".join(u[:40] for u in user_msgs) + " —— 结尾：" + last[:60]
 
     # ── conversations ────────────────────────────────────────────────
 

@@ -69,3 +69,33 @@ def test_stats(tmp_path: Path) -> None:
     assert st["conversations"] == 1
     assert st["messages"] == 2
     assert st["dislikes"] == 1
+
+
+def test_auto_title() -> None:
+    long_msg = "华法林和布洛芬能一起吃吗？这个药怎么用需要注意哪些副作用和出血风险"
+    t = ConversationStore.auto_title(long_msg)
+    assert t.endswith("…") and len(t) <= 25
+    assert ConversationStore.auto_title("", fallback="默认") == "默认"
+    assert ConversationStore.auto_title("简短问题") == "简短问题"
+
+
+def test_share_and_get_shared(tmp_path: Path) -> None:
+    s = _store(tmp_path)
+    c = s.create("会话")
+    s.add_message(c["id"], "user", "你好")
+    share = s.share(c["id"], ttl_hours=24)
+    assert share is not None and share["token"]
+    pub = s.get_shared(share["token"])
+    assert pub is not None and pub["id"] == c["id"]
+    assert s.revoke_share(share["token"]) is True
+    assert s.get_shared(share["token"]) is None
+
+
+def test_summarize(tmp_path: Path) -> None:
+    s = _store(tmp_path)
+    c = s.create("t")
+    s.add_message(c["id"], "user", "第一个问题")
+    s.add_message(c["id"], "assistant", "第一个回答")
+    s.add_message(c["id"], "user", "第二个问题")
+    sm = s.summarize(c["id"])
+    assert "第一个问题" in sm and "结尾" in sm

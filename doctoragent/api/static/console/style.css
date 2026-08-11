@@ -5590,3 +5590,22 @@ html.theme-transition *, html.theme-transition *::before, html.theme-transition 
 /* ── 面板头部行（标题 + 操作按钮） ── */
 .panel-head-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
 .panel-head-row h2 { margin-bottom: 0; }
+
+/* ═══════════════ 移动端适配 ═══════════════ */
+@media (max-width: 900px) {
+  .sidebar { width: 64px; min-width: 64px; padding: 6px 8px; }
+  .sidebar .sidebar-item { font-size: 0; justify-content: center; padding: 10px 0; border-radius: 10px; }
+  .sidebar .sidebar-item::first-letter { font-size: 18px; }
+  .sidebar .sidebar-section, .sidebar .sidebar-search, .sidebar .sidebar-token { display: none; }
+  main { padding: 14px; }
+  .clinical-grid { grid-template-columns: 1fr; }
+  .metric-grid { grid-template-columns: repeat(2, 1fr); }
+  .landing-modes { grid-template-columns: 1fr; }
+  .topbar .view-switcher { display: none; }
+}
+@media (max-width: 560px) {
+  .metric-grid { grid-template-columns: 1fr; }
+  .landing-card { padding: 24px 18px; }
+  .brand .title, .health-text { display: none; }
+  .chat-suggestions { flex-direction: column; }
+}
