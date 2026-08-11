@@ -105,7 +105,11 @@ def test_delegate_without_client(interop: InteropService) -> None:
 
 @pytest.fixture
 def dr(tmp_path: Path) -> DisasterService:
-    return DisasterService(DisasterStore(tmp_path / "dr.db"))
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "记录.txt").write_text("患者记录", encoding="utf-8")
+    return DisasterService(DisasterStore(tmp_path / "dr.db"),
+                           vault_path=vault, backup_root=tmp_path / "backups")
 
 
 def test_backup_job_lifecycle(dr: DisasterService) -> None:

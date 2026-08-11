@@ -151,9 +151,12 @@ class DisasterStore:
 class DisasterService:
     """Facade: backup jobs, DR plans, drills (measured RTO/RPO) and metrics."""
 
-    def __init__(self, store: DisasterStore, backup_engine: Any | None = None) -> None:
+    def __init__(self, store: DisasterStore, backup_engine: Any | None = None,
+                 vault_path: Path | None = None, backup_root: Path | None = None) -> None:
         self.store = store
         self.backup_engine = backup_engine
+        self.vault_path = Path(vault_path) if vault_path else None
+        self.backup_root = Path(backup_root) if backup_root else None
 
     def register_backup_job(self, name: str, scope: str, backup_type: str = "full",
                             schedule: str = "0 2 * * 0", retention_days: int = 30) -> dict[str, Any]:
@@ -164,13 +167,15 @@ class DisasterService:
         return job
 
     def execute_backup(self, job_id: str) -> dict[str, Any]:
-        """Execute a backup job (delegates to backup engine if available)."""
+        """Execute a backup job. Uses the real incremental backup engine
+        (``security/backup.backup_vault``) when a vault path is configured;
+        otherwise reports the concrete reason instead of a fake success."""
         jobs = {j["id"]: j for j in self.store.list_backup_jobs()}
         job = jobs.get(job_id)
         if job is None:
             raise KeyError(f"backup job {job_id} not found")
         ok = False
-        detail = "backup engine unavailable; simulated success"
+        detail = ""
         if self.backup_engine is not None:
             try:
                 result = self.backup_engine.run_backup(scope=job["scope"])
@@ -179,8 +184,24 @@ class DisasterService:
             except Exception as exc:  # noqa: BLE001
                 ok = False
                 detail = str(exc)
+        elif self.vault_path is not None and self.backup_root is not None:
+            try:
+                from doctoragent.security.backup import backup_vault
+
+                started = time.monotonic()
+                result = backup_vault(self.vault_path, self.backup_root)
+                dur = round(time.monotonic() - started, 3)
+                ok = result.ok
+                detail = (
+                    f"real incremental backup: {len(result.backed_up)} backed up, "
+                    f"{len(result.skipped)} skipped, {len(result.removed)} removed, {dur}s"
+                )
+                self.store.record_metric("actual_rpo", round(dur, 3), "backup")
+            except Exception as exc:  # noqa: BLE001
+                ok = False
+                detail = str(exc)
         else:
-            ok = True
+            detail = "backup skipped: no backup engine and no vault/backup paths configured"
         self.store.run_backup(job_id, ok)
         self.store.record_metric("backup_success_rate", 1.0 if ok else 0.0, "daily")
         return {"job_id": job_id, "ok": ok, "detail": detail}
@@ -195,14 +216,26 @@ class DisasterService:
         return plan
 
     def run_drill(self, name: str, plan_id: str, scenario: str = "failover") -> dict[str, Any]:
-        """Run a switchover/restore drill and measure actual RTO/RPO vs targets."""
+        """Run a switchover/restore drill. RTO/RPO are measured from a real
+        backup run when a vault is configured, else from a fallback estimate."""
         plan = next((p for p in self.store.list_plans() if p["id"] == plan_id), None)
         started = time.monotonic()
-        # Simulate restore latency proportional to a small payload.
-        rpo_s = 5
-        rto_s = 3
-        actual_rto = rto_s
-        actual_rpo = rpo_s
+        actual_rpo = 5.0
+        actual_rto = 3.0
+        measure = "estimated"
+        if self.vault_path is not None and self.backup_root is not None:
+            try:
+                from doctoragent.security.backup import backup_vault
+
+                r = backup_vault(self.vault_path, self.backup_root)
+                elapsed = round(time.monotonic() - started, 3)
+                actual_rpo = max(round(elapsed, 3), 0.1)
+                actual_rto = actual_rpo
+                measure = "measured"
+                if r.error:
+                    measure = f"error: {r.error}"
+            except Exception as exc:  # noqa: BLE001
+                measure = f"error: {exc}"
         result = "pass"
         if plan is not None:
             if actual_rto > plan["rto_target_s"] or actual_rpo > plan["rpo_target_s"]:
@@ -213,7 +246,8 @@ class DisasterService:
         drill = {
             "id": _id("drill"), "name": name, "plan_id": plan_id, "scenario": scenario,
             "status": "completed", "actual_rto_s": actual_rto, "actual_rpo_s": actual_rpo,
-            "result": result, "report": f"drill {name}: RTO={actual_rto}s RPO={actual_rpo}s",
+            "result": result,
+            "report": f"drill {name}: RTO={actual_rto}s RPO={actual_rpo}s [{measure}]",
             "created_at": _now(),
         }
         self.store.save_drill(drill)

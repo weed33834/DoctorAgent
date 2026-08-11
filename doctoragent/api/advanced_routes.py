@@ -3639,10 +3639,30 @@ if _FASTAPI_AVAILABLE:
                             response_text = f"[delegation failed: {exc}]"
                             rounds = 0
         if not response_text:
-            response_text = (
-                f"[stub] Delegated task to role '{body.role}': {body.task[:200]}. "
-                "Wire a real delegation method on the agent to execute."
-            )
+            # 真实执行：用配置的 LLM 经 Agent 管线运行任务（按角色人设），而非返回占位符
+            try:
+                llm_provider = None
+                if hasattr(agent, "classifier") and hasattr(agent.classifier, "provider"):
+                    llm_provider = agent.classifier.provider
+                elif hasattr(agent, "llm_provider"):
+                    llm_provider = agent.llm_provider
+                if llm_provider is not None:
+                    from doctoragent.clinical.roles import default_role, get_role
+                    from doctoragent.model.agent import AgentConfig, create_agent
+
+                    role = get_role(body.role) or default_role()
+                    runner = create_agent(llm_provider=llm_provider,
+                                          config=AgentConfig(max_iterations=5))
+                    persona = f"【身份】{role.name}。{role.prompt} {role.disclaimer}"
+                    answer = await runner.run(f"{persona}\n\n任务：{body.task}")
+                    response_text = answer or ""
+                    rounds = 1
+                else:
+                    response_text = "未配置 LLM 提供商，无法执行委派任务。"
+            except Exception as exc:  # noqa: BLE001
+                logger.exception("collab delegate fallback failed")
+                response_text = f"[delegation failed: {exc}]"
+                rounds = 0
         msgs.append(
             {
                 "message_id": uuid4().hex,

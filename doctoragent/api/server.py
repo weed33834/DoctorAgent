@@ -1231,7 +1231,9 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
         from doctoragent.disaster import DisasterService, DisasterStore
 
         app.state.disaster_service = DisasterService(
-            DisasterStore(Path(config.paths.index) / "disaster.db")
+            DisasterStore(Path(config.paths.index) / "disaster.db"),
+            vault_path=config.paths.vault,
+            backup_root=Path(config.paths.index) / "backups",
         )
     except Exception:  # noqa: BLE001
         app.state.disaster_service = None

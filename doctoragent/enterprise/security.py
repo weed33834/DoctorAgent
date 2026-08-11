@@ -51,18 +51,34 @@ def verify_password(password: str, stored: str) -> bool:
 # ── TOTP (RFC 6238) ──────────────────────────────────────────────────
 
 
+def _totp_backend():
+    """Return a pyotp-like module (mature lib) or None if unavailable.
+
+    We prefer the well-tested ``pyotp`` library instead of hand-rolling RFC 6238;
+    the pure-Python implementation below remains as an offline fallback.
+    """
+    try:
+        import pyotp  # type: ignore[import-not-found]
+
+        return pyotp
+    except ImportError:  # pragma: no cover
+        return None
+
+
 def generate_totp_secret() -> str:
     """Generate a base32-encoded 20-byte TOTP secret."""
+    pyotp = _totp_backend()
+    if pyotp is not None:
+        return pyotp.random_base32()
     return base64.b32encode(secrets.token_bytes(20)).decode().rstrip("=")
-
-
-def _base32_decode(secret: str) -> bytes:
-    pad = "=" * (-len(secret) % 8)
-    return base64.b32decode(secret.upper() + pad)
 
 
 def totp_code(secret: str, *, period: int = 30, digits: int = 6, at: float | None = None) -> str:
     """Compute the current TOTP code (RFC 6238, SHA-1 default)."""
+    pyotp = _totp_backend()
+    if pyotp is not None:
+        at_s = at if at is not None else time.time()
+        return pyotp.TOTP(secret, interval=period, digits=digits).at(at_s)
     counter = int((at if at is not None else time.time()) // period)
     msg = struct.pack(">Q", counter)
     key = _base32_decode(secret)
@@ -74,6 +90,9 @@ def totp_code(secret: str, *, period: int = 30, digits: int = 6, at: float | Non
 
 def verify_totp(secret: str, code: str, *, window: int = 1) -> bool:
     """Verify a TOTP code allowing ``window`` steps of clock drift either way."""
+    pyotp = _totp_backend()
+    if pyotp is not None:
+        return pyotp.TOTP(secret).verify(code, valid_window=window)
     if not code or not code.isdigit():
         return False
     code = code.strip()
@@ -86,6 +105,9 @@ def verify_totp(secret: str, code: str, *, window: int = 1) -> bool:
 
 def totp_provisioning_uri(secret: str, email: str, issuer: str = "DoctorAgent") -> str:
     """OTPAuth URL for QR-code enrollment (otpauth://totp/...)."""
+    pyotp = _totp_backend()
+    if pyotp is not None:
+        return pyotp.TOTP(secret).provisioning_uri(name=email, issuer_name=issuer)
     label = f"{issuer}:{email}"
     params = f"secret={secret}&issuer={issuer}&algorithm=SHA1&digits=6&period=30"
     import urllib.parse

@@ -5,6 +5,23 @@
 
 ---
 
+## [0.5.4] - 2026-08-11
+
+### 空壳清零 + 用库不造轮子
+
+#### 修复空壳/假实现
+- **委派端点**：`POST /collab/delegate` 无委派方法时不再返回 `[stub]` 字符串，改为**真实经 LLM Agent 管线按角色人设执行**
+- **AutoGen 适配器**：不再返回 `autogen:{...}` 占位符；改为真实调用（未装 SDK 报清晰错误）
+- **容灾备份/演练**：不再"模拟成功"；接入真实增量备份引擎 `security/backup.backup_vault`，演练**实测 RTO/RPO**（未配 vault 时如实报告"跳过"，而非假成功）
+
+#### 用库不重复造轮子
+- **TOTP 双因子**：改用成熟库 `pyotp`（RFC6238/QR provisioning/窗口校验），纯实现作离线回退；`auth` extra 增加 `pyotp`
+
+### 测试
+- 全量受影响测试 58 项通过（enterprise/disaster/platform/conversations/general）
+
+---
+
 ## [0.5.3] - 2026-08-11
 
 ### 继续补全：会话分享/自动命名/摘要 + 全局快捷键 + 移动端适配

@@ -98,7 +98,7 @@ chroma = ["chromadb>=0.5,<2.0"]
 # S3 / MinIO storage backend (integrations/storage.py) and AWS KMS.
 s3 = ["boto3>=1.34,<2.0"]
 # Enterprise auth: RBAC + OIDC (api/auth/).
-auth = ["authlib>=1.3,<2.0", "casbin>=1.16,<2.0"]
+auth = ["authlib>=1.3,<2.0", "casbin>=1.16,<2.0", "pyotp>=2.9,<3.0"]
 # Model Context Protocol server (agent/mcp_server.py) — 2026 table-stakes.
 mcp = ["mcp>=1.0,<3.0"]
 # Browser automation tool (tools/browser_tool.py) — M4.8 / M12.10.

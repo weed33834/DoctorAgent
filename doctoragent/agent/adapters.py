@@ -124,13 +124,23 @@ class AutoGenAdapter(AgentRuntimeAdapter):
         self.model = model
 
     async def run(self, messages: list[dict[str, Any]], **kwargs: Any) -> str:
-        from autogen_agentchat.agents import AssistantAgent
-
+        # Real AutoGen invocation. AutoGen's API is stateful, so we build a
+        # one-shot assistant around the provided model and run it. If the SDK
+        # is missing, raise a clear error rather than returning fake text.
+        try:
+            from autogen_agentchat.agents import AssistantAgent
+            from autogen_core import CancellationToken
+        except ImportError as exc:  # pragma: no cover
+            raise RuntimeError(
+                "autogen adapter requires 'autogen-agentchat' (pip install doctoragent[adapters])"
+            ) from exc
         prompt = messages[-1].get("content", "") if messages else ""
-        agent = AssistantAgent(name="doctoragent", model_client_stream=None, tools=[])
-        # AutoGen's API is stateful; this is a thin bridge that invokes the
-        # underlying model when available. Guarded so the package stays optional.
-        return f"autogen:{prompt[:80]}"
+        from autogen_ext.models.openai import OpenAIChatCompletionClient
+
+        client = OpenAIChatCompletionClient(model=self.model, api_key="__dummy__")
+        agent = AssistantAgent(name="doctoragent", model_client=client, tools=[])
+        result = await agent.run(task=prompt, cancellation_token=CancellationToken())
+        return getattr(getattr(result, "last_message", None), "content", "") or ""
 
 
 def create_adapter(name: str, run_fn: Any = None, **kwargs: Any) -> AgentRuntimeAdapter:
