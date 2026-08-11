@@ -40,15 +40,28 @@ def extract_keywords(
 ) -> list[str]:
     """Extract the most salient keywords from Chinese/English text.
 
-    Chinese is tokenized by character (no external Jieba dependency); ASCII by
-    word. Tokens are scored by normalized frequency after stop-word and
-    punctuation removal. Returns keywords ordered by importance.
+    Uses ``jieba`` for Chinese word segmentation when available (mature
+    tokenization instead of naive character splitting); falls back to
+    character/word tokenization otherwise. Tokens are scored by normalized
+    frequency after stop-word and punctuation removal.
     """
     if not text:
         return []
+    tokens: list[str] = []
+    try:  # 优先用成熟的中文分词库
+        import jieba  # type: ignore[import-not-found]
+
+        for tok in jieba.cut(text):
+            tok = tok.strip()
+            if tok and not re.fullmatch(r"[\W_]+", tok):
+                tokens.append(tok)
+        if not tokens:  # 分词结果异常时回退
+            tokens = [m.group(0) for m in _WORD_RE.finditer(text)]
+    except ImportError:  # pragma: no cover
+        tokens = [m.group(0) for m in _WORD_RE.finditer(text)]
+
     counts: Counter[str] = Counter()
-    for m in _WORD_RE.finditer(text):
-        tok = m.group(0)
+    for tok in tokens:
         if tok in _EN_STOP or tok in _CJK_STOP:
             continue
         if tok.lower() in _EN_STOP:

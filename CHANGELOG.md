@@ -5,6 +5,23 @@
 
 ---
 
+## [0.5.5] - 2026-08-11
+
+### 继续"全部真实现 + 用库不造轮子"
+
+将手写实现替换为成熟库（均保留离线回退）：
+- **数学计算 `calculate`**：改用 `simpleeval`（沙箱化安全求值，比白名单 eval 更严谨）
+- **中文关键词提取**：改用 `jieba` 分词（替代按字切分，语义更准）
+- **联网搜索 `web_search`**：优先 `duckduckgo_search` 库，HTML 解析作回退
+- 新增 `general` extra：`simpleeval / jieba / duckduckgo_search`
+
+至此：PDF(reportlab)、Word(python-docx)、TOTP(pyotp)、文本抽取(pypdf/pdfplumber)、配置(pydantic-settings)、RAG(FTS5)、全部为成熟库/内置实现。
+
+### 测试
+- 全量受影响 118 项测试通过
+
+---
+
 ## [0.5.4] - 2026-08-11
 
 ### 空壳清零 + 用库不造轮子

@@ -75,21 +75,49 @@ class CalculateTool(_GTool):
         expr = (kwargs.get("expression") or "").strip()
         if not expr:
             return self._err("表达式为空")
-        # 只允许安全字符，防止任意代码执行
-        if re.search(r"[^\d\s\.\+\-\*\/\(\)\%\^\*\*\,\s]", expr):
-            return self._err("表达式含非法字符")
-        allowed = {"__builtins__": None}
-        try:
-            import math
-
-            result = eval(expr, {"math": math, "__builtins__": None}, {})  # nosec B307 — 已白名单过滤
-        except Exception as exc:  # noqa: BLE001
-            return self._err(f"计算失败：{exc}")
+        result = _safe_eval(expr)
+        if isinstance(result, str):  # error message
+            return self._err(result)
         if isinstance(result, bool):
             result = int(result)
         if isinstance(result, float):
             result = round(result, 10)
         return self._ok({"expression": expr, "result": result})
+
+
+def _safe_eval(expr: str) -> Any:
+    """Evaluate an arithmetic expression safely.
+
+    Prefers the mature, sandboxed ``simpleeval`` library; falls back to a
+    whitelist-guarded ``eval`` when it is unavailable.
+    """
+    try:
+        import simpleeval  # type: ignore[import-not-found]
+
+        try:
+            return simpleeval.simple_eval(
+                expr,
+                functions={  # allow a few safe math helpers
+                    "sqrt": lambda x: __import__("math").sqrt(x),
+                    "abs": abs,
+                    "round": round,
+                    "min": min,
+                    "max": max,
+                },
+            )
+        except simpleeval.NameNotDefined:
+            return "表达式含未定义名称"
+        except simpleeval.InvalidExpression:
+            return "表达式非法"
+        except Exception as exc:  # noqa: BLE001
+            return f"计算失败：{exc}"
+    except ImportError:  # pragma: no cover — fallback
+        if re.search(r"[^\d\s\.\+\-\*\/\(\)\%\^\*\*\,\s]", expr):
+            return "表达式含非法字符"
+        try:
+            return eval(expr, {"__builtins__": None}, {})  # nosec B307 — 白名单已过滤
+        except Exception as exc:  # noqa: BLE001
+            return f"计算失败：{exc}"
 
 
 class WebSearchTool(_GTool):
@@ -122,7 +150,22 @@ class WebSearchTool(_GTool):
                 r.raise_for_status()
                 data = r.json()
                 return (data.get("results") or [])[:limit]
-        # 默认 DuckDuckGo HTML 解析
+        # 优先用成熟的 duckduckgo_search 库
+        try:
+            from duckduckgo_search import DDGS  # type: ignore[import-not-found]
+
+            out: list[dict[str, str]] = []
+            for r in DDGS().text(query, max_results=limit):
+                out.append({
+                    "title": r.get("title", ""),
+                    "url": r.get("href", ""),
+                    "snippet": r.get("body", "")[:200],
+                })
+            if out:
+                return out
+        except Exception:  # noqa: BLE001 — fall through to HTML parsing
+            pass
+        # 回退：DuckDuckGo HTML 解析
         url = "https://html.duckduckgo.com/html/?q=" + urllib.parse.quote(query)
         async with httpx.AsyncClient(timeout=20, headers={"User-Agent": "DoctorAgent/1.0"}) as c:
             r = await c.get(url)
