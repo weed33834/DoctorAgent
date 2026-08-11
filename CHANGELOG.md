@@ -5,6 +5,18 @@
 
 ---
 
+## [0.5.9] - 2026-08-11
+
+### 开源仓库就绪度体检与修复
+
+- **移除误提交的 API 密钥**：`tests/boot_live_server.py` / `run_live_recording.py` 原硬编码了真实网关 key 作回退，已改为必须从环境变量 `K2` 提供。⚠️ 该 key 曾进入 git 历史，**强烈建议在网关侧轮换/作废该密钥**。
+- **清理杂散文件**：删除顶层 `MagicMock/` 测试残留目录（`mock.task_store.db_path/agent_evolution.db`）
+- **补全开源标准文件**：新增 `SECURITY.md`（漏洞披露政策）、`.editorconfig`（统一编码风格）、`AUTHORS`、`NOTICE`（Apache-2.0）
+- **pyproject 元数据完善**：新增 `license-files=["LICENSE"]`、Apache 许可 classifier、`[project.urls]`（Homepage/Repository/Changelog）、Healthcare Industry audience
+- **核对**：`.gitignore` 已覆盖 `__pycache__/.env/*.log/*.db`；无大文件/其它残留；`.github`（ci/release/security）工作流齐全
+
+---
+
 ## [0.5.8] - 2026-08-11
 
 ### 多语言文档与描述/标签统一

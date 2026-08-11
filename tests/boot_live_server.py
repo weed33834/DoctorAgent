@@ -9,7 +9,7 @@ import tempfile
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
-KEY = os.environ.get("K2", "<REDACTED_API_KEY>")
+KEY = os.environ["K2"]
 DATA = pathlib.Path(tempfile.mkdtemp(prefix="doctoragent-live-"))
 
 # master key password so AegisAgent can build its key provider

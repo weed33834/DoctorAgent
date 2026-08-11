@@ -14,7 +14,7 @@ import urllib.request
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
-KEY = os.environ.get("K2", "<REDACTED_API_KEY>")
+KEY = os.environ["K2"]
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 LOG = open("/tmp/live_server.log", "w", encoding="utf-8")
 
