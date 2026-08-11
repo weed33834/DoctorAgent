@@ -3121,11 +3121,14 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
             try:
                 from doctoragent.tools.code_exec_tool import register_code_exec_tool
                 from doctoragent.tools.manage_tools import register_workspace_tools
+                from doctoragent.tools.conversation_tools import register_conversation_tools
 
                 register_code_exec_tool(registry)
                 ws_store = getattr(app.state, "workspace_config", None)
                 if ws_store is not None:
                     register_workspace_tools(registry, ws_store)
+                # 对话即操作：医生用自然语言切角色/建知识库/导资料/查状态
+                register_conversation_tools(registry, app.state, agent)
             except Exception:  # noqa: BLE001
                 logger.debug("workspace tools not attached to registry")
             return registry

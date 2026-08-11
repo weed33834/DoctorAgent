@@ -7090,6 +7090,30 @@
         '<h3>Q：文件上传失败？</h3><p>A：检查文件大小（需小于 20MB）以及 Token 是否有效。</p>' +
         '<h3>Q：流式回复中断？</h3><p>A：可能是 LLM 后端连接失败，请检查右上角健康状态。</p>',
     },
+    {
+      id: "knowledge_import", icon: "📥", label: "知识库导入", group: "参考",
+      html: '<h2>📥 知识库导入（医学资料）</h2>' +
+        '<p>智能体出厂自带 12 篇基础医学知识。要让它在真实临床更强，请按清单导入医学资料（PDF/DOCX）。</p>' +
+        '<h3>一、Vault 视图一键导入</h3><p>打开「📁 文档 Vault」，点右上角 <b>📥 导入资料</b>，选择 PDF 即可自动入库。</p>' +
+        '<h3>二、命令行批量导入</h3><p><code>doctoragent import /path/医学书.pdf</code><br/><code>doctoragent import --dir /path/目录</code></p>' +
+        '<h3>三、放 Inbox 目录</h3><p>把 PDF 放进 Inbox 目录，运行中的服务会自动处理移入 Vault。</p>' +
+        '<h3>验证</h3><p>在对话中提问"某本书里关于……"，看回答是否引用该书即可。</p>' +
+        '<p>详细清单与操作见 <code>docs/KNOWLEDGE_CATALOG.md</code> 与 <code>docs/KNOWLEDGE_UPLOAD_GUIDE.md</code>。</p>',
+    },
+    {
+      id: "conversation_ops", icon: "💬", label: "对话即操作", group: "参考",
+      html: '<h2>💬 对话即操作</h2>' +
+        '<p>直接在对话里用自然语言描述，即可完成原本要在界面里做的操作：</p>' +
+        '<ul>' +
+        '<li><b>切换科室角色</b>："把角色切成外科医生 / 心内科 / 麻醉科…"</li>' +
+        '<li><b>建知识库</b>："新建一个糖尿病资料库"</li>' +
+        '<li><b>导资料</b>："导入 /data/高血压指南.pdf"</li>' +
+        '<li><b>查状态</b>："现在的系统状态怎样？用了什么模型？"</li>' +
+        '<li><b>改提示词/加技能/加专家</b>："把提示词改成……"、"新增一个心衰药师专家"</li>' +
+        '<li><b>跑代码出图</b>："用 Python 画个柱状图"</li>' +
+        '</ul>' +
+        '<p>这些改动会即时同步到管理界面。</p>',
+    },
   ];
 
   let helpActiveId = HELP_DOCS[0].id;
@@ -8115,7 +8139,28 @@
     setTimeout(loadRoles, 600);
   }
 
+
+  // ── Vault 视图：一键导入医学资料到知识库 ─────────────────────
+  const vaultImportBtn = document.getElementById("vaultImportBtn");
+  const vaultImportFile = document.getElementById("vaultImportFile");
+  if (vaultImportBtn && vaultImportFile) {
+    vaultImportBtn.addEventListener("click", function () { vaultImportFile.click(); });
+    vaultImportFile.addEventListener("change", async function () {
+      const files = Array.from(vaultImportFile.files || []);
+      if (!files.length) return;
+      vaultImportBtn.disabled = true; vaultImportBtn.textContent = "导入中…";
+      let okCount = 0;
+      for (const f of files) {
+        const fd = new FormData(); fd.append("file", f);
+        try { const r = await api("/api/v1/vault/import", { method: "POST", body: fd, timeoutMs: 60000 }); if (r && r.ok) okCount++; } catch (e) {}
+      }
+      vaultImportBtn.disabled = false; vaultImportBtn.textContent = "📥 导入资料";
+      vaultImportFile.value = "";
+      toast("成功导入 " + okCount + "/" + files.length + " 份资料", okCount ? "success" : "error");
+      try { if (typeof loadVaultStats === "function") loadVaultStats(); } catch (e) {}
+      try { if (typeof loadVaultTree === "function") loadVaultTree(); } catch (e) {}
+      try { if (typeof loadVaultFiles === "function") loadVaultFiles(); } catch (e) {}
+    });
+  }
+
 })();
-
-
-

@@ -59,6 +59,9 @@ class WorkspaceConfig:
                     id TEXT PRIMARY KEY, name TEXT UNIQUE, title TEXT,
                     system_prompt TEXT, tools TEXT, updated_at TEXT
                 );
+                CREATE TABLE IF NOT EXISTS ws_settings (
+                    key TEXT PRIMARY KEY, value TEXT, updated_at TEXT
+                );
                 """
             )
             conn.commit()
@@ -132,6 +135,23 @@ class WorkspaceConfig:
             )
             conn.commit()
         return next(e for e in self.list_experts() if e["name"] == name)
+
+    # ── settings (generic key-value persistence) ─────────────────────
+
+    def set_settings(self, values: dict[str, str]) -> None:
+        with self._connect() as conn:
+            for k, v in values.items():
+                conn.execute(
+                    "INSERT INTO ws_settings (key,value,updated_at) VALUES (?,?,?) "
+                    "ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
+                    (k, str(v), _now()),
+                )
+            conn.commit()
+
+    def get_setting(self, key: str, default: str = "") -> str:
+        with self._connect() as conn:
+            row = conn.execute("SELECT value FROM ws_settings WHERE key=?", (key,)).fetchone()
+        return row["value"] if row else default
 
     def summary(self) -> dict[str, Any]:
         return {

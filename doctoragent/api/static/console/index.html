@@ -632,7 +632,11 @@
     <!-- ============ 文档 Vault ============ -->
     <section id="view-vault" class="view">
       <div class="panel">
-        <h2>文档 Vault</h2>
+        <div class="panel-head-row">
+          <h2>文档 Vault</h2>
+          <button id="vaultImportBtn" class="btn btn-primary" title="上传 PDF/DOCX 等医学资料到知识库">📥 导入资料</button>
+          <input type="file" id="vaultImportFile" class="hidden" multiple />
+        </div>
         <div class="vault-grid">
           <div class="vault-stats" id="vaultStats">
             <div class="stat"><span class="stat-label">Inbox</span><span id="stat-inbox" class="stat-value">—</span></div>

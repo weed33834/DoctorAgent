@@ -5586,3 +5586,7 @@ html.theme-transition *, html.theme-transition *::before, html.theme-transition 
 .role-picker select option { background: var(--panel); color: var(--text); }
 .role-picker:focus-within { box-shadow: var(--ring); border-color: var(--primary); }
 @media (max-width: 720px) { .role-picker { display: none; } }
+
+/* ── 面板头部行（标题 + 操作按钮） ── */
+.panel-head-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.panel-head-row h2 { margin-bottom: 0; }
