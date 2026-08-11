@@ -69,6 +69,24 @@ Or browse the screenshots below. They're from the actual console running against
 
 ---
 
+## Features
+
+A complete, production-grade agent platform — **do almost everything from the chat**:
+
+- **Conversation-driven operations** — switch clinical specialty, manage knowledge bases, import documents, check system status, change prompts / add experts / skills, all by typing in chat (backed by the same stores the admin UI uses).
+- **General agent tools** — live web search, web fetch, current time, safe math (simpleeval), sandboxed Python with chart output.
+- **Server-side conversations** — persistence, global content search, fork, like/dislike feedback, share links (public view + revoke), auto-title, summary.
+- **Clinical specialty roles** — 18 built-in doctor personas (cardiology / surgery / anesthesia / emergency / ICU / pediatrics / …) with specialty prompts, red flags, tools and a console role picker.
+- **Built-in medical knowledge** — 12 essential docs (critical values, drug interactions, reference ranges, acute syndromes…) auto-seeded into the knowledge base; a catalog + upload guide to add your own PDFs.
+- **Memory** — short-term / episodic / semantic / procedural with consolidation & forgetting.
+- **RAG knowledge base** — PDF/DOCX/XLSX/MD ingest, hybrid retrieval, citations.
+- **Multi-agent & tools** — ReAct loop, code sandbox, browser automation, group chat & debate, MCP client + server, A2A protocol.
+- **Platform** — RBAC + OIDC + MFA(TOTP), multi-tenant orgs, audit chain, AI security red-team, interop, disaster recovery, cost/billing, observability, error-codes.
+
+See [docs/GAP_ANALYSIS.md](docs/GAP_ANALYSIS.md) and the clinical guide (`docs/KNOWLEDGE_CATALOG.md`, `docs/KNOWLEDGE_UPLOAD_GUIDE.md`).
+
+---
+
 ## Why we built it
 
 LLM-powered medical assistants are everywhere. Most of them:
@@ -121,7 +139,7 @@ We expect `2314+ passed`. If the number drops, something broke. Don't ship that 
 
 ## What you can build on it
 
-The agent is MIT licensed and explicitly designed to be extended. The hooks system has 15 trigger points (request_received, before_tool_call, after_llm_response, before_audit_write, etc.) where you can attach Python scripts. The plugin manager registers additional entry points at startup.
+The agent is Apache-2.0 licensed and explicitly designed to be extended. The hooks system has 15 trigger points (request_received, before_tool_call, after_llm_response, before_audit_write, etc.) where you can attach Python scripts. The plugin manager registers additional entry points at startup.
 
 ### Enterprise & platform capabilities (mapped to the Universal Agent Builder spec, M0–M23)
 

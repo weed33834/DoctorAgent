@@ -2,9 +2,9 @@
 
 [English](README.md) | [中文](README.zh.md) | [日本語](README.ja.md)
 
-[![Tests](https://img.shields.io/badge/tests-2314%20passed-brightgreen.svg)](https://github.com/weed33834/DoctorAgent)
+[![Tests](https://img.shields.io/badge/tests-2350%2B%20passed-brightgreen.svg)](https://github.com/weed33834/DoctorAgent)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-Apache2.0-blue.svg)](LICENSE)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://docs.astral.sh/ruff/)
 [![FHIR](https://img.shields.io/badge/FHIR-R4-1d4ed8.svg)](https://hl7.org/fhir/R4/)
 
@@ -40,6 +40,36 @@ doctoragent agent "把所有财务相关的文件整理一下"
 クラウド接続はデフォルトで無効です。運用者が明示的に許可しない限り、データがマシンから外部へ送出されることはありません。
 
 > ⚠️ 本システムは臨床意思決定支援ツール（CDS）であり、医師の診断を代替するものではありません。最終的な判断は医師が行います。
+
+---
+
+## デモ（プロモーション）
+
+![DoctorAgent カバー](assets/demo/doctoragent_cover.png)
+
+**実モデルのプロモーション動画**（step-3.5-flash による実多ターン臨床対話＋全モジュール巡回、編集済み）：
+[▶ `assets/demo/doctoragent_demo_edit.mp4` を再生](assets/demo/doctoragent_demo_edit.mp4)
+- 完全版ウォークスルー：`assets/demo/doctoragent_live_demo.mp4`
+- 全モジュールのスクリーンショット：`assets/demo/final/`
+- 実際の会話内容：`assets/demo/final/real_chat_content.json`
+
+---
+
+## 機能（Features）
+
+完全で本番利用可能なエージェントプラットフォーム — **会話からほぼすべてを実行できます**：
+
+- **会話駆動オペレーション**：会話内で診療科の切替、ナレッジベースの作成・インポート、ドキュメント取込、システム状態の確認、プロンプト変更・専門家/スキルの追加（管理UIと同一ストアを共有）
+- **汎用エージェントツール**：Web 検索、Web フェッチ、現在時刻、安全な数学計算(simpleeval)、サンドボックスで Python 実行＋チャート出力
+- **サーバー側会話**：永続化、全体検索、分岐、いいね/低評価、共有リンク（公開閲覧＋失効）、自動タイトル、要約
+- **診療科ロール**：18 の組み込み医師ペルソナ（循環器/外科/麻酔/救急/ICU/小児/…）— 専門プロンプト、レッドフラグ、デフォルトツール、コンソールで切替可能
+- **組み込み医学知識ベース**：12 の必須ドキュメント（危急値/薬物相互作用/基準値/急性症候群…）を起動時に自動シード、PDF 追加のためのカタログ＋アップロードガイド付き
+- **メモリ**：短期/エピソード/意味/手続き + 統合・圧縮・忘却
+- **RAG ナレッジベース**：PDF/DOCX/XLSX/MD 取込、ハイブリッド検索、引用追跡
+- **マルチエージェント＆ツール**：ReAct ループ、コードサンドボックス、ブラウザ自動化、グループチャット/ディベート、MCP クライアント+サーバー、A2A プロトコル
+- **プラットフォーム**：RBAC+OIDC+MFA(TOTP)、マルチテナント組織、監査チェーン、AI セキュリティ・レッドチーム、相互運用、災害復旧、コスト/請求、可観測性、エラーコード体系
+
+詳細：`docs/GAP_ANALYSIS.md`、`docs/KNOWLEDGE_CATALOG.md`、`docs/KNOWLEDGE_UPLOAD_GUIDE.md`。
 
 ---
 
@@ -268,4 +298,4 @@ ruff format doctoragent/
 
 ## ライセンス
 
-[MIT License](LICENSE)
+[Apache-2.0 License](LICENSE)

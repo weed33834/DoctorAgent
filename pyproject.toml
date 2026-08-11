@@ -1,11 +1,11 @@
 [project]
 name = "doctoragent"
 version = "0.3.3"
-description = "Clinical AI agent for doctors: CDS Hooks 2.0, FHIR R4 / SMART-on-FHIR, SNOMED CT / LOINC / ICD-10-CM terminology binding, structured LLM output via instructor, deterministic safety rules, multi-tenant audit with HMAC, towards HIPAA / 等保三级 hardening (certification is a roadmap goal, not yet certified)"
+description = "Clinical AI agent for doctors: CDS Hooks 2.0, FHIR R4 / SMART-on-FHIR, SNOMED CT / LOINC / ICD-10-CM terminology, deterministic safety rules, 18 built-in specialty doctor roles, built-in medical knowledge base, conversation-driven operations, RAG knowledge base, multi-agent + A2A + MCP, sandboxed code execution, voice, multi-tenant audit with HMAC, towards HIPAA / 等保三级 hardening (certification is a roadmap goal, not yet certified)"
 authors = [{ name = "DoctorAgent Team" }]
 readme = "README.md"
 requires-python = ">=3.10"
-keywords = ["clinical-ai", "medical-ai", "healthcare-ai", "clinical-decision-support", "cds-hooks", "fhir", "smart-on-fhir", "snomed-ct", "loinc", "icd-10", "drug-interaction", "critical-value", "phi-deidentification", "rag", "document-vault", "llm-agents", "langgraph", "multi-agent", "react-loop", "healthcare", "hipaa", "patient-safety", "deterministic-rules", "structured-output", "instructor", "fastapi"]
+keywords = ["clinical-ai", "medical-ai", "healthcare-ai", "clinical-decision-support", "cds-hooks", "fhir", "smart-on-fhir", "snomed-ct", "loinc", "icd-10", "drug-interaction", "critical-value", "phi-deidentification", "rag", "knowledge-base", "llm-agents", "langgraph", "multi-agent", "a2a", "mcp", "react-loop", "code-sandbox", "voice", "conversation", "conversation-driven", "healthcare", "hipaa", "patient-safety", "deterministic-rules", "structured-output", "instructor", "fastapi"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: End Users/Desktop",

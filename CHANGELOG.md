@@ -5,6 +5,18 @@
 
 ---
 
+## [0.5.8] - 2026-08-11
+
+### 多语言文档与描述/标签统一
+
+- **README 三语言（英文/中文/日文）同步**：补齐"功能全景 + 宣传演示"章节，覆盖对话即操作/通用工具/服务端会话/18 专科角色/内置医学知识库/A2A/MCP/代码沙箱/语音 等
+- **许可统一为 Apache-2.0**（与 github 上游 LICENSE 一致）：输出副本 LICENSE 同步；三语言 README 许可徽章/提及全部更新
+- **徽章**：tests 更新为 2350+ passed
+- **pyproject**：description 扩充至完整功能集；keywords 增加 knowledge-base/a2a/mcp/code-sandbox/voice/conversation-driven 等
+- **文档入口**：`docs/KNOWLEDGE_CATALOG.md`、`docs/KNOWLEDGE_UPLOAD_GUIDE.md` 已在三语言 README 引用
+
+---
+
 ## [0.5.7] - 2026-08-11
 
 ### 真实模型宣传演示（新 token：api.hcnsec.cn）
