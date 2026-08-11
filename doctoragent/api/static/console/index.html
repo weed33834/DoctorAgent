@@ -137,8 +137,14 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/><path d="M19.07 4.93a10 10 0 010 14.14"/></svg>
                 <span>朗读</span>
               </button>
+              <button id="chatKbBtn" class="chat-tool-btn kb-toggle active" title="知识库引用（切换 RAG 检索开关）">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+                <span>知识库</span>
+              </button>
               <div id="chatAttachedFiles" class="chat-attached-files"></div>
               <button class="chat-export-btn chat-tool-btn" title="导出为 Markdown" data-format="md">📄</button>
+              <button class="chat-export-pdf chat-tool-btn" title="导出为 PDF" data-format="pdf">🖨</button>
+              <button class="chat-export-word chat-tool-btn" title="导出为 Word" data-format="docx">📝</button>
               <button class="chat-export-json chat-tool-btn" title="导出为 JSON" data-format="json">{ }</button>
             </div>
             <div class="chat-input-row">

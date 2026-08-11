@@ -5478,3 +5478,7 @@ html.theme-transition *, html.theme-transition *::before, html.theme-transition 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* ── 知识库引用开关 ── */
+.chat-tool-btn.kb-toggle.active { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); background: var(--accent-soft); }
+.chat-tool-btn.kb-toggle:not(.active) { color: var(--text-muted); }

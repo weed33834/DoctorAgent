@@ -2976,6 +2976,7 @@
     sessions: [],      // [{id, title, messages:[{role,content,ts}], createdAt}]
     currentId: null,
     webSearch: false,
+    useKnowledge: true, // 知识库引用开关（RAG）
     attachedFile: null,
     abortCtrl: null,
     initialized: false,
@@ -3106,14 +3107,50 @@
       toast(chatState.webSearch ? "联网搜索已开启" : "联网搜索已关闭", chatState.webSearch ? "success" : "info");
     });
 
-    // 导出对话（JSON / Markdown）
-    document.querySelectorAll(".chat-export-btn, .chat-export-json").forEach((btn) => {
+    // 导出对话（Markdown / PDF / Word / JSON）
+    document.querySelectorAll(".chat-export-btn, .chat-export-json, .chat-export-pdf, .chat-export-word").forEach((btn) => {
       btn.addEventListener("click", () => {
         const chat = getCurrentChat();
         if (!chat) { toast("当前无对话可导出", "error"); return; }
-        exportChat(chat.id, btn.dataset.format);
+        const fmt = btn.dataset.format;
+        if (fmt === "pdf" || fmt === "docx") exportChatServer(chat, fmt);
+        else exportChat(chat.id, fmt);
       });
     });
+
+    // 知识库引用开关（切换 RAG 检索）
+    const kbBtn = document.getElementById("chatKbBtn");
+    if (kbBtn) {
+      kbBtn.addEventListener("click", () => {
+        chatState.useKnowledge = !chatState.useKnowledge;
+        kbBtn.classList.toggle("active", chatState.useKnowledge);
+        toast(chatState.useKnowledge ? "知识库引用已开启（回答会检索 Vault）" : "知识库引用已关闭", chatState.useKnowledge ? "success" : "info");
+      });
+      kbBtn.classList.toggle("active", chatState.useKnowledge !== false);
+    }
+
+    // 服务器端导出（PDF / DOCX）：POST 当前会话消息 → 下载文件
+    async function exportChatServer(chat, format) {
+      if (!chat || !chat.messages || chat.messages.length === 0) { toast("当前无对话可导出", "error"); return; }
+      const messages = chat.messages.map(function (m) {
+        return { role: m.role, content: typeof m.content === "string" ? m.content : (m.content && m.content.text) || "" };
+      });
+      try {
+        const resp = await fetch("/api/v1/doc/export", {
+          method: "POST",
+          headers: Object.assign({ "Content-Type": "application/json" }, getToken() ? { "Authorization": "Bearer " + getToken() } : {}),
+          body: JSON.stringify({ format: format, title: chat.title || "对话", messages: messages }),
+        });
+        if (!resp.ok) { let b = {}; try { b = await resp.json(); } catch (e) {} toast("导出失败：" + (b.detail || resp.status), "error"); return; }
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = (chat.title || "对话").replace(/[^\w\u4e00-\u9fa5]/g, "_") + "." + format;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 3000);
+        toast("已导出为 " + format.toUpperCase(), "success");
+      } catch (e) { toast("导出失败：" + e.message, "error"); }
+    }
 
     // 上传文件
     const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB

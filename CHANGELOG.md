@@ -5,6 +5,37 @@
 
 ---
 
+## [0.4.1] - 2026-08-11
+
+### 对话内能力（让"大部分操作都能在对话里完成"）
+
+#### 沙箱代码执行（Python 出图）
+- **`tools/code_exec_tool.py`**：对话可直接让它运行 Python（隔离沙箱），支持生成图表并回传图片（base64 data URL 显示在对话里）
+- **端点**：`POST /api/v1/sandbox/run`
+- 场景：*"用 Python 画个柱状图"* → 返回可显示的图表
+
+#### 文档导出（Markdown / PDF / Word）
+- **`docgen/`**：把对话消息导出为 `.md` / `.pdf`(reportlab) / `.docx`(python-docx)
+- **端点**：`POST /api/v1/doc/export`
+- **聊天栏新增**：🖨 PDF 导出、📝 Word 导出按钮（与原有 📄 Markdown 并存）
+
+#### 对话内管理（改提示词 / 加技能 / 自定义专家，管理界面同步可见）
+- **`workspace_config.py`**：提示词/技能/自定义专家的统一存储（对话工具与管理端点共用同一库）
+- **`tools/manage_tools.py`**：对话内可调用 `list_prompts / create_prompt / update_prompt / list_skills / register_skill / list_experts / create_expert`
+- **管理端点**：`/api/v1/workspace/prompts|skills|experts|summary`（与对话改动互通）
+- 场景：*"把提示词改成……"、"新增一个 XX 专家"、"加一个 XX 技能"* → 对话改动即时出现在管理界面
+
+#### 知识库引用开关
+- **聊天栏新增"知识库"按钮**：切换 RAG 引用（默认开启），控制回答是否检索 Vault
+
+### 前端
+- 聊天工具栏：知识库开关 + PDF/Word 导出按钮
+
+### 测试
+- 新增 `tests/test_conversation_features.py`（12 用例）
+
+---
+
 ## [0.4.0] - 2026-08-11
 
 ### UI 视觉重构（Premium Design System v2）

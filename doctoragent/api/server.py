@@ -1137,6 +1137,14 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
         app.state.enterprise_store = _ent_store
     except Exception as exc:  # noqa: BLE001 — enterprise must never block startup
         app.state.enterprise_service = None
+    # Conversation-editable workspace config (prompts / skills / experts),
+    # shared by the chat-management tools and the management API.
+    try:
+        from doctoragent.workspace_config import WorkspaceConfig
+
+        app.state.workspace_config = WorkspaceConfig(Path(config.paths.index) / "workspace.db")
+    except Exception:  # noqa: BLE001
+        app.state.workspace_config = None
         app.state.enterprise_store = None
         logger.debug("Enterprise service not available: %s", exc)
     # Governance / pricing / semantic cache / cost dashboard services (M20/M21/M23).
@@ -2938,6 +2946,17 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
     except ImportError:
         logger.debug("ops router not available (FastAPI not installed)")
 
+    # ── Workspace router (sandbox code-exec / prompts / skills / experts / doc export) ──
+    try:
+        from doctoragent.api.workspace_routes import get_router as _get_workspace_router
+
+        _workspace_router = _get_workspace_router()
+        if _workspace_router is not None:
+            app.include_router(_workspace_router)
+            logger.info("Workspace router registered (sandbox/prompts/skills/experts/doc-export)")
+    except ImportError:
+        logger.debug("workspace router not available (FastAPI not installed)")
+
     # ── MCP (Model Context Protocol) ────────────────────────────────
     # Exposes the agent's tools over MCP so external MCP-compatible
     # clients (Claude Desktop, Cursor, other agent frameworks) can
@@ -2980,6 +2999,19 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
                         registry.register(td)
             except Exception:  # noqa: BLE001 — clinical optional
                 logger.debug("clinical tools not attached to MCP registry")
+            # Conversation-driven tools: sandboxed code execution + workspace
+            # management (prompts / skills / experts). Same store as the
+            # management API so chat changes are visible there.
+            try:
+                from doctoragent.tools.code_exec_tool import register_code_exec_tool
+                from doctoragent.tools.manage_tools import register_workspace_tools
+
+                register_code_exec_tool(registry)
+                ws_store = getattr(app.state, "workspace_config", None)
+                if ws_store is not None:
+                    register_workspace_tools(registry, ws_store)
+            except Exception:  # noqa: BLE001
+                logger.debug("workspace tools not attached to registry")
             return registry
         except Exception as exc:  # noqa: BLE001
             logger.debug("MCP tool registry build failed: %s", exc)
