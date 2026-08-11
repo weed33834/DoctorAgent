@@ -5,6 +5,27 @@
 
 ---
 
+## [0.4.9] - 2026-08-11
+
+### 全量"对话即操作"（能聊天解决就不点界面）
+
+新增 `tools/console_tools.py`，把控制台各模块操作都封装成对话工具（20 个），医生/管理员一句话即可完成：
+- **文档**：list_documents / search_vault
+- **模型/成本**：list_models / compare_models（比价）/ cost_report
+- **配置/连接**：config_view / config_set / list_connections
+- **企业**：enterprise_summary / list_users / create_user / list_api_keys
+- **记忆**：memory_view / memory_clear
+- **安全**：security_status / run_redteam
+- **系统/知识/任务**：health_status / seed_knowledge / knowledge_list / task_list
+- 叠加既有：切角色 / 建·导·查知识库 / 改提示词·技能·专家 / 代码出图 / 导出 / 记忆
+
+帮助中心「💬 对话即操作」更新为全量示例清单。
+
+### 测试
+- `tests/test_console_tools.py`：注册完整性 / 健康+知识 / 服务缺失时优雅降级（3 用例）；19 项相关测试通过
+
+---
+
 ## [0.4.8] - 2026-08-11
 
 ### 对话即操作（医生用自然语言完成原本要在界面里做的操作）
