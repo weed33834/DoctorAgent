@@ -5,6 +5,17 @@
 
 ---
 
+## [0.5.7] - 2026-08-11
+
+### 真实模型宣传演示（新 token：api.hcnsec.cn）
+
+- **`assets/demo/doctoragent_live_demo.mp4` / `.webm`**：最终宣传视频（真实用户走查）——引导页→游客进入→**真实多轮临床对话（step-3.5-flash 生成）**→角色切换→管理视图全模块巡览→主题切换；已提速转 mp4、剪去等待
+- **`assets/demo/final/`**：14 张全模块截图 + **真实对话内容 JSON**（`real_chat_content.json`，华法林/肝硬化/剂量计算 3 轮专业回答）
+- 真实内容生成脚本：`tests/gen_real_content.py`（可复现）；录制脚本 `tests/record_final.py`
+- 已搭建并验证真实后端（`tests/boot_live_server.py` + `run_live_recording.py`）：Agent 构建、连接 step-3.5-flash、`/vault/ask` 真实 200 回复
+
+---
+
 ## [0.5.6] - 2026-08-11
 
 ### 宣传演示资产（真实用户操作 + 真实模型内容）
