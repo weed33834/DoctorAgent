@@ -5562,3 +5562,11 @@ html.theme-transition *, html.theme-transition *::before, html.theme-transition 
 .landing-feats { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 20px; }
 .landing-feats span { font-size: 11px; color: var(--text-dim); background: var(--panel-2); border: 1px solid var(--border); padding: 4px 10px; border-radius: 999px; }
 .landing-footer { position: relative; z-index: 1; margin-top: 22px; font-size: 11px; color: var(--text-muted); }
+
+/* ── 游客推荐徽标 ── */
+.landing-mode-guest { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent); }
+.landing-badge {
+  display: inline-block; margin-left: 5px; font-size: 9px; font-weight: 650;
+  padding: 1px 6px; border-radius: 999px; vertical-align: 2px;
+  color: #04322b; background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 70%, #fff));
+}

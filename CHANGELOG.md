@@ -20,6 +20,17 @@
 #### 说明
 - 控制台真实鉴权为 Bearer Token（`DOCTORAGENT_API_TOKEN`）；引导页的登录/注册即配置该令牌，游客则进入只读本地模式（侧栏底部可随时补令牌）。
 
+
+#### 游客优先（0.4.5 补充）
+- 「游客体验」置为**首选**（带"推荐"徽标 + 高亮描边），日常使用一键进入
+- **记住选择**：选游客后记录偏好，下次打开**直接进入控制台**（跳过引导）；已有令牌也自动跳过
+- 登录 / 企业管理（注册）保留给多端同步与企业治理
+
+#### 全功能贯穿实测（0.4.5）
+- **201 条 API 路径全部注册**（advanced 84 / Enterprise 28 / Security·Interop·DR 24 / Ops 24 / Platform 16 / Vault 10 / Workspace 9 / Memory·Prompt·Compliance 各7 / 其余 3-5）
+- GET 探测 98 端点 92+ 通过；个别 503/校验失败均为**测试环境缺失**（watchdog 未装→hooks 503、MagicMock agent→audit verify 解包、SSE 流、scheduler 未配），非产品缺陷
+- **跨模块复杂实测**（gpt-5.6-sol）：创建专家 + Python 剂量计算 + 二次对话引用记忆 + PDF 导出 全部协同工作
+
 ---
 
 ## [0.4.4] - 2026-08-11

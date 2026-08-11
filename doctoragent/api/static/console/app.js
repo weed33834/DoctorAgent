@@ -7997,8 +7997,9 @@
   const landingToken = document.getElementById("landingToken");
   const guestHint = document.getElementById("guestHint");
   let landingMode = "";
+  const LANDING_PREF = "doctoragent_landing_pref";
 
-  // 若无引导元素（或已登录过），直接进入
+  // 若无引导元素（或已记住偏好/已有令牌），直接进入
   function landingEnter() {
     if (!landing) return;
     landing.classList.add("hidden");
@@ -8010,11 +8011,24 @@
 
   window.enterAsGuest = function () {
     landingMode = "guest";
+    try { localStorage.setItem(LANDING_PREF, "guest"); } catch (e) {}
     if (guestHint) guestHint.classList.remove("hidden");
     if (landingForm) landingForm.classList.add("hidden");
     if (landingModes) landingModes.classList.remove("hidden");
     setTimeout(landingEnter, 260);
   };
+
+  // 记住偏好/已有令牌 → 跳过引导直接进入
+  function maybeSkipLanding() {
+    if (!landing) return;
+    let pref = "";
+    try { pref = localStorage.getItem(LANDING_PREF) || ""; } catch (e) {}
+    const hasToken = !!getToken();
+    if (pref === "guest" || hasToken) {
+      landing.classList.add("hidden");
+      document.body.classList.add("landing-done");
+    }
+  }
 
   function showLandingForm(mode) {
     landingMode = mode;
@@ -8025,7 +8039,7 @@
       landingForm.classList.remove("hidden");
       landingFormTitle.textContent = isRegister ? "注册 · 配置访问令牌" : "登录";
       landingHint.innerHTML = isRegister
-        ? "首次使用：请输入由管理员在服务端配置的访问令牌（<code>DOCTORAGENT_API_TOKEN</code>）。"
+        ? "企业 / 多端同步：请输入由管理员在服务端配置的访问令牌（<code>DOCTORAGENT_API_TOKEN</code>）。"
         : "输入你的访问令牌后进入控制台；本地访问可留空。";
       landingToken.value = getToken() || "";
       setTimeout(function () { landingToken.focus(); }, 120);
@@ -8035,6 +8049,7 @@
   function submitLandingForm() {
     const token = (landingToken.value || "").trim();
     if (token) { try { setToken(token); } catch (e) {} }
+    try { localStorage.removeItem(LANDING_PREF); } catch (e) {}
     // 冒烟：验证令牌连通性（可忽略失败，本地无令牌也可用）
     try {
       api("/api/v1/enterprise/status").catch(function () {});
@@ -8067,6 +8082,7 @@
       if (e.key === "Enter") { e.preventDefault(); submitLandingForm(); }
     });
   }
+  maybeSkipLanding();
 
 })();
 
