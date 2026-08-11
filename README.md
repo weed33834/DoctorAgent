@@ -83,7 +83,7 @@ A complete, production-grade agent platform — **do almost everything from the 
 - **Multi-agent & tools** — ReAct loop, code sandbox, browser automation, group chat & debate, MCP client + server, A2A protocol.
 - **Platform** — RBAC + OIDC + MFA(TOTP), multi-tenant orgs, audit chain, AI security red-team, interop, disaster recovery, cost/billing, observability, error-codes.
 
-See [docs/GAP_ANALYSIS.md](docs/GAP_ANALYSIS.md) and the clinical guide (`docs/KNOWLEDGE_CATALOG.md`, `docs/KNOWLEDGE_UPLOAD_GUIDE.md`).
+See the clinical guides: `docs/KNOWLEDGE_CATALOG.md` and `docs/KNOWLEDGE_UPLOAD_GUIDE.md`.
 
 ---
 
@@ -141,7 +141,7 @@ We expect `2314+ passed`. If the number drops, something broke. Don't ship that 
 
 The agent is Apache-2.0 licensed and explicitly designed to be extended. The hooks system has 15 trigger points (request_received, before_tool_call, after_llm_response, before_audit_write, etc.) where you can attach Python scripts. The plugin manager registers additional entry points at startup.
 
-### Enterprise & platform capabilities (mapped to the Universal Agent Builder spec, M0–M23)
+### Enterprise & platform capabilities
 
 On top of the core clinical engine, DoctorAgent ships a full set of
 production-grade platform capabilities:
@@ -160,7 +160,6 @@ production-grade platform capabilities:
 - **Disaster recovery & continuity** (`disaster/`): backup jobs, DR plans, drills (measured RTO/RPO), fault injection, continuity dashboard
 - **Multimodal library** (`multimodal/`), **data pipeline** (`datapipeline/`), **knowledge-base manager** (`knowledge_base.py`), **task center** (`taskcenter.py`), **usage analytics** (`/analytics/overview`)
 
-Full gap analysis: [docs/GAP_ANALYSIS.md](docs/GAP_ANALYSIS.md).
 
 A few directions people are already exploring in the issue tracker:
 

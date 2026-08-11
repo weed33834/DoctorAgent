@@ -410,7 +410,7 @@ python -m pytest tests/ -k "Evaluation" -v
 
 ## Future Enhancements
 
-> 已落地（不再列入路线图）：并行工具执行、流式响应、Plan-and-Execute、多智能体编排、检查点、MCP 工具互操作、A2A 协议、MCP 客户端、长期记忆整合、语音链路、企业级平台（`doctoragent/enterprise/`）、数据治理目录（`doctoragent/governance/`）、模型比价/成本看板（`model/pricing.py`）、语义缓存（`model/semantic_cache.py`）、错误码体系（`api/error_catalog.py`）、AI 安全威胁库+红队（`security/threat.py`）、Agent 互操作目录+策略（`interop/`）、容灾备份+DR 演练（`disaster/`）、多模态资产库（`multimodal/`）、数据管道（`datapipeline/`）、知识库管理（`knowledge_base.py`）、任务中心（`taskcenter.py`）、用量分析（`/analytics/overview`）、辩论模式（`group_chat.run_debate`）、ADK/AutoGen 适配器、图像生成工具（`tools/image_gen_tool.py`）、压测脚本（`scripts/load_test.py`）、浏览器自动化、群聊编排、K8s 清单 + Grafana 仪表盘 + 评估门禁 + 安全冒烟（`deploy/`、`scripts/`）。详见 [docs/GAP_ANALYSIS.md](docs/GAP_ANALYSIS.md)。
+> 已落地（不再列入路线图）：并行工具执行、流式响应、Plan-and-Execute、多智能体编排、检查点、MCP 工具互操作、A2A 协议、MCP 客户端、长期记忆整合、语音链路、企业级平台（`doctoragent/enterprise/`）、数据治理目录（`doctoragent/governance/`）、模型比价/成本看板（`model/pricing.py`）、语义缓存（`model/semantic_cache.py`）、错误码体系（`api/error_catalog.py`）、AI 安全威胁库+红队（`security/threat.py`）、Agent 互操作目录+策略（`interop/`）、容灾备份+DR 演练（`disaster/`）、多模态资产库（`multimodal/`）、数据管道（`datapipeline/`）、知识库管理（`knowledge_base.py`）、任务中心（`taskcenter.py`）、用量分析（`/analytics/overview`）、辩论模式（`group_chat.run_debate`）、ADK/AutoGen 适配器、图像生成工具（`tools/image_gen_tool.py`）、压测脚本（`scripts/load_test.py`）、浏览器自动化、群聊编排、K8s 清单 + Grafana 仪表盘 + 评估门禁 + 安全冒烟（`deploy/`、`scripts/`）。
 
 - **Custom Tool Marketplace**: Share and install community tools
 - **Agent-to-Agent Negotiation（进阶）**: Cross-agent negotiation / voting beyond the current fan-out/fan-in DAG and A2A task submission

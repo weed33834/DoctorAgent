@@ -88,7 +88,7 @@ DoctorAgent 把"确定性安全规则"和"多智能体 LLM 推理"结合在一�
 - **多智能体与工具**：ReAct 循环、代码沙箱、浏览器自动化、群聊/辩论、MCP 客户端+服务端、A2A 协议
 - **平台**：RBAC+OIDC+MFA(TOTP)、多租户组织、审计链、AI 安全红队、互操作、容灾、成本/计费、可观测、错误码体系
 
-详见 [docs/GAP_ANALYSIS.md](docs/GAP_ANALYSIS.md) 与临床资料引导（`docs/KNOWLEDGE_CATALOG.md`、`docs/KNOWLEDGE_UPLOAD_GUIDE.md`）。
+详见临床资料引导（`docs/KNOWLEDGE_CATALOG.md`、`docs/KNOWLEDGE_UPLOAD_GUIDE.md`）。
 
 ---
 
@@ -146,7 +146,7 @@ pytest tests/ -q
 
 代码 Apache-2.0 许可，明确设计为可扩展。钩子系统有 15 个触发点（request_received / before_tool_call / after_llm_response / before_audit_write 等），可以挂载 Python 脚本。插件管理器在启动时注册额外入口点。
 
-### 企业级与平台能力（对照 Universal Agent Builder 完整版 M0–M23）
+### 企业级与平台能力
 
 DoctorAgent 在核心临床能力之外，已落地一整套**可上线、可信、可观测、可企业化**的平台能力：
 
@@ -164,7 +164,6 @@ DoctorAgent 在核心临床能力之外，已落地一整套**可上线、可信
 - **容灾与连续性**（`disaster/`）：备份任务/DR 计划/演练(实测 RTO-RPO)/故障注入/连续性看板
 - **多模态资产库**（`multimodal/`）+ **数据管道**（`datapipeline/`）+ **知识库管理**（`knowledge_base.py`）+ **任务中心**（`taskcenter.py`）+ **用量分析**（`/analytics/overview`）
 
-完整差距对照见 [docs/GAP_ANALYSIS.md](docs/GAP_ANALYSIS.md)。
 
 ### 临床专业知识库
 智能体出厂内置 12 篇**基础医学知识**（危急值/药物相互作用/正常范围/常见急症处理），并预置 **18 个专科医生角色**（心内/外科/麻醉/急诊/ICU/儿科…，可在控制台顶栏切换）。如需更强的专科能力，请按《医学资料准备清单》把 PDF 等医学资料导入知识库：

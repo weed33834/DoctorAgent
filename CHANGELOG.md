@@ -530,7 +530,6 @@
 - **配置**：`VoiceConfig`（transcribe/tts base_url + model + api_key + voice + 上传大小上限）
 
 #### 文档
-- **`docs/GAP_ANALYSIS.md`**：对照 Universal Agent Builder 完整版的十层架构 + M0–M13 逐项差距分析报告
 
 ### 测试
 - 新增 `tests/test_a2a.py`（13 用例）、`tests/test_mcp_client.py`（7 用例）、`tests/test_memory_consolidation.py`（6 用例）、`tests/test_voice.py`（6 用例）

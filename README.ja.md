@@ -69,7 +69,7 @@ doctoragent agent "把所有财务相关的文件整理一下"
 - **マルチエージェント＆ツール**：ReAct ループ、コードサンドボックス、ブラウザ自動化、グループチャット/ディベート、MCP クライアント+サーバー、A2A プロトコル
 - **プラットフォーム**：RBAC+OIDC+MFA(TOTP)、マルチテナント組織、監査チェーン、AI セキュリティ・レッドチーム、相互運用、災害復旧、コスト/請求、可観測性、エラーコード体系
 
-詳細：`docs/GAP_ANALYSIS.md`、`docs/KNOWLEDGE_CATALOG.md`、`docs/KNOWLEDGE_UPLOAD_GUIDE.md`。
+詳細：`docs/KNOWLEDGE_CATALOG.md`、`docs/KNOWLEDGE_UPLOAD_GUIDE.md`。
 
 ---
 
