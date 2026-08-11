@@ -15,6 +15,71 @@
 </head>
 <body>
   <a href="#app" class="skip-link">跳到主内容</a>
+
+  <!-- ═══════ 引导界面（登录 / 注册 / 游客）═══════ -->
+  <div id="landing" class="landing" role="dialog" aria-label="欢迎">
+    <div class="landing-bg" aria-hidden="true">
+      <div class="landing-blob b1"></div>
+      <div class="landing-blob b2"></div>
+      <div class="landing-blob b3"></div>
+      <div class="landing-grid"></div>
+    </div>
+
+    <div class="landing-card">
+      <div class="landing-brand">
+        <span class="landing-logo" aria-hidden="true">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 21s-7-4.35-9-9c-.8-2 .2-4.5 2-5 2-1 4 .3 4 0 .6-3 2.4-5 3-5s2.4 2 3 5c0 .3 2-1 4 0 1.8.5 2.8 3 2 5-2 4.65-9 9-9 9z"/>
+            <path d="M9 12h6M12 9v6"/>
+          </svg>
+        </span>
+        <h1 class="landing-title">DoctorAgent</h1>
+        <p class="landing-sub">临床决策支持智能体 · 确定性安全规则 + 多智能体推理</p>
+      </div>
+
+      <!-- 三种进入方式 -->
+      <div id="landingModes" class="landing-modes">
+        <button class="landing-mode" data-mode="login">
+          <span class="landing-mode-icon">🔑</span>
+          <span class="landing-mode-name">登录</span>
+          <span class="landing-mode-desc">使用你的访问令牌继续</span>
+        </button>
+        <button class="landing-mode" data-mode="register">
+          <span class="landing-mode-icon">✨</span>
+          <span class="landing-mode-name">注册</span>
+          <span class="landing-mode-desc">首次使用，配置访问令牌</span>
+        </button>
+        <button class="landing-mode" data-mode="guest">
+          <span class="landing-mode-icon">👋</span>
+          <span class="landing-mode-name">游客体验</span>
+          <span class="landing-mode-desc">无需令牌，直接进入</span>
+        </button>
+      </div>
+
+      <!-- 登录 / 注册 表单 -->
+      <form id="landingForm" class="landing-form hidden" autocomplete="off">
+        <h2 id="landingFormTitle" class="landing-form-title">登录</h2>
+        <input id="landingToken" type="password" class="landing-input" placeholder="输入访问令牌 (API Token)"
+               aria-label="访问令牌" />
+        <p id="landingHint" class="landing-hint">令牌由服务端 <code>DOCTORAGENT_API_TOKEN</code> 配置；本地访问可留空。</p>
+        <div class="landing-form-actions">
+          <button type="button" id="landingBack" class="btn btn-ghost">返回</button>
+          <button type="submit" id="landingSubmit" class="btn btn-primary">进入控制台</button>
+        </div>
+      </form>
+
+      <!-- 游客提示 -->
+      <div id="guestHint" class="landing-hint hidden">以游客身份进入，部分功能需要令牌。你可以随时在左侧边栏底部输入令牌。</div>
+
+      <div class="landing-feats" aria-hidden="true">
+        <span>🏥 临床工作台</span><span>🔒 PHI 脱敏</span><span>🛡 安全规则</span>
+        <span>📚 文献 RAG</span><span>🔀 多智能体</span><span>📊 可观测</span>
+      </div>
+    </div>
+
+    <p class="landing-footer">DoctorAgent · 开源自托管临床决策支持 · MIT/Apache-2.0</p>
+  </div>
+
   <header class="topbar">
     <div class="brand">
       <button id="sidebarToggleBtn" class="sidebar-toggle" title="折叠/展开侧边栏" aria-label="切换侧边栏">☰</button>

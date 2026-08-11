@@ -7988,5 +7988,86 @@
 
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
 
+  // ── 引导界面（登录 / 注册 / 游客）──────────────────────────────
+  const landing = document.getElementById("landing");
+  const landingModes = document.getElementById("landingModes");
+  const landingForm = document.getElementById("landingForm");
+  const landingFormTitle = document.getElementById("landingFormTitle");
+  const landingHint = document.getElementById("landingHint");
+  const landingToken = document.getElementById("landingToken");
+  const guestHint = document.getElementById("guestHint");
+  let landingMode = "";
+
+  // 若无引导元素（或已登录过），直接进入
+  function landingEnter() {
+    if (!landing) return;
+    landing.classList.add("hidden");
+    document.body.classList.add("landing-done");
+    // 聚焦聊天输入框
+    const inp = document.getElementById("chatInput");
+    if (inp) setTimeout(function () { inp.focus(); }, 260);
+  }
+
+  window.enterAsGuest = function () {
+    landingMode = "guest";
+    if (guestHint) guestHint.classList.remove("hidden");
+    if (landingForm) landingForm.classList.add("hidden");
+    if (landingModes) landingModes.classList.remove("hidden");
+    setTimeout(landingEnter, 260);
+  };
+
+  function showLandingForm(mode) {
+    landingMode = mode;
+    const isRegister = mode === "register";
+    if (landingModes) landingModes.classList.add("hidden");
+    if (guestHint) guestHint.classList.add("hidden");
+    if (landingForm) {
+      landingForm.classList.remove("hidden");
+      landingFormTitle.textContent = isRegister ? "注册 · 配置访问令牌" : "登录";
+      landingHint.innerHTML = isRegister
+        ? "首次使用：请输入由管理员在服务端配置的访问令牌（<code>DOCTORAGENT_API_TOKEN</code>）。"
+        : "输入你的访问令牌后进入控制台；本地访问可留空。";
+      landingToken.value = getToken() || "";
+      setTimeout(function () { landingToken.focus(); }, 120);
+    }
+  }
+
+  function submitLandingForm() {
+    const token = (landingToken.value || "").trim();
+    if (token) { try { setToken(token); } catch (e) {} }
+    // 冒烟：验证令牌连通性（可忽略失败，本地无令牌也可用）
+    try {
+      api("/api/v1/enterprise/status").catch(function () {});
+    } catch (e) {}
+    landingEnter();
+  }
+
+  if (landing) {
+    // 模式按钮
+    landingModes && landingModes.querySelectorAll(".landing-mode").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        const mode = btn.dataset.mode;
+        if (mode === "guest") window.enterAsGuest();
+        else showLandingForm(mode);
+      });
+    });
+    // 返回
+    const backBtn = document.getElementById("landingBack");
+    if (backBtn) backBtn.addEventListener("click", function () {
+      if (landingForm) landingForm.classList.add("hidden");
+      if (landingModes) landingModes.classList.remove("hidden");
+    });
+    // 表单提交
+    landingForm && landingForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+      submitLandingForm();
+    });
+    // 回车
+    landingToken && landingToken.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); submitLandingForm(); }
+    });
+  }
+
 })();
+
 
