@@ -1883,10 +1883,74 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
         return {
             "ok": status.state == "COMPLETED",
             "inbox_path": str(dest),
+            "task_state": status.state,
             "task_id": str(status.task_id),
-            "state": status.state,
             "message": status.message,
-            "source": submission.source,
+        }
+
+    # ── Knowledge import: upload a document (PDF/DOCX/...) into the Vault ──
+    # Convenience for hospital staff: pick a medical PDF on disk and upload it
+    # here; it is staged into the Inbox and processed (classified + moved into
+    # the Vault + indexed) so the RAG/knowledge agents can retrieve it.
+    @router.post(
+        "/vault/import",
+        tags=["Vault"],
+        summary="Upload a document into the knowledge base (Vault)",
+        description=(
+            "Accepts a file (PDF / DOCX / XLSX / MD / TXT / ...), stages it into "
+            "the Inbox and triggers the ingest pipeline so it lands in the Vault "
+            "and becomes retrievable by the knowledge/RAG agents. Returns the "
+            "ingest status."
+        ),
+        responses=_error_responses(400, 401, 413, 500, 503),
+    )
+    async def vault_import(
+        request: Request,  # type: ignore[name-defined]
+        file: UploadFile = File(...),  # type: ignore[name-defined]  # noqa: B008
+        _auth: None = Depends(_sensitive_auth_dependency),  # type: ignore[name-defined]  # noqa: B008
+    ) -> dict[str, Any]:
+        import os
+        import time as _time
+        from uuid import uuid4 as _uuid4
+
+        from doctoragent.api.schemas import FileEvent
+
+        if file.size and file.size > 50 * 1024 * 1024:  # 50MB guard
+            raise HTTPException(  # type: ignore[misc]
+                status_code=413, detail="File exceeds 50MB upload limit"
+            )
+        name = os.path.basename(file.filename or "")
+        if not name:
+            raise HTTPException(  # type: ignore[misc]
+                status_code=400, detail="filename is required"
+            )
+        data = await file.read()
+        inbox = config.paths.inbox
+        inbox.mkdir(parents=True, exist_ok=True)
+        dest = inbox / name
+        if dest.exists():
+            dest = inbox / f"{dest.stem}_{_time.time():.0f}{dest.suffix}"
+        try:
+            dest.write_bytes(data)
+        except OSError as exc:  # noqa: BLE001
+            raise HTTPException(  # type: ignore[misc]
+                status_code=500, detail=f"Failed to write upload: {exc}"
+            ) from exc
+        event = FileEvent(event_id=_uuid4(), source_path=dest, event_type="created")
+        try:
+            status = await agent.on_file_event(event)
+        except (RuntimeError, OSError, ValueError) as exc:
+            logger.exception("Failed to ingest uploaded document %s", dest)
+            raise HTTPException(  # type: ignore[misc]
+                status_code=500, detail="Ingestion failed"
+            ) from exc
+        return {
+            "ok": status.state == "COMPLETED",
+            "filename": name,
+            "inbox_path": str(dest),
+            "task_state": status.state,
+            "task_id": str(status.task_id),
+            "message": status.message,
         }
 
     # ── Plaintext Inbox ingestion (POST /inbox/ingest) ───────────────

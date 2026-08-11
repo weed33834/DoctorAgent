@@ -135,6 +135,12 @@ DoctorAgent 在核心临床能力之外，已落地一整套**可上线、可信
 
 完整差距对照见 [docs/GAP_ANALYSIS.md](docs/GAP_ANALYSIS.md)。
 
+### 临床专业知识库
+智能体出厂内置 12 篇**基础医学知识**（危急值/药物相互作用/正常范围/常见急症处理），并预置 **18 个专科医生角色**（心内/外科/麻醉/急诊/ICU/儿科…，可在控制台顶栏切换）。如需更强的专科能力，请按《医学资料准备清单》把 PDF 等医学资料导入知识库：
+- 资料清单：`docs/KNOWLEDGE_CATALOG.md`
+- 导入操作引导：`docs/KNOWLEDGE_UPLOAD_GUIDE.md`（控制台上传 / CLI `import` / Inbox 目录三种方式）
+- 便捷上传端点：`POST /api/v1/vault/import`
+
 议题跟踪里已经有人在探索的方向：
 
 - 把 CDS Hooks 接到 Epic 或 Cerner（我们出 FHIR R4 适配器，EHR 侧的胶水你自己写）
