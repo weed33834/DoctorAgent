@@ -3123,8 +3123,11 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
                 from doctoragent.tools.manage_tools import register_workspace_tools
                 from doctoragent.tools.conversation_tools import register_conversation_tools
                 from doctoragent.tools.console_tools import register_console_tools
+                from doctoragent.tools.general_tools import register_general_tools
 
                 register_code_exec_tool(registry)
+                # 通用智能体标配工具：联网搜索/网页抓取/当前时间/数学计算
+                register_general_tools(registry)
                 ws_store = getattr(app.state, "workspace_config", None)
                 if ws_store is not None:
                     register_workspace_tools(registry, ws_store)
