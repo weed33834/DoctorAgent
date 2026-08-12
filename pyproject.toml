@@ -23,11 +23,6 @@ classifiers = [
 ]
 license-files = ["LICENSE"]
 
-[project.urls]
-Homepage = "https://gitcode.com/badhope/doctoragent"
-Repository = "https://github.com/weed33834/DoctorAgent"
-Changelog = "https://gitcode.com/badhope/doctoragent/blob/main/CHANGELOG.md"
-
 dependencies = [
     "click>=8.4,<9.0",
     "pydantic>=2.11,<3.0",
@@ -50,6 +45,11 @@ dependencies = [
     # the tokenisation helpers degrade gracefully when it is absent.
     "jieba>=0.42,<1.0",
 ]
+
+[project.urls]
+Homepage = "https://gitcode.com/badhope/doctoragent"
+Repository = "https://github.com/weed33834/DoctorAgent"
+Changelog = "https://gitcode.com/badhope/doctoragent/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 gui = ["pyqt6>=6.8,<7.0"]
