@@ -24,6 +24,7 @@ from doctoragent.clinical.knowledge.seed import (
 
 __all__ = [
     "DrugInteractionResult",
+    "KNOWLEDGE_DOCS",
     "LOCAL_DDI_KNOWLEDGE",
     "OpenFDAClient",
     "PubMedClient",
@@ -31,4 +32,6 @@ __all__ = [
     "check_drug_interactions",
     "check_local_ddi",
     "get_severity_rank",
+    "list_knowledge",
+    "seed_knowledge",
 ]

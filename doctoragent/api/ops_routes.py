@@ -17,16 +17,17 @@ from fastapi.security import HTTPBearer
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
-from doctoragent.api.auth._guards import (
+
+from doctoragent.api.auth._guards import (  # noqa: E402
     is_local_request as _is_local_request,
 )
-from doctoragent.api.auth._guards import (
+from doctoragent.api.auth._guards import (  # noqa: E402
     oidc_is_configured as _oidc_is_configured,
 )
-from doctoragent.api.auth._guards import (
+from doctoragent.api.auth._guards import (  # noqa: E402
     resolve_token as _resolve_token,
 )
-from doctoragent.api.auth._guards import (
+from doctoragent.api.auth._guards import (  # noqa: E402
     verify_bearer as _verify_bearer,
 )
 
@@ -48,7 +49,9 @@ async def _auth_dependency(
             raise HTTPException(status_code=401, detail="Invalid or missing authentication token")
         return provided
     if not _is_local_request(request):
-        raise HTTPException(status_code=401, detail="DOCTORAGENT_API_TOKEN not set; remote access denied")
+        raise HTTPException(
+            status_code=401, detail="DOCTORAGENT_API_TOKEN not set; remote access denied"
+        )
     return None
 
 
@@ -65,7 +68,9 @@ def get_router() -> APIRouter:
     # ── multimodal (M26) ────────────────────────────────────────────
 
     @router.get("/multimodal/summary", summary="Multimodal asset library summary")
-    async def mm_summary(request: Request, _auth: Any = Depends(_auth_dependency)) -> dict[str, Any]:
+    async def mm_summary(
+        request: Request, _auth: Any = Depends(_auth_dependency)
+    ) -> dict[str, Any]:
         return _get(request, "multimodal_service").store.summary()
 
     @router.get("/multimodal/assets", summary="List multimodal assets")
@@ -85,8 +90,10 @@ def get_router() -> APIRouter:
     ) -> dict[str, Any]:
         try:
             return _get(request, "multimodal_service").ingest(
-                payload.get("name", ""), payload.get("modality", "text"),
-                path=payload.get("path", ""), mime=payload.get("mime", ""),
+                payload.get("name", ""),
+                payload.get("modality", "text"),
+                path=payload.get("path", ""),
+                mime=payload.get("mime", ""),
                 metadata=payload.get("metadata"),
             )
         except ValueError as exc:
@@ -104,7 +111,9 @@ def get_router() -> APIRouter:
     # ── data pipeline (M28) ─────────────────────────────────────────
 
     @router.get("/pipeline/overview", summary="Data pipeline overview")
-    async def pipe_overview(request: Request, _auth: Any = Depends(_auth_dependency)) -> dict[str, Any]:
+    async def pipe_overview(
+        request: Request, _auth: Any = Depends(_auth_dependency)
+    ) -> dict[str, Any]:
         return _get(request, "pipeline_service").overview()
 
     @router.post("/pipeline/sources", summary="Register a data source")
@@ -114,12 +123,16 @@ def get_router() -> APIRouter:
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
         return _get(request, "pipeline_service").store.add_source(
-            payload.get("name", ""), payload.get("source_type", "file"),
-            endpoint=payload.get("endpoint", ""), config=payload.get("config"),
+            payload.get("name", ""),
+            payload.get("source_type", "file"),
+            endpoint=payload.get("endpoint", ""),
+            config=payload.get("config"),
         )
 
     @router.get("/pipeline/sources", summary="List data sources")
-    async def list_sources(request: Request, _auth: Any = Depends(_auth_dependency)) -> dict[str, Any]:
+    async def list_sources(
+        request: Request, _auth: Any = Depends(_auth_dependency)
+    ) -> dict[str, Any]:
         return {"items": _get(request, "pipeline_service").store.list_sources()}
 
     @router.post("/pipeline/pipelines", summary="Define a pipeline (ordered nodes)")
@@ -129,12 +142,16 @@ def get_router() -> APIRouter:
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
         return _get(request, "pipeline_service").store.add_pipeline(
-            payload.get("name", ""), payload.get("nodes") or [],
-            source_id=payload.get("source_id", ""), schedule=payload.get("schedule", ""),
+            payload.get("name", ""),
+            payload.get("nodes") or [],
+            source_id=payload.get("source_id", ""),
+            schedule=payload.get("schedule", ""),
         )
 
     @router.get("/pipeline/pipelines", summary="List pipeline definitions")
-    async def list_pipelines(request: Request, _auth: Any = Depends(_auth_dependency)) -> dict[str, Any]:
+    async def list_pipelines(
+        request: Request, _auth: Any = Depends(_auth_dependency)
+    ) -> dict[str, Any]:
         return {"items": _get(request, "pipeline_service").store.list_pipelines()}
 
     @router.post("/pipeline/rules", summary="Add a transform rule")
@@ -144,17 +161,22 @@ def get_router() -> APIRouter:
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
         return _get(request, "pipeline_service").store.add_transform_rule(
-            payload.get("name", ""), payload.get("match", ""),
-            payload.get("action", "lowercase"), payload.get("params"),
+            payload.get("name", ""),
+            payload.get("match", ""),
+            payload.get("action", "lowercase"),
+            payload.get("params"),
         )
 
     @router.get("/pipeline/rules", summary="List transform rules")
-    async def list_rules(request: Request, _auth: Any = Depends(_auth_dependency)) -> dict[str, Any]:
+    async def list_rules(
+        request: Request, _auth: Any = Depends(_auth_dependency)
+    ) -> dict[str, Any]:
         return {"items": _get(request, "pipeline_service").store.list_transform_rules()}
 
     @router.post("/pipeline/pipelines/{pid}/run", summary="Run a pipeline on a batch")
     async def run_pipeline(
-        pid: str, request: Request,
+        pid: str,
+        request: Request,
         payload: dict[str, Any] = Body(default={}),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
@@ -182,7 +204,9 @@ def get_router() -> APIRouter:
     # ── knowledge bases (M14 D) ─────────────────────────────────────
 
     @router.get("/kb/summary", summary="Knowledge base summary")
-    async def kb_summary(request: Request, _auth: Any = Depends(_auth_dependency)) -> dict[str, Any]:
+    async def kb_summary(
+        request: Request, _auth: Any = Depends(_auth_dependency)
+    ) -> dict[str, Any]:
         return _get(request, "kb_manager").summary()
 
     @router.get("/kb", summary="List knowledge bases")
@@ -196,16 +220,19 @@ def get_router() -> APIRouter:
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
         return _get(request, "kb_manager").create(
-            payload.get("name", ""), description=payload.get("description", ""),
+            payload.get("name", ""),
+            description=payload.get("description", ""),
             embedding_model=payload.get("embedding_model", "default"),
             chunk_size=int(payload.get("chunk_size", 500)),
             chunk_overlap=int(payload.get("chunk_overlap", 50)),
-            visibility=payload.get("visibility", "private"), owner=payload.get("owner", ""),
+            visibility=payload.get("visibility", "private"),
+            owner=payload.get("owner", ""),
         )
 
     @router.put("/kb/{kb_id}", summary="Update a knowledge base")
     async def update_kb(
-        kb_id: str, request: Request,
+        kb_id: str,
+        request: Request,
         payload: dict[str, Any] = Body(...),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
@@ -216,7 +243,8 @@ def get_router() -> APIRouter:
 
     @router.post("/kb/{kb_id}/test", summary="Test knowledge base retrieval")
     async def test_kb(
-        kb_id: str, request: Request,
+        kb_id: str,
+        request: Request,
         payload: dict[str, Any] = Body(...),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
@@ -243,7 +271,8 @@ def get_router() -> APIRouter:
     ) -> dict[str, Any]:
         try:
             return _get(request, "task_center").create(
-                payload.get("task_type", "custom"), payload.get("name", ""),
+                payload.get("task_type", "custom"),
+                payload.get("name", ""),
                 payload.get("params"),
             )
         except ValueError as exc:
@@ -259,17 +288,28 @@ def get_router() -> APIRouter:
         return task
 
     @router.get("/tasks/summary", summary="Task center summary")
-    async def task_summary(request: Request, _auth: Any = Depends(_auth_dependency)) -> dict[str, Any]:
+    async def task_summary(
+        request: Request, _auth: Any = Depends(_auth_dependency)
+    ) -> dict[str, Any]:
         return _get(request, "task_center").summary()
 
     # ── usage analytics (M14 J / M24) ───────────────────────────────
 
     @router.get("/analytics/overview", summary="Platform usage analytics")
-    async def analytics_overview(request: Request, _auth: Any = Depends(_auth_dependency)) -> dict[str, Any]:
+    async def analytics_overview(
+        request: Request, _auth: Any = Depends(_auth_dependency)
+    ) -> dict[str, Any]:
         agg: dict[str, Any] = {"timestamp": _now()}
-        for name in ("threat_service", "interop_service", "disaster_service",
-                     "pipeline_service", "task_center", "kb_manager",
-                     "multimodal_service", "enterprise_service"):
+        for name in (
+            "threat_service",
+            "interop_service",
+            "disaster_service",
+            "pipeline_service",
+            "task_center",
+            "kb_manager",
+            "multimodal_service",
+            "enterprise_service",
+        ):
             svc = getattr(request.app.state, name, None)
             if svc is None:
                 continue

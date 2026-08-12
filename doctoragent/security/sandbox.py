@@ -147,7 +147,6 @@ class SandboxManager:
         """
         return SandboxManager._probe_isolation_effective()
 
-
     @staticmethod
     def _probe_isolation_effective() -> bool:
         """Return True if the Linux unshare+mount masking backend actually hides
@@ -169,8 +168,15 @@ class SandboxManager:
                     encoding="utf-8",
                 )
                 cmd = [
-                    unshare, "--user", "--map-root-user", "--mount", "--pid", "--fork",
-                    "--", "/bin/sh", "-c",
+                    unshare,
+                    "--user",
+                    "--map-root-user",
+                    "--mount",
+                    "--pid",
+                    "--fork",
+                    "--",
+                    "/bin/sh",
+                    "-c",
                     "mount -t tmpfs none /etc >/dev/null 2>&1 && "
                     f"exec {sys.executable} -u {script}",
                 ]
@@ -178,7 +184,6 @@ class SandboxManager:
                 return out.returncode == 0 and "BLOCKED" in out.stdout
         except Exception:  # noqa: BLE001
             return False
-
 
     def run_sandboxed(
         self,
@@ -373,11 +378,15 @@ class SandboxManager:
         lines.append(f"cp -r /etc/. {etc}/ 2>/dev/null || true")
         for secret in ("passwd", "shadow", "gshadow", "master.passwd", "security/opasswd"):
             lines.append(f"rm -f {etc}/{secret} 2>/dev/null || true")
-        lines.append(f"rm -f {etc}/ssh/authorized_keys {etc}/ssh/ssh_host_*_key {etc}/ssh/ssh_host_*_key.pub 2>/dev/null || true")
+        lines.append(
+            f"rm -f {etc}/ssh/authorized_keys {etc}/ssh/ssh_host_*_key {etc}/ssh/ssh_host_*_key.pub 2>/dev/null || true"
+        )
         lines.append(f"rm -rf {etc}/ssl/private {etc}/pki/private 2>/dev/null || true")
         lines.append(f"mount --bind {etc} /etc")
         for p in ("/root", "/home", "/opt", "/var/run", "/var/lib", "/srv"):
-            lines.append(f"mount -t tmpfs none {SandboxManager._shell_quote(p)} 2>/dev/null || true")
+            lines.append(
+                f"mount -t tmpfs none {SandboxManager._shell_quote(p)} 2>/dev/null || true"
+            )
         for idx, path in enumerate(allowed):
             target = f"{w}/allowed_{idx}"
             lines.append(f"mkdir -p {target}")

@@ -37,9 +37,12 @@ class _GTool(Tool):
 
     @property
     def definition(self) -> ToolDefinition:
-        return ToolDefinition(name=self.name, description=self.description,
-                              parameters=[ToolParameter(**p) for p in self.parameters],
-                              category=self.category)
+        return ToolDefinition(
+            name=self.name,
+            description=self.description,
+            parameters=[ToolParameter(**p) for p in self.parameters],
+            category=self.category,
+        )
 
     def _ok(self, data: Any) -> ToolResult:
         return ToolResult(success=True, data=data)
@@ -55,20 +58,27 @@ class CurrentTimeTool(_GTool):
 
     async def execute(self, **kwargs: Any) -> ToolResult:
         now = datetime.datetime.now().astimezone()
-        return self._ok({
-            "datetime": now.isoformat(),
-            "date": now.strftime("%Y-%m-%d"),
-            "weekday": ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][now.weekday()],
-            "time": now.strftime("%H:%M:%S"),
-            "timezone": str(now.tzinfo or "local"),
-        })
+        return self._ok(
+            {
+                "datetime": now.isoformat(),
+                "date": now.strftime("%Y-%m-%d"),
+                "weekday": ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][now.weekday()],
+                "time": now.strftime("%H:%M:%S"),
+                "timezone": str(now.tzinfo or "local"),
+            }
+        )
 
 
 class CalculateTool(_GTool):
     name = "calculate"
     description = "安全地进行数学计算（四则运算、括号、幂、常用函数）。"
     parameters: list[dict[str, Any]] = [
-        {"name": "expression", "type": "string", "required": True, "description": "数学表达式，如 (70*1.5)/100"},
+        {
+            "name": "expression",
+            "type": "string",
+            "required": True,
+            "description": "数学表达式，如 (70*1.5)/100",
+        },
     ]
 
     async def execute(self, **kwargs: Any) -> ToolResult:
@@ -156,11 +166,13 @@ class WebSearchTool(_GTool):
 
             out: list[dict[str, str]] = []
             for r in DDGS().text(query, max_results=limit):
-                out.append({
-                    "title": r.get("title", ""),
-                    "url": r.get("href", ""),
-                    "snippet": r.get("body", "")[:200],
-                })
+                out.append(
+                    {
+                        "title": r.get("title", ""),
+                        "url": r.get("href", ""),
+                        "snippet": r.get("body", "")[:200],
+                    }
+                )
             if out:
                 return out
         except Exception:  # noqa: BLE001 — fall through to HTML parsing
@@ -197,14 +209,17 @@ class WebFetchTool(_GTool):
         if not url.startswith("http://") and not url.startswith("https://"):
             return self._err("URL 必须以 http(s):// 开头")
         try:
-            async with httpx.AsyncClient(timeout=25, follow_redirects=True,
-                                         headers={"User-Agent": "DoctorAgent/1.0"}) as c:
+            async with httpx.AsyncClient(
+                timeout=25, follow_redirects=True, headers={"User-Agent": "DoctorAgent/1.0"}
+            ) as c:
                 r = await c.get(url)
                 r.raise_for_status()
         except Exception as exc:  # noqa: BLE001
             return self._err(f"抓取失败：{exc}")
         text = _html_to_text(r.text)
-        return self._ok({"url": url, "status": r.status_code, "title": _title_of(r.text), "text": text[:6000]})
+        return self._ok(
+            {"url": url, "status": r.status_code, "title": _title_of(r.text), "text": text[:6000]}
+        )
 
 
 def _html_to_text(html: str) -> str:

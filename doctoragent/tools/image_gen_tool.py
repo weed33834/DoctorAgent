@@ -47,10 +47,19 @@ class ImageGenTool(Tool):
                 "image model endpoint. Returns a base64 data URL of the PNG."
             ),
             parameters=[
-                ToolParameter(name="prompt", type="string", required=True,
-                              description="Text description of the desired image"),
-                ToolParameter(name="size", type="string", required=False,
-                              description="Size, e.g. 1024x1024", default="1024x1024"),
+                ToolParameter(
+                    name="prompt",
+                    type="string",
+                    required=True,
+                    description="Text description of the desired image",
+                ),
+                ToolParameter(
+                    name="size",
+                    type="string",
+                    required=False,
+                    description="Size, e.g. 1024x1024",
+                    default="1024x1024",
+                ),
             ],
             category="image",
         )
@@ -84,13 +93,17 @@ class ImageGenTool(Tool):
         url = items[0].get("url", "")
         b64 = items[0].get("b64_json", "")
         if b64:
-            return ToolResult(success=True, data={"data_url": f"data:image/png;base64,{b64}"},
-                              tool_name="generate_image")
+            return ToolResult(
+                success=True,
+                data={"data_url": f"data:image/png;base64,{b64}"},
+                tool_name="generate_image",
+            )
         return ToolResult(success=True, data={"url": url}, tool_name="generate_image")
 
 
-def register_image_gen_tool(registry: Any, base_url: str = "", model: str = "",
-                            api_key: str = "") -> str | None:
+def register_image_gen_tool(
+    registry: Any, base_url: str = "", model: str = "", api_key: str = ""
+) -> str | None:
     """Register :class:`ImageGenTool` into *registry*."""
     name = "generate_image"
     if registry.get(name) is None:

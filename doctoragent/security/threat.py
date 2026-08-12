@@ -25,24 +25,47 @@ from typing import Any
 from doctoragent.model.text_utils import extract_keywords
 
 THREAT_TYPES = {
-    "prompt_injection", "jailbreak", "data_poisoning",
-    "model_extraction", "supply_chain", "agent_abuse",
+    "prompt_injection",
+    "jailbreak",
+    "data_poisoning",
+    "model_extraction",
+    "supply_chain",
+    "agent_abuse",
 }
 
 # Built-in known jailbreak / injection patterns (M25 detection rules).
 BUILTIN_INJECTION_RULES: dict[str, list[str]] = {
     "direct_injection": [
-        "忽略以上", "忽略之前", "无视以上", "忘记之前", "从现在起你是",
-        "ignore all previous instructions", "ignore previous instructions",
-        "system prompt", "disregard all instructions",
+        "忽略以上",
+        "忽略之前",
+        "无视以上",
+        "忘记之前",
+        "从现在起你是",
+        "ignore all previous instructions",
+        "ignore previous instructions",
+        "system prompt",
+        "disregard all instructions",
     ],
     "jailbreak": [
-        "不受任何限制", "没有限制", "do anything now", "DAN", "jailbreak",
-        "你被越权", "权限提升", "elevate privileges",
+        "不受任何限制",
+        "没有限制",
+        "do anything now",
+        "DAN",
+        "jailbreak",
+        "你被越权",
+        "权限提升",
+        "elevate privileges",
     ],
     "data_exfiltration": [
-        "导出所有", "外发", "发送到", "暴露", "reveal all", "export all",
-        "身份证号", "患者姓名", "账号密码",
+        "导出所有",
+        "外发",
+        "发送到",
+        "暴露",
+        "reveal all",
+        "export all",
+        "身份证号",
+        "患者姓名",
+        "账号密码",
     ],
 }
 
@@ -106,21 +129,38 @@ class ThreatStore:
 
     # ── threat cases ────────────────────────────────────────────────
 
-    def add_threat_case(self, name: str, threat_type: str, attack_vector: str,
-                        severity: str = "medium", tags: list[str] | None = None) -> dict[str, Any]:
+    def add_threat_case(
+        self,
+        name: str,
+        threat_type: str,
+        attack_vector: str,
+        severity: str = "medium",
+        tags: list[str] | None = None,
+    ) -> dict[str, Any]:
         if threat_type not in THREAT_TYPES:
             raise ValueError(f"unknown threat_type {threat_type}")
         row = {
-            "id": _id("tc"), "name": name, "threat_type": threat_type,
-            "attack_vector": attack_vector, "severity": severity,
-            "tags": tags or extract_keywords(attack_vector, limit=5), "created_at": _now(),
+            "id": _id("tc"),
+            "name": name,
+            "threat_type": threat_type,
+            "attack_vector": attack_vector,
+            "severity": severity,
+            "tags": tags or extract_keywords(attack_vector, limit=5),
+            "created_at": _now(),
         }
         with self._connect() as conn:
             conn.execute(
                 "INSERT INTO sec_threat_cases (id,name,threat_type,attack_vector,severity,tags,created_at) "
                 "VALUES (?,?,?,?,?,?,?)",
-                (row["id"], name, threat_type, attack_vector, severity,
-                 __import__("json").dumps(row["tags"]), row["created_at"]),
+                (
+                    row["id"],
+                    name,
+                    threat_type,
+                    attack_vector,
+                    severity,
+                    __import__("json").dumps(row["tags"]),
+                    row["created_at"],
+                ),
             )
             conn.commit()
         return row
@@ -129,7 +169,8 @@ class ThreatStore:
         sql = "SELECT * FROM sec_threat_cases"
         params: list[Any] = []
         if threat_type:
-            sql += " WHERE threat_type=?"; params.append(threat_type)
+            sql += " WHERE threat_type=?"
+            params.append(threat_type)
         with self._connect() as conn:
             rows = conn.execute(sql, params).fetchall()
         return [dict(r) | {"tags": __import__("json").loads(r["tags"] or "[]")} for r in rows]
@@ -142,20 +183,29 @@ class ThreatStore:
             sql += " WHERE enabled=1"
         with self._connect() as conn:
             rows = conn.execute(sql).fetchall()
-        return [dict(r) | {"patterns": __import__("json").loads(r["patterns"] or "[]")} for r in rows]
+        return [
+            dict(r) | {"patterns": __import__("json").loads(r["patterns"] or "[]")} for r in rows
+        ]
 
     # ── events ──────────────────────────────────────────────────────
 
-    def record_event(self, event_type: str, verdict: str, *, threat_case_id: str = "",
-                     user_id: str = "", session_id: str = "", evidence: str = "") -> str:
+    def record_event(
+        self,
+        event_type: str,
+        verdict: str,
+        *,
+        threat_case_id: str = "",
+        user_id: str = "",
+        session_id: str = "",
+        evidence: str = "",
+    ) -> str:
         ev_id = _id("ev")
         with self._connect() as conn:
             conn.execute(
                 "INSERT INTO sec_events "
                 "(id,event_type,threat_case_id,user_id,session_id,ts,verdict,evidence) "
                 "VALUES (?,?,?,?,?,?,?,?)",
-                (ev_id, event_type, threat_case_id, user_id, session_id, _now(),
-                 verdict, evidence),
+                (ev_id, event_type, threat_case_id, user_id, session_id, _now(), verdict, evidence),
             )
             conn.commit()
         return ev_id
@@ -169,20 +219,30 @@ class ThreatStore:
 
     # ── red-team runs ───────────────────────────────────────────────
 
-    def save_redteam(self, run_id: str, name: str, scope: str, status: str,
-                     report: dict[str, Any]) -> None:
+    def save_redteam(
+        self, run_id: str, name: str, scope: str, status: str, report: dict[str, Any]
+    ) -> None:
         with self._connect() as conn:
             conn.execute(
                 "INSERT OR REPLACE INTO sec_redteam_runs "
                 "(id,name,scope,status,start_time,end_time,report) VALUES (?,?,?,?,?,?,?)",
-                (run_id, name, scope, status, _now(), _now(),
-                 __import__("json").dumps(report, ensure_ascii=False)),
+                (
+                    run_id,
+                    name,
+                    scope,
+                    status,
+                    _now(),
+                    _now(),
+                    __import__("json").dumps(report, ensure_ascii=False),
+                ),
             )
             conn.commit()
 
     def list_redteam(self) -> list[dict[str, Any]]:
         with self._connect() as conn:
-            rows = conn.execute("SELECT * FROM sec_redteam_runs ORDER BY start_time DESC").fetchall()
+            rows = conn.execute(
+                "SELECT * FROM sec_redteam_runs ORDER BY start_time DESC"
+            ).fetchall()
         return [dict(r) | {"report": __import__("json").loads(r["report"] or "{}")} for r in rows]
 
 
@@ -217,7 +277,10 @@ class ThreatService:
         blocked, reason = self._detect(text)
         verdict = "blocked" if blocked else "passed"
         ev_id = self.store.record_event(
-            "input_scan", verdict, user_id=user_id, session_id=session_id,
+            "input_scan",
+            verdict,
+            user_id=user_id,
+            session_id=session_id,
             evidence=reason or text[:120],
         )
         return {"verdict": verdict, "reason": reason, "event_id": ev_id}
@@ -234,12 +297,14 @@ class ThreatService:
             blocked, reason = self._detect(case.get("vector", ""))
             if blocked:
                 blocked_total += 1
-            results.append({
-                "case": case.get("name", "?"),
-                "threat_type": case.get("threat_type", "?"),
-                "blocked": blocked,
-                "reason": reason,
-            })
+            results.append(
+                {
+                    "case": case.get("name", "?"),
+                    "threat_type": case.get("threat_type", "?"),
+                    "blocked": blocked,
+                    "reason": reason,
+                }
+            )
         report = {
             "cases": len(results),
             "blocked": blocked_total,

@@ -58,14 +58,30 @@ class BrowserTool(Tool):
                 "`browser` extra (Playwright)."
             ),
             parameters=[
-                ToolParameter(name="action", type="string", required=True,
-                              description="One of: " + ", ".join(BROWSER_ACTIONS)),
-                ToolParameter(name="url", type="string", required=False,
-                              description="URL to navigate to (action=navigate)"),
-                ToolParameter(name="selector", type="string", required=False,
-                              description="CSS selector (action=click/fill)"),
-                ToolParameter(name="value", type="string", required=False,
-                              description="Value to fill (action=fill)"),
+                ToolParameter(
+                    name="action",
+                    type="string",
+                    required=True,
+                    description="One of: " + ", ".join(BROWSER_ACTIONS),
+                ),
+                ToolParameter(
+                    name="url",
+                    type="string",
+                    required=False,
+                    description="URL to navigate to (action=navigate)",
+                ),
+                ToolParameter(
+                    name="selector",
+                    type="string",
+                    required=False,
+                    description="CSS selector (action=click/fill)",
+                ),
+                ToolParameter(
+                    name="value",
+                    type="string",
+                    required=False,
+                    description="Value to fill (action=fill)",
+                ),
             ],
             category="browser",
         )
@@ -118,9 +134,9 @@ class BrowserTool(Tool):
 
         self._playwright = await async_playwright().start()
         self._browser = await self._playwright.chromium.launch(headless=self.headless)
-        context = await self._browser.new_context(user_agent=(
-            "Mozilla/5.0 (compatible; DoctorAgent/0.3; +clinical-agent)"
-        ))
+        context = await self._browser.new_context(
+            user_agent=("Mozilla/5.0 (compatible; DoctorAgent/0.3; +clinical-agent)")
+        )
         self._page = await context.new_page()
         return self._page
 

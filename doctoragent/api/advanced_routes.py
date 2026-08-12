@@ -2910,7 +2910,7 @@ if _FASTAPI_AVAILABLE:
             config = _get_config(request)
             voice_config = getattr(config, "voice", None) or VoiceConfig()
             svc = VoiceService(voice_config)
-            setattr(request.app.state, "voice_service", svc)
+            request.app.state.voice_service = svc
             return svc
         except Exception:  # noqa: BLE001
             logger.exception("Failed to build VoiceService")
@@ -3651,8 +3651,9 @@ if _FASTAPI_AVAILABLE:
                     from doctoragent.model.agent import AgentConfig, create_agent
 
                     role = get_role(body.role) or default_role()
-                    runner = create_agent(llm_provider=llm_provider,
-                                          config=AgentConfig(max_iterations=5))
+                    runner = create_agent(
+                        llm_provider=llm_provider, config=AgentConfig(max_iterations=5)
+                    )
                     persona = f"【身份】{role.name}。{role.prompt} {role.disclaimer}"
                     answer = await runner.run(f"{persona}\n\n任务：{body.task}")
                     response_text = answer or ""

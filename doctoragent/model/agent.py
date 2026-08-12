@@ -1537,7 +1537,7 @@ class Agent:
             flat.extend(grp)
         flat.sort(key=lambda x: x[0])
 
-        for idx, tc, result in flat:
+        for _idx, tc, result in flat:
             observation = self._format_tool_result(result, query, messages)
             self._add_step(
                 StepType.OBSERVATION,

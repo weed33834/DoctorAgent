@@ -1131,11 +1131,9 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
         _ent_db = Path(config.paths.index) / "enterprise.db"
         _ent_store = EnterpriseStore(_ent_db)
         _ent_audit = getattr(agent, "audit_logger", None)
-        app.state.enterprise_service = EnterpriseService(
-            _ent_store, audit_logger=_ent_audit
-        )
+        app.state.enterprise_service = EnterpriseService(_ent_store, audit_logger=_ent_audit)
         app.state.enterprise_store = _ent_store
-    except Exception as exc:  # noqa: BLE001 — enterprise must never block startup
+    except Exception:  # noqa: BLE001 — enterprise must never block startup
         app.state.enterprise_service = None
     # Conversation-editable workspace config (prompts / skills / experts),
     # shared by the chat-management tools and the management API.
@@ -1173,7 +1171,7 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
     except Exception:  # noqa: BLE001 — knowledge seeding must never block startup
         logger.debug("clinical knowledge seed skipped: %s", "")
         app.state.enterprise_store = None
-        logger.debug("Enterprise service not available: %s", exc)
+        logger.debug("Enterprise service not available: %s", "unknown")
     # Governance / pricing / semantic cache / cost dashboard services (M20/M21/M23).
     try:
         from doctoragent.governance import GovernanceService, GovernanceStore
@@ -1272,7 +1270,9 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
     try:
         from doctoragent.conversations import ConversationStore
 
-        app.state.conversation_store = ConversationStore(Path(config.paths.index) / "conversations.db")
+        app.state.conversation_store = ConversationStore(
+            Path(config.paths.index) / "conversations.db"
+        )
     except Exception:  # noqa: BLE001
         app.state.conversation_store = None
     # Background sync tasks created by POST /sync/trigger are tracked here so
@@ -2157,7 +2157,9 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
         try:
             from doctoragent.clinical.roles import default_role, get_role
 
-            _role = get_role(getattr(app.state, "clinical_role", None) or "general") or default_role()
+            _role = (
+                get_role(getattr(app.state, "clinical_role", None) or "general") or default_role()
+            )
             task = (
                 f"【当前身份】{_role.name}（{_role.title}）。\n"
                 f"{_role.prompt} {_role.disclaimer}\n\n任务：{request.task}"
@@ -2246,7 +2248,10 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
                 yield _sse_format({"type": "status", "content": f"Agent started (run_id={run_id})"})
                 from doctoragent.clinical.roles import default_role, get_role
 
-                _role = get_role(getattr(app.state, "clinical_role", None) or "general") or default_role()
+                _role = (
+                    get_role(getattr(app.state, "clinical_role", None) or "general")
+                    or default_role()
+                )
                 task = (
                     f"【当前身份】{_role.name}（{_role.title}）。\n"
                     f"{_role.prompt} {_role.disclaimer}\n\n任务：{request.task}"
@@ -3142,10 +3147,10 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
             # management API so chat changes are visible there.
             try:
                 from doctoragent.tools.code_exec_tool import register_code_exec_tool
-                from doctoragent.tools.manage_tools import register_workspace_tools
-                from doctoragent.tools.conversation_tools import register_conversation_tools
                 from doctoragent.tools.console_tools import register_console_tools
+                from doctoragent.tools.conversation_tools import register_conversation_tools
                 from doctoragent.tools.general_tools import register_general_tools
+                from doctoragent.tools.manage_tools import register_workspace_tools
 
                 register_code_exec_tool(registry)
                 # 通用智能体标配工具：联网搜索/网页抓取/当前时间/数学计算
@@ -3211,10 +3216,7 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
             )
             a2a_client = A2AClient(
                 timeout=config.a2a.timeout_seconds,
-                headers={
-                    k: ("Bearer " + v)
-                    for k, v in config.a2a.bearer_tokens.items()
-                },
+                headers={k: ("Bearer " + v) for k, v in config.a2a.bearer_tokens.items()},
             )
             app.state.a2a_server = a2a_server
             app.state.a2a_client = a2a_client
@@ -3448,9 +3450,7 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
                 url=payload.get("url"),
                 http_headers=payload.get("http_headers") or {},
             )
-            imported = await import_mcp_tools(
-                client, registry, prefix=payload.get("prefix", "")
-            )
+            imported = await import_mcp_tools(client, registry, prefix=payload.get("prefix", ""))
             # Keep the client alive so its session can be reused for calls.
             clients = getattr(app.state, "mcp_clients", {})
             clients[payload.get("name", "external")] = client
@@ -3478,9 +3478,7 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
         clients = getattr(app.state, "mcp_clients", {})
         remote_tools = []
         if registry is not None:
-            remote_tools = [
-                td.name for td in registry.list_tools() if td.category == "mcp_remote"
-            ]
+            remote_tools = [td.name for td in registry.list_tools() if td.category == "mcp_remote"]
         return {
             "clients": [{"name": n} for n in clients],
             "remote_tools": remote_tools,

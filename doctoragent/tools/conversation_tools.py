@@ -83,8 +83,12 @@ class SwitchRoleTool(_CtxTool):
     name = "switch_role"
     description = "切换当前临床科室角色（如 心内科/外科/麻醉/急诊/ICU/儿科/临床药师 等），之后回答将以该专科视角进行。"
     parameters: list[dict[str, Any]] = [
-        {"name": "code", "type": "string", "required": True,
-         "description": "角色代码：general/cardiology/surgery/anesthesia/emergency/icu/pediatrics/obgyn/neurology/respiratory/endocrinology/oncology/nephrology/gastroenterology/psychiatry/laboratory/radiology/pharmacy"},
+        {
+            "name": "code",
+            "type": "string",
+            "required": True,
+            "description": "角色代码：general/cardiology/surgery/anesthesia/emergency/icu/pediatrics/obgyn/neurology/respiratory/endocrinology/oncology/nephrology/gastroenterology/psychiatry/laboratory/radiology/pharmacy",
+        },
     ]
 
     async def execute(self, **kwargs: Any) -> ToolResult:
@@ -114,8 +118,17 @@ class ListKnowledgeBasesTool(_CtxTool):
             return self._err("知识库服务未启用")
         try:
             items = kb.list()
-            return self._ok([{"name": k["name"], "visibility": k["visibility"],
-                              "docs": k["doc_count"], "embedding": k["embedding_model"]} for k in items])
+            return self._ok(
+                [
+                    {
+                        "name": k["name"],
+                        "visibility": k["visibility"],
+                        "docs": k["doc_count"],
+                        "embedding": k["embedding_model"],
+                    }
+                    for k in items
+                ]
+            )
         except Exception as exc:  # noqa: BLE001
             return self._err(str(exc))
 
@@ -172,14 +185,26 @@ class ImportDocumentTool(_CtxTool):
                 from doctoragent.api.schemas import FileEvent
 
                 status = await self.ctx.agent.on_file_event(
-                    FileEvent(event_id=__import__("uuid").uuid4(),
-                              source_path=dest, event_type="created")
+                    FileEvent(
+                        event_id=__import__("uuid").uuid4(), source_path=dest, event_type="created"
+                    )
                 )
                 state = getattr(status, "state", "?")
-                return self._ok({"imported": state == "COMPLETED", "path": str(dest), "state": state})
+                return self._ok(
+                    {"imported": state == "COMPLETED", "path": str(dest), "state": state}
+                )
             except Exception as exc:  # noqa: BLE001
-                return self._ok({"imported": False, "path": str(dest), "staged": True, "note": f"已放入收件箱，稍后自动入库（{exc}）"})
-        return self._ok({"imported": True, "path": str(dest), "note": "已放入收件箱，将自动处理入库"})
+                return self._ok(
+                    {
+                        "imported": False,
+                        "path": str(dest),
+                        "staged": True,
+                        "note": f"已放入收件箱，稍后自动入库（{exc}）",
+                    }
+                )
+        return self._ok(
+            {"imported": True, "path": str(dest), "note": "已放入收件箱，将自动处理入库"}
+        )
 
 
 class SystemStatusTool(_CtxTool):
@@ -188,8 +213,8 @@ class SystemStatusTool(_CtxTool):
     parameters: list[dict[str, Any]] = []
 
     async def execute(self, **kwargs: Any) -> ToolResult:
-        from doctoragent.clinical.roles import get_role
         from doctoragent.clinical.knowledge import KNOWLEDGE_DOCS
+        from doctoragent.clinical.roles import get_role
 
         role = get_role(self.ctx.role)
         kb_count = 0
@@ -200,7 +225,8 @@ class SystemStatusTool(_CtxTool):
                 pass
         model = "未配置"
         provider = getattr(self.ctx.agent, "llm_provider", None) or (
-            getattr(getattr(self.ctx.agent, "classifier", None), "provider", None))
+            getattr(getattr(self.ctx.agent, "classifier", None), "provider", None)
+        )
         if provider is not None:
             model = getattr(getattr(provider, "connection", None), "model_name", None) or "?"
         cost = 0.0
@@ -210,17 +236,24 @@ class SystemStatusTool(_CtxTool):
                 cost = s.get("total_cost_usd", 0.0) if isinstance(s, dict) else 0.0
             except Exception:  # noqa: BLE001
                 pass
-        return self._ok({
-            "role": {"code": self.ctx.role, "name": role.name if role else self.ctx.role},
-            "knowledge_bases": kb_count,
-            "builtin_knowledge_docs": len(KNOWLEDGE_DOCS),
-            "model": model,
-            "estimated_cost_usd": round(cost, 4),
-        })
+        return self._ok(
+            {
+                "role": {"code": self.ctx.role, "name": role.name if role else self.ctx.role},
+                "knowledge_bases": kb_count,
+                "builtin_knowledge_docs": len(KNOWLEDGE_DOCS),
+                "model": model,
+                "estimated_cost_usd": round(cost, 4),
+            }
+        )
 
 
-_TOOLS = (SwitchRoleTool, ListKnowledgeBasesTool, CreateKnowledgeBaseTool,
-          ImportDocumentTool, SystemStatusTool)
+_TOOLS = (
+    SwitchRoleTool,
+    ListKnowledgeBasesTool,
+    CreateKnowledgeBaseTool,
+    ImportDocumentTool,
+    SystemStatusTool,
+)
 
 
 def register_conversation_tools(registry: Any, state: Any, agent: Any = None) -> list[str]:

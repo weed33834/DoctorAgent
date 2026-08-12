@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from doctoragent.model.text_utils import extract_keywords, token_count
+from doctoragent.model.text_utils import extract_keywords
 
 MODALITIES = ("text", "audio", "image", "video", "document")
 
@@ -56,29 +56,55 @@ class MultimodalStore:
             )
             conn.commit()
 
-    def add_asset(self, name: str, modality: str, *, uri: str = "", extracted_text: str = "",
-                  mime: str = "", size_bytes: int = 0, metadata: dict[str, Any] | None = None) -> dict[str, Any]:
+    def add_asset(
+        self,
+        name: str,
+        modality: str,
+        *,
+        uri: str = "",
+        extracted_text: str = "",
+        mime: str = "",
+        size_bytes: int = 0,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         if modality not in MODALITIES:
             raise ValueError(f"unknown modality {modality}; supported: {list(MODALITIES)}")
         keywords = extract_keywords(extracted_text, limit=10)
         row = {
-            "id": _id("mm"), "name": name, "modality": modality, "uri": uri,
-            "extracted_text": extracted_text, "keywords": keywords, "mime": mime,
-            "size_bytes": size_bytes, "metadata": metadata or {},
+            "id": _id("mm"),
+            "name": name,
+            "modality": modality,
+            "uri": uri,
+            "extracted_text": extracted_text,
+            "keywords": keywords,
+            "mime": mime,
+            "size_bytes": size_bytes,
+            "metadata": metadata or {},
             "created_at": _now(),
         }
         with self._connect() as conn:
             conn.execute(
                 "INSERT INTO mm_assets (id,name,modality,uri,extracted_text,keywords,mime,"
                 "size_bytes,metadata,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                (row["id"], name, modality, uri, extracted_text,
-                 json.dumps(keywords, ensure_ascii=False), mime, size_bytes,
-                 json.dumps(metadata or {}, ensure_ascii=False), row["created_at"]),
+                (
+                    row["id"],
+                    name,
+                    modality,
+                    uri,
+                    extracted_text,
+                    json.dumps(keywords, ensure_ascii=False),
+                    mime,
+                    size_bytes,
+                    json.dumps(metadata or {}, ensure_ascii=False),
+                    row["created_at"],
+                ),
             )
             conn.commit()
         return row
 
-    def search(self, query: str, modality: str | None = None, limit: int = 20) -> list[dict[str, Any]]:
+    def search(
+        self, query: str, modality: str | None = None, limit: int = 20
+    ) -> list[dict[str, Any]]:
         """Cross-modal keyword search over extracted text + keywords + metadata."""
         q = query.lower()
         sql = "SELECT * FROM mm_assets"
@@ -103,7 +129,12 @@ class MultimodalStore:
             if q in (r["name"] or "").lower():
                 score += 1.0
             if score > 0:
-                scored.append((score, dict(r) | {"keywords": kws, "metadata": json.loads(r["metadata"] or "{}")}))
+                scored.append(
+                    (
+                        score,
+                        dict(r) | {"keywords": kws, "metadata": json.loads(r["metadata"] or "{}")},
+                    )
+                )
         scored.sort(key=lambda x: x[0], reverse=True)
         return [row for _, row in scored[:limit]]
 
@@ -118,8 +149,11 @@ class MultimodalStore:
         with self._connect() as conn:
             rows = conn.execute(sql, params).fetchall()
         return [
-            dict(r) | {"keywords": json.loads(r["keywords"] or "[]"),
-                       "metadata": json.loads(r["metadata"] or "{}")}
+            dict(r)
+            | {
+                "keywords": json.loads(r["keywords"] or "[]"),
+                "metadata": json.loads(r["metadata"] or "{}"),
+            }
             for r in rows
         ]
 
@@ -144,8 +178,16 @@ class MultimodalService:
         self.store = store
         self.extractor_manager = extractor_manager
 
-    def ingest(self, name: str, modality: str, *, path: str = "", mime: str = "",
-               extracted_text: str = "", metadata: dict[str, Any] | None = None) -> dict[str, Any]:
+    def ingest(
+        self,
+        name: str,
+        modality: str,
+        *,
+        path: str = "",
+        mime: str = "",
+        extracted_text: str = "",
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Ingest a file, extracting text via the extractor manager when possible."""
         if not extracted_text and self.extractor_manager is not None and path:
             try:
@@ -154,8 +196,13 @@ class MultimodalService:
             except Exception:  # noqa: BLE001 — fall back to no text
                 pass
         return self.store.add_asset(
-            name, modality, uri=path, extracted_text=extracted_text, mime=mime,
-            size_bytes=_file_size(path), metadata=metadata,
+            name,
+            modality,
+            uri=path,
+            extracted_text=extracted_text,
+            mime=mime,
+            size_bytes=_file_size(path),
+            metadata=metadata,
         )
 
     def search(self, query: str, modality: str | None = None, limit: int = 20) -> dict[str, Any]:

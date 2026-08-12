@@ -72,17 +72,33 @@ class PipelineStore:
 
     # ── data sources ────────────────────────────────────────────────
 
-    def add_source(self, name: str, source_type: str, endpoint: str = "",
-                   config: dict[str, Any] | None = None) -> dict[str, Any]:
-        row = {"id": _id("src"), "name": name, "source_type": source_type,
-               "endpoint": endpoint, "config": config or {}, "enabled": True,
-               "last_cursor": "", "created_at": _now()}
+    def add_source(
+        self, name: str, source_type: str, endpoint: str = "", config: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        row = {
+            "id": _id("src"),
+            "name": name,
+            "source_type": source_type,
+            "endpoint": endpoint,
+            "config": config or {},
+            "enabled": True,
+            "last_cursor": "",
+            "created_at": _now(),
+        }
         with self._connect() as conn:
             conn.execute(
                 "INSERT INTO dp_sources (id,name,source_type,endpoint,config,enabled,last_cursor,created_at) "
                 "VALUES (?,?,?,?,?,?,?,?)",
-                (row["id"], name, source_type, endpoint,
-                 __import__("json").dumps(row["config"]), 1, "", row["created_at"]),
+                (
+                    row["id"],
+                    name,
+                    source_type,
+                    endpoint,
+                    __import__("json").dumps(row["config"]),
+                    1,
+                    "",
+                    row["created_at"],
+                ),
             )
             conn.commit()
         return row
@@ -99,16 +115,36 @@ class PipelineStore:
 
     # ── pipelines ───────────────────────────────────────────────────
 
-    def add_pipeline(self, name: str, nodes: list[str], source_id: str = "",
-                     schedule: str = "", enabled: bool = True) -> dict[str, Any]:
-        row = {"id": _id("pipe"), "name": name, "nodes": nodes, "source_id": source_id,
-               "schedule": schedule, "enabled": enabled, "created_at": _now()}
+    def add_pipeline(
+        self,
+        name: str,
+        nodes: list[str],
+        source_id: str = "",
+        schedule: str = "",
+        enabled: bool = True,
+    ) -> dict[str, Any]:
+        row = {
+            "id": _id("pipe"),
+            "name": name,
+            "nodes": nodes,
+            "source_id": source_id,
+            "schedule": schedule,
+            "enabled": enabled,
+            "created_at": _now(),
+        }
         with self._connect() as conn:
             conn.execute(
                 "INSERT INTO dp_pipelines (id,name,nodes,source_id,schedule,enabled,created_at) "
                 "VALUES (?,?,?,?,?,?,?)",
-                (row["id"], name, __import__("json").dumps(nodes), source_id,
-                 schedule, 1 if enabled else 0, row["created_at"]),
+                (
+                    row["id"],
+                    name,
+                    __import__("json").dumps(nodes),
+                    source_id,
+                    schedule,
+                    1 if enabled else 0,
+                    row["created_at"],
+                ),
             )
             conn.commit()
         return row
@@ -120,16 +156,31 @@ class PipelineStore:
 
     # ── transform rules ─────────────────────────────────────────────
 
-    def add_transform_rule(self, name: str, match: str, action: str,
-                           params: dict[str, Any] | None = None) -> dict[str, Any]:
-        row = {"id": _id("rule"), "name": name, "match": match, "action": action,
-               "params": params or {}, "enabled": True, "created_at": _now()}
+    def add_transform_rule(
+        self, name: str, match: str, action: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        row = {
+            "id": _id("rule"),
+            "name": name,
+            "match": match,
+            "action": action,
+            "params": params or {},
+            "enabled": True,
+            "created_at": _now(),
+        }
         with self._connect() as conn:
             conn.execute(
                 "INSERT INTO dp_transform_rules (id,name,match,action,params,enabled,created_at) "
                 "VALUES (?,?,?,?,?,?,?)",
-                (row["id"], name, match, action,
-                 __import__("json").dumps(row["params"]), 1, row["created_at"]),
+                (
+                    row["id"],
+                    name,
+                    match,
+                    action,
+                    __import__("json").dumps(row["params"]),
+                    1,
+                    row["created_at"],
+                ),
             )
             conn.commit()
         return row
@@ -146,20 +197,31 @@ class PipelineStore:
             conn.execute(
                 "INSERT INTO dp_runs (id,pipeline_id,status,records_processed,started_at,"
                 "finished_at,duration_ms,error) VALUES (?,?,?,?,?,?,?,?)",
-                (run["id"], run["pipeline_id"], run["status"], run["records_processed"],
-                 run["started_at"], run["finished_at"], run["duration_ms"], run.get("error", "")),
+                (
+                    run["id"],
+                    run["pipeline_id"],
+                    run["status"],
+                    run["records_processed"],
+                    run["started_at"],
+                    run["finished_at"],
+                    run["duration_ms"],
+                    run.get("error", ""),
+                ),
             )
             conn.commit()
 
     def list_runs(self, limit: int = 100) -> list[dict[str, Any]]:
         with self._connect() as conn:
-            rows = conn.execute("SELECT * FROM dp_runs ORDER BY started_at DESC LIMIT ?", (limit,)).fetchall()
+            rows = conn.execute(
+                "SELECT * FROM dp_runs ORDER BY started_at DESC LIMIT ?", (limit,)
+            ).fetchall()
         return [dict(r) for r in rows]
 
     # ── quality ─────────────────────────────────────────────────────
 
-    def add_quality(self, pipeline_id: str, check_type: str, score: float,
-                    status: str, detail: str) -> None:
+    def add_quality(
+        self, pipeline_id: str, check_type: str, score: float, status: str, detail: str
+    ) -> None:
         with self._connect() as conn:
             conn.execute(
                 "INSERT INTO dp_quality (id,pipeline_id,check_type,score,status,detail,created_at) "
@@ -188,7 +250,9 @@ class PipelineService:
         # ingest_fn(record) -> str | None; used by the "load" node.
         self.ingest_fn = ingest_fn
 
-    def run_pipeline(self, pipeline_id: str, batch: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    def run_pipeline(
+        self, pipeline_id: str, batch: list[dict[str, Any]] | None = None
+    ) -> dict[str, Any]:
         pipeline = next((p for p in self.store.list_pipelines() if p["id"] == pipeline_id), None)
         if pipeline is None:
             raise KeyError(f"pipeline {pipeline_id} not found")
@@ -199,16 +263,28 @@ class PipelineService:
         for node in pipeline["nodes"]:
             transformed = self._apply_node(node, transformed)
         # Clean via sanitize and record a quality check.
-        clean = [{"text": sanitize_for_index(str(r.get("text", ""))), **(r or {})}
-                 for r in transformed if r and str(r.get("text", "")).strip()]
-        self.store.add_quality(pipeline_id, "completeness",
-                               round(len(clean) / len(transformed), 3) if transformed else 1.0,
-                               "pass" if clean or not transformed else "warn",
-                               f"{len(clean)}/{len(transformed)} rows retained")
+        clean = [
+            {"text": sanitize_for_index(str(r.get("text", ""))), **(r or {})}
+            for r in transformed
+            if r and str(r.get("text", "")).strip()
+        ]
+        self.store.add_quality(
+            pipeline_id,
+            "completeness",
+            round(len(clean) / len(transformed), 3) if transformed else 1.0,
+            "pass" if clean or not transformed else "warn",
+            f"{len(clean)}/{len(transformed)} rows retained",
+        )
         dur = int((time.monotonic() - started) * 1000)
-        run = {"id": run_id, "pipeline_id": pipeline_id, "status": "completed",
-               "records_processed": len(clean), "started_at": _now(), "finished_at": _now(),
-               "duration_ms": dur}
+        run = {
+            "id": run_id,
+            "pipeline_id": pipeline_id,
+            "status": "completed",
+            "records_processed": len(clean),
+            "started_at": _now(),
+            "finished_at": _now(),
+            "duration_ms": dur,
+        }
         self.store.save_run(run)
         return run
 

@@ -42,10 +42,19 @@ class CodeExecTool(Tool):
                 "chart is displayed in the conversation."
             ),
             parameters=[
-                ToolParameter(name="code", type="string", required=True,
-                              description="Python source code to execute"),
-                ToolParameter(name="timeout", type="integer", required=False,
-                              description="Max execution seconds", default=30),
+                ToolParameter(
+                    name="code",
+                    type="string",
+                    required=True,
+                    description="Python source code to execute",
+                ),
+                ToolParameter(
+                    name="timeout",
+                    type="integer",
+                    required=False,
+                    description="Max execution seconds",
+                    default=30,
+                ),
             ],
             category="code",
         )
@@ -88,8 +97,10 @@ class CodeExecTool(Tool):
             data["image"] = image
         if not result.ok:
             return ToolResult(
-                success=False, error=f"exit {result.returncode}: {result.stderr[-800:]}",
-                data=data, tool_name="code_exec",
+                success=False,
+                error=f"exit {result.returncode}: {result.stderr[-800:]}",
+                data=data,
+                tool_name="code_exec",
             )
         return ToolResult(success=True, data=data, tool_name="code_exec")
 
@@ -128,9 +139,14 @@ class CodeExecTool(Tool):
         for f in sorted(work.iterdir()):
             if f.is_file() and f.suffix.lower() in _IMAGE_EXTS:
                 try:
-                    mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-                            ".gif": "image/gif", ".svg": "image/svg+xml",
-                            ".webp": "image/webp"}[f.suffix.lower()]
+                    mime = {
+                        ".png": "image/png",
+                        ".jpg": "image/jpeg",
+                        ".jpeg": "image/jpeg",
+                        ".gif": "image/gif",
+                        ".svg": "image/svg+xml",
+                        ".webp": "image/webp",
+                    }[f.suffix.lower()]
                     b64 = base64.b64encode(f.read_bytes()).decode()
                     return f"data:{mime};base64,{b64}"
                 except Exception:  # noqa: BLE001

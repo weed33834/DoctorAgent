@@ -1711,9 +1711,7 @@ class SemanticChunker:
                         }
                     )
                 if right.strip():
-                    self._recursive_split(
-                        right, start_offset + right_start, result
-                    )
+                    self._recursive_split(right, start_offset + right_start, result)
                 return
 
             idx = text.rfind(separator, 0, self.chunk_size)
@@ -1733,9 +1731,7 @@ class SemanticChunker:
                         }
                     )
                 if right.strip():
-                    self._recursive_split(
-                        right, start_offset + right_start, result
-                    )
+                    self._recursive_split(right, start_offset + right_start, result)
                 return
 
         split_point = self.chunk_size

@@ -152,8 +152,10 @@ class SemanticCache:
                 if now - e["ts"] > self.ttl_seconds:
                     del self._entries[key]
                     continue
-                sim = _cosine(q_emb, e["embedding"]) if q_emb else (
-                    1.0 if _norm_text(query) == key else 0.0
+                sim = (
+                    _cosine(q_emb, e["embedding"])
+                    if q_emb
+                    else (1.0 if _norm_text(query) == key else 0.0)
                 )
                 if sim >= best[0]:
                     best = (sim, e["response"])
@@ -179,8 +181,12 @@ class SemanticCache:
         q_emb = self._embed(query)
         key = _norm_text(query) or hashlib.sha256(query.encode()).hexdigest()[:16]
         with self._lock:
-            self._entries[key] = {"embedding": q_emb, "response": response,
-                                  "ts": time.time(), "hits": 0}
+            self._entries[key] = {
+                "embedding": q_emb,
+                "response": response,
+                "ts": time.time(),
+                "hits": 0,
+            }
             # LRU-style eviction when over capacity.
             if len(self._entries) > self.max_entries:
                 oldest = min(self._entries, key=lambda k: self._entries[k]["ts"])

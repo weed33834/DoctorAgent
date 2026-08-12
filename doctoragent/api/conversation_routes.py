@@ -42,7 +42,9 @@ async def _auth_dependency(
             raise HTTPException(status_code=401, detail="Invalid or missing authentication token")
         return provided
     if not _is_local_request(request):
-        raise HTTPException(status_code=401, detail="DOCTORAGENT_API_TOKEN not set; remote access denied")
+        raise HTTPException(
+            status_code=401, detail="DOCTORAGENT_API_TOKEN not set; remote access denied"
+        )
     return None
 
 
@@ -93,18 +95,22 @@ def get_router() -> APIRouter:
 
     @router.post("/{cid}/messages", summary="Add a message to a conversation")
     async def add_message(
-        cid: str, request: Request,
+        cid: str,
+        request: Request,
         payload: dict[str, Any] = Body(...),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
-        msg = _store(request).add_message(cid, payload.get("role", "user"), payload.get("content", ""))
+        msg = _store(request).add_message(
+            cid, payload.get("role", "user"), payload.get("content", "")
+        )
         if msg is None:
             raise HTTPException(status_code=404, detail="conversation not found")
         return msg
 
     @router.patch("/{cid}", summary="Rename a conversation")
     async def rename_conversation(
-        cid: str, request: Request,
+        cid: str,
+        request: Request,
         payload: dict[str, Any] = Body(...),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
@@ -115,7 +121,8 @@ def get_router() -> APIRouter:
 
     @router.post("/{cid}/fork", summary="Fork (branch) a conversation")
     async def fork_conversation(
-        cid: str, request: Request,
+        cid: str,
+        request: Request,
         payload: dict[str, Any] = Body(default={}),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
@@ -126,7 +133,8 @@ def get_router() -> APIRouter:
 
     @router.post("/messages/{mid}/feedback", summary="Record like/dislike feedback")
     async def message_feedback(
-        mid: str, request: Request,
+        mid: str,
+        request: Request,
         payload: dict[str, Any] = Body(...),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
@@ -148,12 +156,15 @@ def get_router() -> APIRouter:
         return {"ok": True}
 
     @router.get("/stats/overview", summary="Conversation store stats")
-    async def conversation_stats(request: Request, _auth: Any = Depends(_auth_dependency)) -> dict[str, Any]:
+    async def conversation_stats(
+        request: Request, _auth: Any = Depends(_auth_dependency)
+    ) -> dict[str, Any]:
         return _store(request).stats()
 
     @router.post("/{cid}/share", summary="Create a share link for a conversation")
     async def share_conversation(
-        cid: str, request: Request,
+        cid: str,
+        request: Request,
         payload: dict[str, Any] = Body(default={}),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
@@ -192,11 +203,18 @@ def get_router() -> APIRouter:
         llm = getattr(request.app.state, "llm_provider", None)
         if llm is not None and hasattr(llm, "chat_completion"):
             try:
-                msgs_text = "\n".join(f"{m['role']}: {m['content'][:200]}" for m in conv["messages"])
-                r = await llm.chat_completion(messages=[
-                    {"role": "system", "content": "请用不超过3句话中文总结这段对话。只输出摘要。"},
-                    {"role": "user", "content": msgs_text},
-                ])
+                msgs_text = "\n".join(
+                    f"{m['role']}: {m['content'][:200]}" for m in conv["messages"]
+                )
+                r = await llm.chat_completion(
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "请用不超过3句话中文总结这段对话。只输出摘要。",
+                        },
+                        {"role": "user", "content": msgs_text},
+                    ]
+                )
                 if isinstance(r, str) and r.strip():
                     summary = r.strip()
             except Exception:  # noqa: BLE001

@@ -188,7 +188,7 @@ select = ["E", "F", "I", "N", "W", "UP", "B", "C4"]
 # where automatic wrapping would break readability. B027
 # (empty-method-without-abstract-decorator) is excluded because concrete
 # subclasses are expected to override the empty methods.
-ignore = ["E501", "B027"]
+ignore = ["E501", "B027", "B008"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

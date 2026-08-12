@@ -14,7 +14,7 @@ import logging
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from doctoragent.enterprise.models import (
     AccountStatus,
@@ -132,16 +132,22 @@ class EnterpriseStore:
                 "INSERT OR REPLACE INTO enterprise_orgs "
                 "(id,name,domain,plan,status,settings,created_at,updated_at) "
                 "VALUES (?,?,?,?,?,?,?,?)",
-                (org.id, org.name, org.domain, org.plan, org.status.value,
-                 json.dumps(org.settings), org.created_at, org.updated_at),
+                (
+                    org.id,
+                    org.name,
+                    org.domain,
+                    org.plan,
+                    org.status.value,
+                    json.dumps(org.settings),
+                    org.created_at,
+                    org.updated_at,
+                ),
             )
             conn.commit()
 
     def get_org(self, org_id: str) -> Org | None:
         with self._connect() as conn:
-            row = conn.execute(
-                "SELECT * FROM enterprise_orgs WHERE id = ?", (org_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM enterprise_orgs WHERE id = ?", (org_id,)).fetchone()
         return self._row_org(row) if row else None
 
     def list_orgs(self) -> list[Org]:
@@ -149,27 +155,43 @@ class EnterpriseStore:
             rows = conn.execute("SELECT * FROM enterprise_orgs ORDER BY created_at").fetchall()
         return [self._row_org(r) for r in rows]
 
-    def update_org(self, org_id: str, name: str | None = None, domain: str | None = None,
-                   plan: str | None = None, status: str | None = None,
-                   settings: dict | None = None) -> None:
+    def update_org(
+        self,
+        org_id: str,
+        name: str | None = None,
+        domain: str | None = None,
+        plan: str | None = None,
+        status: str | None = None,
+        settings: dict | None = None,
+    ) -> None:
         with self._connect() as conn:
             conn.execute(
                 "UPDATE enterprise_orgs SET name=COALESCE(?,name), domain=COALESCE(?,domain), "
                 "plan=COALESCE(?,plan), status=COALESCE(?,status), "
                 "settings=COALESCE(?,settings), updated_at=? WHERE id=?",
-                (name, domain, plan, status,
-                 json.dumps(settings) if settings is not None else None,
-                 _now(), org_id),
+                (
+                    name,
+                    domain,
+                    plan,
+                    status,
+                    json.dumps(settings) if settings is not None else None,
+                    _now(),
+                    org_id,
+                ),
             )
             conn.commit()
 
     @staticmethod
     def _row_org(row: Any) -> Org:
         return Org(
-            id=row["id"], name=row["name"], domain=row["domain"], plan=row["plan"],
+            id=row["id"],
+            name=row["name"],
+            domain=row["domain"],
+            plan=row["plan"],
             status=OrgStatus(row["status"]),
             settings=json.loads(row["settings"] or "{}"),
-            created_at=row["created_at"], updated_at=row["updated_at"],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
         )
 
     # ── department (A) ──────────────────────────────────────────────
@@ -197,8 +219,13 @@ class EnterpriseStore:
             ).fetchone()
         return self._row_dept(row) if row else None
 
-    def update_department(self, dept_id: str, name: str | None = None,
-                          parent_id: str | None = None, path: str | None = None) -> None:
+    def update_department(
+        self,
+        dept_id: str,
+        name: str | None = None,
+        parent_id: str | None = None,
+        path: str | None = None,
+    ) -> None:
         with self._connect() as conn:
             conn.execute(
                 "UPDATE enterprise_departments SET name=COALESCE(?,name), "
@@ -215,8 +242,12 @@ class EnterpriseStore:
     @staticmethod
     def _row_dept(row: Any) -> Department:
         return Department(
-            id=row["id"], org_id=row["org_id"], name=row["name"],
-            parent_id=row["parent_id"], path=row["path"], created_at=row["created_at"],
+            id=row["id"],
+            org_id=row["org_id"],
+            name=row["name"],
+            parent_id=row["parent_id"],
+            path=row["path"],
+            created_at=row["created_at"],
         )
 
     # ── users (B) ───────────────────────────────────────────────────
@@ -229,11 +260,25 @@ class EnterpriseStore:
                 "mfa_status,mfa_secret,failed_attempts,locked_until,last_login,"
                 "locale,timezone,created_at,updated_at) "
                 "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                (user.id, user.org_id, user.dept_id, user.email, user.display_name,
-                 user.role.value, user.status.value, user.password_hash,
-                 user.mfa_status.value, user.mfa_secret, user.failed_attempts,
-                 user.locked_until, user.last_login, user.locale, user.timezone,
-                 user.created_at, user.updated_at),
+                (
+                    user.id,
+                    user.org_id,
+                    user.dept_id,
+                    user.email,
+                    user.display_name,
+                    user.role.value,
+                    user.status.value,
+                    user.password_hash,
+                    user.mfa_status.value,
+                    user.mfa_secret,
+                    user.failed_attempts,
+                    user.locked_until,
+                    user.last_login,
+                    user.locale,
+                    user.timezone,
+                    user.created_at,
+                    user.updated_at,
+                ),
             )
             conn.commit()
 
@@ -247,38 +292,57 @@ class EnterpriseStore:
 
     def get_user(self, user_id: str) -> UserAccount | None:
         with self._connect() as conn:
-            row = conn.execute(
-                "SELECT * FROM enterprise_users WHERE id=?", (user_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM enterprise_users WHERE id=?", (user_id,)).fetchone()
         return self._row_user(row) if row else None
 
-    def list_users(self, org_id: str | None = None, dept_id: str | None = None,
-                   role: str | None = None, status: str | None = None) -> list[UserAccount]:
+    def list_users(
+        self,
+        org_id: str | None = None,
+        dept_id: str | None = None,
+        role: str | None = None,
+        status: str | None = None,
+    ) -> list[UserAccount]:
         sql = "SELECT * FROM enterprise_users WHERE 1=1"
         params: list[Any] = []
         if org_id:
-            sql += " AND org_id=?"; params.append(org_id)
+            sql += " AND org_id=?"
+            params.append(org_id)
         if dept_id:
-            sql += " AND dept_id=?"; params.append(dept_id)
+            sql += " AND dept_id=?"
+            params.append(dept_id)
         if role:
-            sql += " AND role=?"; params.append(role)
+            sql += " AND role=?"
+            params.append(role)
         if status:
-            sql += " AND status=?"; params.append(status)
+            sql += " AND status=?"
+            params.append(status)
         sql += " ORDER BY created_at"
         with self._connect() as conn:
             rows = conn.execute(sql, params).fetchall()
         return [self._row_user(r) for r in rows]
 
     def update_user(self, user_id: str, **fields: Any) -> None:
-        allowed = {"dept_id", "display_name", "role", "status", "password_hash",
-                   "mfa_status", "mfa_secret", "failed_attempts", "locked_until",
-                   "last_login", "locale", "timezone"}
+        allowed = {
+            "dept_id",
+            "display_name",
+            "role",
+            "status",
+            "password_hash",
+            "mfa_status",
+            "mfa_secret",
+            "failed_attempts",
+            "locked_until",
+            "last_login",
+            "locale",
+            "timezone",
+        }
         sets = [f"{k}=?" for k in fields if k in allowed]
         if not sets:
             return
         vals = [
             f.value if isinstance(f, (UserRole, AccountStatus)) else f
-            for f in fields.values() if True
+            for f in fields.values()
+            if True
         ]
         sets.append("updated_at=?")
         vals.append(_now())
@@ -308,13 +372,23 @@ class EnterpriseStore:
     @staticmethod
     def _row_user(row: Any) -> UserAccount:
         return UserAccount(
-            id=row["id"], org_id=row["org_id"], dept_id=row["dept_id"], email=row["email"],
-            display_name=row["display_name"], role=UserRole(row["role"]),
-            status=AccountStatus(row["status"]), password_hash=row["password_hash"],
-            mfa_status=row["mfa_status"], mfa_secret=row["mfa_secret"],
-            failed_attempts=row["failed_attempts"], locked_until=row["locked_until"],
-            last_login=row["last_login"], locale=row["locale"], timezone=row["timezone"],
-            created_at=row["created_at"], updated_at=row["updated_at"],
+            id=row["id"],
+            org_id=row["org_id"],
+            dept_id=row["dept_id"],
+            email=row["email"],
+            display_name=row["display_name"],
+            role=UserRole(row["role"]),
+            status=AccountStatus(row["status"]),
+            password_hash=row["password_hash"],
+            mfa_status=row["mfa_status"],
+            mfa_secret=row["mfa_secret"],
+            failed_attempts=row["failed_attempts"],
+            locked_until=row["locked_until"],
+            last_login=row["last_login"],
+            locale=row["locale"],
+            timezone=row["timezone"],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
         )
 
     # ── login events (C) ────────────────────────────────────────────
@@ -325,20 +399,33 @@ class EnterpriseStore:
                 "INSERT INTO enterprise_login_events "
                 "(id,user_id,org_id,email,ip,user_agent,result,detail,at) "
                 "VALUES (?,?,?,?,?,?,?,?,?)",
-                (ev.id, ev.user_id, ev.org_id, ev.email, ev.ip, ev.user_agent,
-                 ev.result, ev.detail, ev.at),
+                (
+                    ev.id,
+                    ev.user_id,
+                    ev.org_id,
+                    ev.email,
+                    ev.ip,
+                    ev.user_agent,
+                    ev.result,
+                    ev.detail,
+                    ev.at,
+                ),
             )
             conn.commit()
 
-    def list_login_events(self, user_id: str | None = None, org_id: str | None = None,
-                          limit: int = 100) -> list[LoginEvent]:
+    def list_login_events(
+        self, user_id: str | None = None, org_id: str | None = None, limit: int = 100
+    ) -> list[LoginEvent]:
         sql = "SELECT * FROM enterprise_login_events WHERE 1=1"
         params: list[Any] = []
         if user_id:
-            sql += " AND user_id=?"; params.append(user_id)
+            sql += " AND user_id=?"
+            params.append(user_id)
         if org_id:
-            sql += " AND org_id=?"; params.append(org_id)
-        sql += " ORDER BY at DESC LIMIT ?"; params.append(limit)
+            sql += " AND org_id=?"
+            params.append(org_id)
+        sql += " ORDER BY at DESC LIMIT ?"
+        params.append(limit)
         with self._connect() as conn:
             rows = conn.execute(sql, params).fetchall()
         return [LoginEvent(**dict(r)) for r in rows]
@@ -372,8 +459,11 @@ class EnterpriseStore:
         if not row:
             return None
         return MFAChallenge(
-            user_id=row["user_id"], org_id=row["org_id"], secret=row["secret"],
-            verified=bool(row["verified"]), expires_at=row["expires_at"],
+            user_id=row["user_id"],
+            org_id=row["org_id"],
+            secret=row["secret"],
+            verified=bool(row["verified"]),
+            expires_at=row["expires_at"],
         )
 
     def delete_mfa_challenge(self, user_id: str) -> None:
@@ -389,8 +479,16 @@ class EnterpriseStore:
                 "INSERT OR REPLACE INTO enterprise_budgets "
                 "(id,scope,scope_id,period,amount_usd,alert_threshold,hard_limit,created_at) "
                 "VALUES (?,?,?,?,?,?,?,?)",
-                (b.id, b.scope, b.scope_id, b.period, b.amount_usd,
-                 b.alert_threshold, 1 if b.hard_limit else 0, b.created_at),
+                (
+                    b.id,
+                    b.scope,
+                    b.scope_id,
+                    b.period,
+                    b.amount_usd,
+                    b.alert_threshold,
+                    1 if b.hard_limit else 0,
+                    b.created_at,
+                ),
             )
             conn.commit()
 
@@ -403,9 +501,13 @@ class EnterpriseStore:
         if not row:
             return None
         return Budget(
-            id=row["id"], scope=row["scope"], scope_id=row["scope_id"],
-            period=row["period"], amount_usd=row["amount_usd"],
-            alert_threshold=row["alert_threshold"], hard_limit=bool(row["hard_limit"]),
+            id=row["id"],
+            scope=row["scope"],
+            scope_id=row["scope_id"],
+            period=row["period"],
+            amount_usd=row["amount_usd"],
+            alert_threshold=row["alert_threshold"],
+            hard_limit=bool(row["hard_limit"]),
             created_at=row["created_at"],
         )
 
@@ -415,8 +517,16 @@ class EnterpriseStore:
                 "INSERT OR REPLACE INTO enterprise_quotas "
                 "(id,scope,scope_id,tokens_per_day,calls_per_day,storage_mb,concurrent,updated_at) "
                 "VALUES (?,?,?,?,?,?,?,?)",
-                (q.id, q.scope, q.scope_id, q.tokens_per_day, q.calls_per_day,
-                 q.storage_mb, q.concurrent, q.updated_at),
+                (
+                    q.id,
+                    q.scope,
+                    q.scope_id,
+                    q.tokens_per_day,
+                    q.calls_per_day,
+                    q.storage_mb,
+                    q.concurrent,
+                    q.updated_at,
+                ),
             )
             conn.commit()
 
@@ -429,9 +539,13 @@ class EnterpriseStore:
         if not row:
             return None
         return Quota(
-            id=row["id"], scope=row["scope"], scope_id=row["scope_id"],
-            tokens_per_day=row["tokens_per_day"], calls_per_day=row["calls_per_day"],
-            storage_mb=row["storage_mb"], concurrent=row["concurrent"],
+            id=row["id"],
+            scope=row["scope"],
+            scope_id=row["scope_id"],
+            tokens_per_day=row["tokens_per_day"],
+            calls_per_day=row["calls_per_day"],
+            storage_mb=row["storage_mb"],
+            concurrent=row["concurrent"],
             updated_at=row["updated_at"],
         )
 
@@ -440,8 +554,7 @@ class EnterpriseStore:
     def set_setting(self, key: str, value: str) -> None:
         with self._connect() as conn:
             conn.execute(
-                "INSERT OR REPLACE INTO enterprise_settings (key,value,updated_at) "
-                "VALUES (?,?,?)",
+                "INSERT OR REPLACE INTO enterprise_settings (key,value,updated_at) VALUES (?,?,?)",
                 (key, value, _now()),
             )
             conn.commit()
@@ -464,8 +577,16 @@ class EnterpriseStore:
                 "INSERT INTO enterprise_announcements "
                 "(id,title,content,level,pinned,active,created_at,expires_at) "
                 "VALUES (?,?,?,?,?,?,?,?)",
-                (a.id, a.title, a.content, a.level, 1 if a.pinned else 0,
-                 1 if a.active else 0, a.created_at, a.expires_at),
+                (
+                    a.id,
+                    a.title,
+                    a.content,
+                    a.level,
+                    1 if a.pinned else 0,
+                    1 if a.active else 0,
+                    a.created_at,
+                    a.expires_at,
+                ),
             )
             conn.commit()
 
@@ -478,34 +599,39 @@ class EnterpriseStore:
             rows = conn.execute(sql).fetchall()
         return [
             Announcement(
-                id=r["id"], title=r["title"], content=r["content"], level=r["level"],
-                pinned=bool(r["pinned"]), active=bool(r["active"]),
-                created_at=r["created_at"], expires_at=r["expires_at"],
+                id=r["id"],
+                title=r["title"],
+                content=r["content"],
+                level=r["level"],
+                pinned=bool(r["pinned"]),
+                active=bool(r["active"]),
+                created_at=r["created_at"],
+                expires_at=r["expires_at"],
             )
             for r in rows
         ]
 
-    def update_announcement(self, ann_id: str, active: bool | None = None,
-                            pinned: bool | None = None) -> None:
+    def update_announcement(
+        self, ann_id: str, active: bool | None = None, pinned: bool | None = None
+    ) -> None:
         with self._connect() as conn:
             conn.execute(
                 "UPDATE enterprise_announcements SET active=COALESCE(?,active), "
                 "pinned=COALESCE(?,pinned) WHERE id=?",
-                (1 if active is not None else None,
-                 1 if pinned is not None else None, ann_id),
+                (1 if active is not None else None, 1 if pinned is not None else None, ann_id),
             )
             conn.commit()
 
     def get_maintenance(self) -> MaintenanceState:
         with self._connect() as conn:
-            row = conn.execute(
-                "SELECT * FROM enterprise_maintenance WHERE id=1"
-            ).fetchone()
+            row = conn.execute("SELECT * FROM enterprise_maintenance WHERE id=1").fetchone()
         if not row:
             return MaintenanceState()
         return MaintenanceState(
-            enabled=bool(row["enabled"]), message=row["message"],
-            readonly=bool(row["readonly"]), updated_at=row["updated_at"],
+            enabled=bool(row["enabled"]),
+            message=row["message"],
+            readonly=bool(row["readonly"]),
+            updated_at=row["updated_at"],
         )
 
     def set_maintenance(self, state: MaintenanceState) -> None:
@@ -513,8 +639,7 @@ class EnterpriseStore:
             conn.execute(
                 "UPDATE enterprise_maintenance SET enabled=?, message=?, "
                 "readonly=?, updated_at=? WHERE id=1",
-                (1 if state.enabled else 0, state.message,
-                 1 if state.readonly else 0, _now()),
+                (1 if state.enabled else 0, state.message, 1 if state.readonly else 0, _now()),
             )
             conn.commit()
 
@@ -526,8 +651,16 @@ class EnterpriseStore:
                 "INSERT OR REPLACE INTO enterprise_api_keys "
                 "(id,org_id,label,prefix,scopes,expires_at,last_used_at,created_at) "
                 "VALUES (?,?,?,?,?,?,?,?)",
-                (key.id, key.org_id, key.label, key.prefix,
-                 json.dumps(key.scopes), key.expires_at, key.last_used_at, key.created_at),
+                (
+                    key.id,
+                    key.org_id,
+                    key.label,
+                    key.prefix,
+                    json.dumps(key.scopes),
+                    key.expires_at,
+                    key.last_used_at,
+                    key.created_at,
+                ),
             )
             conn.commit()
 
@@ -535,14 +668,20 @@ class EnterpriseStore:
         sql = "SELECT * FROM enterprise_api_keys"
         params: list[Any] = []
         if org_id:
-            sql += " WHERE org_id=?"; params.append(org_id)
+            sql += " WHERE org_id=?"
+            params.append(org_id)
         with self._connect() as conn:
             rows = conn.execute(sql, params).fetchall()
         return [
             ApiKeyRecord(
-                id=r["id"], org_id=r["org_id"], label=r["label"], prefix=r["prefix"],
-                scopes=json.loads(r["scopes"] or "[]"), expires_at=r["expires_at"],
-                last_used_at=r["last_used_at"], created_at=r["created_at"],
+                id=r["id"],
+                org_id=r["org_id"],
+                label=r["label"],
+                prefix=r["prefix"],
+                scopes=json.loads(r["scopes"] or "[]"),
+                expires_at=r["expires_at"],
+                last_used_at=r["last_used_at"],
+                created_at=r["created_at"],
             )
             for r in rows
         ]

@@ -22,7 +22,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import Any, AsyncIterator
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -75,8 +75,7 @@ class MCPClient:
             from mcp.client.stdio import stdio_client
         except ImportError as exc:  # pragma: no cover
             raise ImportError(
-                "MCP stdio transport requires the 'mcp' extra "
-                "(pip install doctoragent[mcp])"
+                "MCP stdio transport requires the 'mcp' extra (pip install doctoragent[mcp])"
             ) from exc
         if not self.command:
             raise ValueError("stdio transport requires a 'command'")
@@ -95,11 +94,12 @@ class MCPClient:
             )
         except ImportError:
             try:  # older/newer naming variant
-                from mcp.client.streamable_http import streamablehttp_client as _shc  # type: ignore[no-redef]
+                from mcp.client.streamable_http import (
+                    streamablehttp_client as _shc,  # type: ignore[no-redef]
+                )
             except ImportError as exc:  # pragma: no cover
                 raise ImportError(
-                    "MCP HTTP transport requires the 'mcp' extra "
-                    "(pip install doctoragent[mcp])"
+                    "MCP HTTP transport requires the 'mcp' extra (pip install doctoragent[mcp])"
                 ) from exc
         if not self.url:
             raise ValueError("http transport requires a 'url'")
@@ -156,7 +156,7 @@ class MCPClient:
             raise ValueError(f"MCP tool {name!r} failed: {text or 'unknown error'}")
         return text
 
-    async def __aenter__(self) -> "MCPClient":
+    async def __aenter__(self) -> MCPClient:
         await self.connect()
         return self
 
@@ -237,9 +237,15 @@ def build_remote_tool(
 
 
 def _json_type_to_str(t: Any) -> str:
-    mapping = {"string": "string", "integer": "integer", "number": "float",
-               "boolean": "boolean", "array": "list", "object": "object",
-               "null": "string"}
+    mapping = {
+        "string": "string",
+        "integer": "integer",
+        "number": "float",
+        "boolean": "boolean",
+        "array": "list",
+        "object": "object",
+        "null": "string",
+    }
     return mapping.get(str(t).lower(), "string")
 
 

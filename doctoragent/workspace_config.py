@@ -73,19 +73,32 @@ class WorkspaceConfig:
             rows = conn.execute("SELECT * FROM ws_prompts ORDER BY name").fetchall()
         return [dict(r) | {"variables": self._loads(r["variables"])} for r in rows]
 
-    def upsert_prompt(self, name: str, template: str, *, description: str = "",
-                      variables: list[str] | None = None) -> dict[str, Any]:
+    def upsert_prompt(
+        self, name: str, template: str, *, description: str = "", variables: list[str] | None = None
+    ) -> dict[str, Any]:
         pid = _id("prm")
-        row = {"id": pid, "name": name, "template": template, "description": description,
-               "variables": variables or _extract_vars(template), "updated_at": _now()}
+        row = {
+            "id": pid,
+            "name": name,
+            "template": template,
+            "description": description,
+            "variables": variables or _extract_vars(template),
+            "updated_at": _now(),
+        }
         with self._connect() as conn:
             conn.execute(
                 "INSERT INTO ws_prompts (id,name,template,description,variables,updated_at) "
                 "VALUES (?,?,?,?,?,?) "
                 "ON CONFLICT(name) DO UPDATE SET template=excluded.template, "
                 "description=excluded.description, variables=excluded.variables, updated_at=excluded.updated_at",
-                (pid, name, template, description,
-                 __import__("json").dumps(row["variables"], ensure_ascii=False), row["updated_at"]),
+                (
+                    pid,
+                    name,
+                    template,
+                    description,
+                    __import__("json").dumps(row["variables"], ensure_ascii=False),
+                    row["updated_at"],
+                ),
             )
             conn.commit()
         # return the stored row (with the same id used by name upsert)
@@ -93,7 +106,9 @@ class WorkspaceConfig:
 
     def get_prompt(self, name: str) -> dict[str, Any] | None:
         with self._connect() as conn:
-            r = conn.execute("SELECT * FROM ws_prompts WHERE name=? OR id=?", (name, name)).fetchone()
+            r = conn.execute(
+                "SELECT * FROM ws_prompts WHERE name=? OR id=?", (name, name)
+            ).fetchone()
         return dict(r) | {"variables": self._loads(r["variables"])} if r else None
 
     # ── skills ──────────────────────────────────────────────────────
@@ -103,15 +118,22 @@ class WorkspaceConfig:
             rows = conn.execute("SELECT * FROM ws_skills ORDER BY name").fetchall()
         return [dict(r) | {"triggers": self._loads(r["triggers"])} for r in rows]
 
-    def register_skill(self, name: str, description: str, *, triggers: list[str] | None = None,
-                       code: str = "") -> dict[str, Any]:
+    def register_skill(
+        self, name: str, description: str, *, triggers: list[str] | None = None, code: str = ""
+    ) -> dict[str, Any]:
         with self._connect() as conn:
             conn.execute(
                 "INSERT INTO ws_skills (id,name,description,triggers,code,updated_at) VALUES (?,?,?,?,?,?) "
                 "ON CONFLICT(name) DO UPDATE SET description=excluded.description, "
                 "triggers=excluded.triggers, code=excluded.code, updated_at=excluded.updated_at",
-                (_id("sk"), name, description,
-                 __import__("json").dumps(triggers or [], ensure_ascii=False), code, _now()),
+                (
+                    _id("sk"),
+                    name,
+                    description,
+                    __import__("json").dumps(triggers or [], ensure_ascii=False),
+                    code,
+                    _now(),
+                ),
             )
             conn.commit()
         return next(s for s in self.list_skills() if s["name"] == name)
@@ -123,15 +145,22 @@ class WorkspaceConfig:
             rows = conn.execute("SELECT * FROM ws_experts ORDER BY name").fetchall()
         return [dict(r) | {"tools": self._loads(r["tools"])} for r in rows]
 
-    def create_expert(self, name: str, title: str, system_prompt: str, *,
-                      tools: list[str] | None = None) -> dict[str, Any]:
+    def create_expert(
+        self, name: str, title: str, system_prompt: str, *, tools: list[str] | None = None
+    ) -> dict[str, Any]:
         with self._connect() as conn:
             conn.execute(
                 "INSERT INTO ws_experts (id,name,title,system_prompt,tools,updated_at) VALUES (?,?,?,?,?,?) "
                 "ON CONFLICT(name) DO UPDATE SET title=excluded.title, "
                 "system_prompt=excluded.system_prompt, tools=excluded.tools, updated_at=excluded.updated_at",
-                (_id("exp"), name, title, system_prompt,
-                 __import__("json").dumps(tools or [], ensure_ascii=False), _now()),
+                (
+                    _id("exp"),
+                    name,
+                    title,
+                    system_prompt,
+                    __import__("json").dumps(tools or [], ensure_ascii=False),
+                    _now(),
+                ),
             )
             conn.commit()
         return next(e for e in self.list_experts() if e["name"] == name)

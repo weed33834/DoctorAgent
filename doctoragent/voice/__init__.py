@@ -12,7 +12,7 @@ from __future__ import annotations
 from doctoragent.voice.service import (
     VoiceError,
     VoiceService,
-    VoiceUnavailable,
+    VoiceUnavailableError,
 )
 
-__all__ = ["VoiceError", "VoiceService", "VoiceUnavailable"]
+__all__ = ["VoiceError", "VoiceService", "VoiceUnavailableError"]

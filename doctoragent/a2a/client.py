@@ -13,7 +13,7 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 
@@ -90,8 +90,8 @@ class A2AClient:
         agent_url: str,
         message: dict[str, Any],
         *,
-        task_id: Optional[str] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        task_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> A2ATask:
         """Submit a task to a remote agent (``task/send``)."""
         tid = task_id or f"task-{uuid.uuid4().hex[:12]}"
@@ -140,8 +140,7 @@ class A2AClient:
         while task.status in (TaskStatus.SUBMITTED, TaskStatus.WORKING, TaskStatus.INPUT_REQUIRED):
             if time.monotonic() > deadline:
                 raise A2AError(
-                    f"Task {task.id} did not finish within {max_wait}s "
-                    f"(status={task.status.value})"
+                    f"Task {task.id} did not finish within {max_wait}s (status={task.status.value})"
                 )
             await asyncio.sleep(poll_interval)
             task = await self.get_task(agent_url, task.id)
@@ -171,12 +170,11 @@ class A2AClient:
 
         if data.get("error"):
             raise A2AError(
-                f"A2A server error [{data['error'].get('code')}]: "
-                f"{data['error'].get('message')}"
+                f"A2A server error [{data['error'].get('code')}]: {data['error'].get('message')}"
             )
         return data
 
-    def _make_client(self) -> "httpx.AsyncClient | _NoCloseClient":
+    def _make_client(self) -> httpx.AsyncClient | _NoCloseClient:
         """Return the injected client (no-op context manager) or a new one."""
         if self._http_client is not None:
             return _NoCloseClient(self._http_client)
@@ -198,7 +196,7 @@ class _NoCloseClient:
     def __init__(self, client: httpx.AsyncClient) -> None:
         self._client = client
 
-    async def __aenter__(self) -> "httpx.AsyncClient":
+    async def __aenter__(self) -> httpx.AsyncClient:
         return self._client
 
     async def __aexit__(self, *args: Any) -> None:

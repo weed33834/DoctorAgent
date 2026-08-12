@@ -31,7 +31,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from doctoragent.a2a.models import A2AArtifact, A2ATask, AgentCard, TaskStatus
 

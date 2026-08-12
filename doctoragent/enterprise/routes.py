@@ -55,7 +55,9 @@ async def _auth_dependency(
             raise HTTPException(status_code=401, detail="Invalid or missing authentication token")
         return provided
     if not _is_local_request(request):
-        raise HTTPException(status_code=401, detail="DOCTORAGENT_API_TOKEN not set; remote access denied")
+        raise HTTPException(
+            status_code=401, detail="DOCTORAGENT_API_TOKEN not set; remote access denied"
+        )
     return None
 
 
@@ -91,7 +93,9 @@ def get_router() -> APIRouter:
         return org.model_dump()
 
     @router.get("/orgs/{org_id}", summary="Get an organization")
-    async def get_org(org_id: str, request: Request, _auth: Any = Depends(_auth_dependency)) -> dict[str, Any]:
+    async def get_org(
+        org_id: str, request: Request, _auth: Any = Depends(_auth_dependency)
+    ) -> dict[str, Any]:
         org = _svc(request).get_org(org_id)
         if org is None:
             raise HTTPException(status_code=404, detail="org not found")
@@ -100,7 +104,9 @@ def get_router() -> APIRouter:
     # ── departments (A) ─────────────────────────────────────────────
 
     @router.get("/orgs/{org_id}/departments", summary="List departments (tree)")
-    async def list_departments(org_id: str, request: Request, _auth: Any = Depends(_auth_dependency)) -> dict[str, Any]:
+    async def list_departments(
+        org_id: str, request: Request, _auth: Any = Depends(_auth_dependency)
+    ) -> dict[str, Any]:
         depts = _svc(request).list_departments(org_id)
         return {"total": len(depts), "items": [d.model_dump() for d in depts]}
 
@@ -118,7 +124,8 @@ def get_router() -> APIRouter:
 
     @router.post("/departments/{dept_id}/move", summary="Move a department under a new parent")
     async def move_department(
-        dept_id: str, request: Request,
+        dept_id: str,
+        request: Request,
         payload: dict[str, Any] = Body(...),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
@@ -132,7 +139,8 @@ def get_router() -> APIRouter:
 
     @router.get("/orgs/{org_id}/users", summary="List users with filters")
     async def list_users(
-        org_id: str, request: Request,
+        org_id: str,
+        request: Request,
         dept_id: str | None = Query(None),  # type: ignore[name-defined]  # noqa: B008
         role: str | None = Query(None),  # type: ignore[name-defined]  # noqa: B008
         status: str | None = Query(None),  # type: ignore[name-defined]  # noqa: B008
@@ -146,7 +154,8 @@ def get_router() -> APIRouter:
 
     @router.post("/orgs/{org_id}/users", summary="Create a user account")
     async def create_user(
-        org_id: str, request: Request,
+        org_id: str,
+        request: Request,
         payload: dict[str, Any] = Body(...),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
@@ -155,9 +164,12 @@ def get_router() -> APIRouter:
         role = UserRole(payload.get("role", "member"))
         try:
             user = _svc(request).create_user(
-                org_id, payload.get("email", ""), payload.get("password", ""),
+                org_id,
+                payload.get("email", ""),
+                payload.get("password", ""),
                 display_name=payload.get("display_name", ""),
-                dept_id=payload.get("dept_id"), role=role,
+                dept_id=payload.get("dept_id"),
+                role=role,
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -165,7 +177,8 @@ def get_router() -> APIRouter:
 
     @router.post("/orgs/{org_id}/users/import", summary="Bulk import users (CSV rows)")
     async def import_users(
-        org_id: str, request: Request,
+        org_id: str,
+        request: Request,
         payload: dict[str, Any] = Body(...),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
@@ -174,18 +187,22 @@ def get_router() -> APIRouter:
 
     @router.put("/users/{user_id}/status", summary="Enable / disable / lock a user")
     async def set_user_status(
-        user_id: str, request: Request,
+        user_id: str,
+        request: Request,
         payload: dict[str, Any] = Body(...),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
         from doctoragent.enterprise.models import AccountStatus
 
-        user = _svc(request).set_user_status(user_id, AccountStatus(payload.get("status", "active")))
+        user = _svc(request).set_user_status(
+            user_id, AccountStatus(payload.get("status", "active"))
+        )
         return user.model_dump(exclude={"password_hash", "mfa_secret"})
 
     @router.put("/users/{user_id}/role", summary="Assign a role to a user")
     async def set_user_role(
-        user_id: str, request: Request,
+        user_id: str,
+        request: Request,
         payload: dict[str, Any] = Body(...),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
@@ -203,12 +220,16 @@ def get_router() -> APIRouter:
 
     # ── authentication (B/C) ────────────────────────────────────────
 
-    @router.post("/auth/login", summary="Authenticate (password, with lockout)", include_in_schema=True)
+    @router.post(
+        "/auth/login", summary="Authenticate (password, with lockout)", include_in_schema=True
+    )
     async def login(request: Request, payload: dict[str, Any] = Body(...)) -> dict[str, Any]:  # type: ignore[name-defined]  # noqa: B008
         client_ip = request.client.host if request.client else ""
         user, result = _svc(request).authenticate(
-            payload.get("org_id", "default"), payload.get("email", ""),
-            payload.get("password", ""), ip=client_ip,
+            payload.get("org_id", "default"),
+            payload.get("email", ""),
+            payload.get("password", ""),
+            ip=client_ip,
             user_agent=request.headers.get("user-agent", ""),
         )
         return {
@@ -267,7 +288,8 @@ def get_router() -> APIRouter:
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
         b = _svc(request).set_budget(
-            payload.get("scope", "org"), payload.get("scope_id", ""),
+            payload.get("scope", "org"),
+            payload.get("scope_id", ""),
             float(payload.get("amount_usd", 0)),
             alert_threshold=float(payload.get("alert_threshold", 0.8)),
             hard_limit=bool(payload.get("hard_limit", False)),
@@ -281,7 +303,8 @@ def get_router() -> APIRouter:
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
         return _svc(request).check_overlimit(
-            payload.get("scope", "org"), payload.get("scope_id", ""),
+            payload.get("scope", "org"),
+            payload.get("scope_id", ""),
             float(payload.get("current_usd", 0)),
         )
 
@@ -292,7 +315,8 @@ def get_router() -> APIRouter:
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
         q = _svc(request).set_quota(
-            payload.get("scope", "org"), payload.get("scope_id", ""),
+            payload.get("scope", "org"),
+            payload.get("scope_id", ""),
             tokens_per_day=int(payload.get("tokens_per_day", -1)),
             calls_per_day=int(payload.get("calls_per_day", -1)),
             storage_mb=int(payload.get("storage_mb", -1)),
@@ -303,7 +327,9 @@ def get_router() -> APIRouter:
     # ── settings / announcements / maintenance (K) ─────────────────
 
     @router.get("/settings", summary="List system settings")
-    async def list_settings(request: Request, _auth: Any = Depends(_auth_dependency)) -> dict[str, Any]:
+    async def list_settings(
+        request: Request, _auth: Any = Depends(_auth_dependency)
+    ) -> dict[str, Any]:
         items = _svc(request).list_settings()
         return {"items": [s.model_dump() for s in items]}
 
@@ -317,7 +343,9 @@ def get_router() -> APIRouter:
         return {"ok": True}
 
     @router.get("/announcements", summary="List announcements")
-    async def list_announcements(request: Request, _auth: Any = Depends(_auth_dependency)) -> dict[str, Any]:
+    async def list_announcements(
+        request: Request, _auth: Any = Depends(_auth_dependency)
+    ) -> dict[str, Any]:
         items = _svc(request).list_announcements()
         return {"total": len(items), "items": [a.model_dump() for a in items]}
 
@@ -328,13 +356,17 @@ def get_router() -> APIRouter:
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
         a = _svc(request).create_announcement(
-            payload.get("title", ""), payload.get("content", ""),
-            level=payload.get("level", "info"), pinned=bool(payload.get("pinned", False)),
+            payload.get("title", ""),
+            payload.get("content", ""),
+            level=payload.get("level", "info"),
+            pinned=bool(payload.get("pinned", False)),
         )
         return a.model_dump()
 
     @router.get("/maintenance", summary="Get maintenance state")
-    async def get_maintenance(request: Request, _auth: Any = Depends(_auth_dependency)) -> dict[str, Any]:
+    async def get_maintenance(
+        request: Request, _auth: Any = Depends(_auth_dependency)
+    ) -> dict[str, Any]:
         return _svc(request).get_maintenance().model_dump()
 
     @router.put("/maintenance", summary="Set maintenance mode")
@@ -343,11 +375,15 @@ def get_router() -> APIRouter:
         payload: dict[str, Any] = Body(...),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
-        return _svc(request).set_maintenance(
-            bool(payload.get("enabled", False)),
-            message=payload.get("message", ""),
-            readonly=bool(payload.get("readonly", False)),
-        ).model_dump()
+        return (
+            _svc(request)
+            .set_maintenance(
+                bool(payload.get("enabled", False)),
+                message=payload.get("message", ""),
+                readonly=bool(payload.get("readonly", False)),
+            )
+            .model_dump()
+        )
 
     # ── API keys (G) ────────────────────────────────────────────────
 
@@ -367,12 +403,15 @@ def get_router() -> APIRouter:
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
         return _svc(request).create_api_key(
-            payload.get("org_id", "default"), payload.get("label", ""),
+            payload.get("org_id", "default"),
+            payload.get("label", ""),
             scopes=payload.get("scopes"),
         )
 
     @router.get("/status", summary="Enterprise platform summary")
-    async def enterprise_status(request: Request, _auth: Any = Depends(_auth_dependency)) -> dict[str, Any]:
+    async def enterprise_status(
+        request: Request, _auth: Any = Depends(_auth_dependency)
+    ) -> dict[str, Any]:
         svc = _svc(request)
         orgs = svc.list_orgs()
         return {

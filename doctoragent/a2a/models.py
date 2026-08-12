@@ -92,14 +92,13 @@ class A2ATask:
             "status": self.status.value,
             "message": self.message,
             "artifacts": [
-                {"parts": a.parts, "metadata": a.metadata, "index": a.index}
-                for a in self.artifacts
+                {"parts": a.parts, "metadata": a.metadata, "index": a.index} for a in self.artifacts
             ],
             "metadata": self.metadata,
         }
 
     @classmethod
-    def new(cls, message: dict[str, Any] | None, metadata: dict[str, Any] | None = None) -> "A2ATask":
+    def new(cls, message: dict[str, Any] | None, metadata: dict[str, Any] | None = None) -> A2ATask:
         """Create a task with a fresh server-generated id."""
         return cls(
             id=f"task-{uuid.uuid4().hex[:12]}",

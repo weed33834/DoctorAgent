@@ -88,8 +88,18 @@ class InteropStore:
                 "INSERT OR REPLACE INTO interop_agents "
                 "(id,name,url,description,capabilities,trust_level,auth_type,"
                 "health,last_seen,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                (a.id, a.name, a.url, a.description, json.dumps(a.capabilities),
-                 a.trust_level.value, a.auth_type, a.health, a.last_seen, a.created_at),
+                (
+                    a.id,
+                    a.name,
+                    a.url,
+                    a.description,
+                    json.dumps(a.capabilities),
+                    a.trust_level.value,
+                    a.auth_type,
+                    a.health,
+                    a.last_seen,
+                    a.created_at,
+                ),
             )
             conn.commit()
 
@@ -105,8 +115,10 @@ class InteropStore:
 
     def set_agent_health(self, agent_id: str, health: str) -> None:
         with self._connect() as conn:
-            conn.execute("UPDATE interop_agents SET health=?, last_seen=? WHERE id=?",
-                         (health, _now(), agent_id))
+            conn.execute(
+                "UPDATE interop_agents SET health=?, last_seen=? WHERE id=?",
+                (health, _now(), agent_id),
+            )
             conn.commit()
 
     def delete_agent(self, agent_id: str) -> None:
@@ -117,10 +129,16 @@ class InteropStore:
     @staticmethod
     def _row_agent(row: Any) -> ExternalAgent:
         return ExternalAgent(
-            id=row["id"], name=row["name"], url=row["url"], description=row["description"],
+            id=row["id"],
+            name=row["name"],
+            url=row["url"],
+            description=row["description"],
             capabilities=json.loads(row["capabilities"] or "[]"),
-            trust_level=TrustLevel(row["trust_level"]), auth_type=row["auth_type"],
-            health=row["health"], last_seen=row["last_seen"], created_at=row["created_at"],
+            trust_level=TrustLevel(row["trust_level"]),
+            auth_type=row["auth_type"],
+            health=row["health"],
+            last_seen=row["last_seen"],
+            created_at=row["created_at"],
         )
 
     # ── interop policies ────────────────────────────────────────────
@@ -131,9 +149,17 @@ class InteropStore:
                 "INSERT OR REPLACE INTO interop_policies "
                 "(id,name,allow_agents,deny_actions,rate_limit_per_min,"
                 "require_trust,audit_level,enabled,created_at) VALUES (?,?,?,?,?,?,?,?,?)",
-                (p.id, p.name, json.dumps(p.allow_agents), json.dumps(p.deny_actions),
-                 p.rate_limit_per_min, p.require_trust.value, p.audit_level,
-                 1 if p.enabled else 0, p.created_at),
+                (
+                    p.id,
+                    p.name,
+                    json.dumps(p.allow_agents),
+                    json.dumps(p.deny_actions),
+                    p.rate_limit_per_min,
+                    p.require_trust.value,
+                    p.audit_level,
+                    1 if p.enabled else 0,
+                    p.created_at,
+                ),
             )
             conn.commit()
 
@@ -145,11 +171,15 @@ class InteropStore:
             rows = conn.execute(sql).fetchall()
         return [
             InteropPolicy(
-                id=r["id"], name=r["name"], allow_agents=json.loads(r["allow_agents"] or "[]"),
+                id=r["id"],
+                name=r["name"],
+                allow_agents=json.loads(r["allow_agents"] or "[]"),
                 deny_actions=json.loads(r["deny_actions"] or "[]"),
                 rate_limit_per_min=r["rate_limit_per_min"],
-                require_trust=TrustLevel(r["require_trust"]), audit_level=r["audit_level"],
-                enabled=bool(r["enabled"]), created_at=r["created_at"],
+                require_trust=TrustLevel(r["require_trust"]),
+                audit_level=r["audit_level"],
+                enabled=bool(r["enabled"]),
+                created_at=r["created_at"],
             )
             for r in rows
         ]
@@ -162,29 +192,48 @@ class InteropStore:
                 "INSERT INTO interop_tasks "
                 "(id,peer_agent,direction,status,message_summary,artifacts,"
                 "started_at,finished_at,duration_ms,error) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                (t.id, t.peer_agent, t.direction, t.status, t.message_summary,
-                 json.dumps(t.artifacts), t.started_at, t.finished_at,
-                 t.duration_ms, t.error),
+                (
+                    t.id,
+                    t.peer_agent,
+                    t.direction,
+                    t.status,
+                    t.message_summary,
+                    json.dumps(t.artifacts),
+                    t.started_at,
+                    t.finished_at,
+                    t.duration_ms,
+                    t.error,
+                ),
             )
             conn.commit()
 
-    def list_tasks(self, peer_agent: str | None = None, direction: str | None = None,
-                   limit: int = 100) -> list[A2ATaskRecord]:
+    def list_tasks(
+        self, peer_agent: str | None = None, direction: str | None = None, limit: int = 100
+    ) -> list[A2ATaskRecord]:
         sql = "SELECT * FROM interop_tasks WHERE 1=1"
         params: list[Any] = []
         if peer_agent:
-            sql += " AND peer_agent=?"; params.append(peer_agent)
+            sql += " AND peer_agent=?"
+            params.append(peer_agent)
         if direction:
-            sql += " AND direction=?"; params.append(direction)
-        sql += " ORDER BY started_at DESC LIMIT ?"; params.append(limit)
+            sql += " AND direction=?"
+            params.append(direction)
+        sql += " ORDER BY started_at DESC LIMIT ?"
+        params.append(limit)
         with self._connect() as conn:
             rows = conn.execute(sql, params).fetchall()
         return [
             A2ATaskRecord(
-                id=r["id"], peer_agent=r["peer_agent"], direction=r["direction"],
-                status=r["status"], message_summary=r["message_summary"],
-                artifacts=json.loads(r["artifacts"] or "[]"), started_at=r["started_at"],
-                finished_at=r["finished_at"], duration_ms=r["duration_ms"], error=r["error"],
+                id=r["id"],
+                peer_agent=r["peer_agent"],
+                direction=r["direction"],
+                status=r["status"],
+                message_summary=r["message_summary"],
+                artifacts=json.loads(r["artifacts"] or "[]"),
+                started_at=r["started_at"],
+                finished_at=r["finished_at"],
+                duration_ms=r["duration_ms"],
+                error=r["error"],
             )
             for r in rows
         ]
@@ -197,23 +246,48 @@ class InteropService:
         self.store = store
         self.a2a_client = a2a_client
 
-    def register_agent(self, name: str, url: str, *, description: str = "",
-                       capabilities: list[str] | None = None,
-                       trust_level: TrustLevel = TrustLevel.LIMITED,
-                       auth_type: str = "none") -> ExternalAgent:
-        agent = ExternalAgent(id=_id("agent"), name=name, url=url, description=description,
-                              capabilities=capabilities or [], trust_level=trust_level,
-                              auth_type=auth_type, health="unknown", created_at=_now())
+    def register_agent(
+        self,
+        name: str,
+        url: str,
+        *,
+        description: str = "",
+        capabilities: list[str] | None = None,
+        trust_level: TrustLevel = TrustLevel.LIMITED,
+        auth_type: str = "none",
+    ) -> ExternalAgent:
+        agent = ExternalAgent(
+            id=_id("agent"),
+            name=name,
+            url=url,
+            description=description,
+            capabilities=capabilities or [],
+            trust_level=trust_level,
+            auth_type=auth_type,
+            health="unknown",
+            created_at=_now(),
+        )
         self.store.upsert_agent(agent)
         return agent
 
-    def add_policy(self, name: str, *, allow_agents: list[str] | None = None,
-                   deny_actions: list[str] | None = None,
-                   require_trust: TrustLevel = TrustLevel.TRUSTED,
-                   rate_limit_per_min: int = 60) -> InteropPolicy:
-        p = InteropPolicy(id=_id("pol"), name=name, allow_agents=allow_agents or [],
-                          deny_actions=deny_actions or [], require_trust=require_trust,
-                          rate_limit_per_min=rate_limit_per_min, created_at=_now())
+    def add_policy(
+        self,
+        name: str,
+        *,
+        allow_agents: list[str] | None = None,
+        deny_actions: list[str] | None = None,
+        require_trust: TrustLevel = TrustLevel.TRUSTED,
+        rate_limit_per_min: int = 60,
+    ) -> InteropPolicy:
+        p = InteropPolicy(
+            id=_id("pol"),
+            name=name,
+            allow_agents=allow_agents or [],
+            deny_actions=deny_actions or [],
+            require_trust=require_trust,
+            rate_limit_per_min=rate_limit_per_min,
+            created_at=_now(),
+        )
         self.store.upsert_policy(p)
         return p
 
@@ -228,7 +302,10 @@ class InteropService:
             if p.allow_agents and agent_name not in p.allow_agents:
                 continue
             if _TRUST_RANK[trust] < _TRUST_RANK[p.require_trust]:
-                return {"allowed": False, "reason": f"trust {trust.value} below {p.require_trust.value}"}
+                return {
+                    "allowed": False,
+                    "reason": f"trust {trust.value} below {p.require_trust.value}",
+                }
             return {"allowed": True, "policy": p.name, "rate_limit_per_min": p.rate_limit_per_min}
         return {"allowed": True, "rate_limit_per_min": 60}
 
@@ -241,12 +318,19 @@ class InteropService:
             agent.url, message, poll_interval=0.5, max_wait=60.0
         )
         dur = int((time.monotonic() - started) * 1000)
-        self.store.record_task(A2ATaskRecord(
-            id=_id("task"), peer_agent=agent.name, direction="outbound",
-            status=task.status.value, message_summary=str(message.get("parts", ""))[:120],
-            artifacts=[a.parts for a in task.artifacts], started_at=_now(),
-            finished_at=_now(), duration_ms=dur,
-        ))
+        self.store.record_task(
+            A2ATaskRecord(
+                id=_id("task"),
+                peer_agent=agent.name,
+                direction="outbound",
+                status=task.status.value,
+                message_summary=str(message.get("parts", ""))[:120],
+                artifacts=[a.parts for a in task.artifacts],
+                started_at=_now(),
+                finished_at=_now(),
+                duration_ms=dur,
+            )
+        )
         return {"task_id": task.id, "status": task.status.value, "text": task.text}
 
     def overview(self) -> dict[str, Any]:

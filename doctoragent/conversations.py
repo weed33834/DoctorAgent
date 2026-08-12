@@ -79,8 +79,12 @@ class ConversationStore:
                 (token, conversation_id, _now(), expires),
             )
             conn.commit()
-        return {"token": token, "conversation_id": conversation_id,
-                "expires_at": expires, "ttl_hours": ttl_hours}
+        return {
+            "token": token,
+            "conversation_id": conversation_id,
+            "expires_at": expires,
+            "ttl_hours": ttl_hours,
+        }
 
     def get_shared(self, token: str) -> dict[str, Any] | None:
         """Resolve a share token to a conversation (for public view)."""
@@ -128,8 +132,13 @@ class ConversationStore:
 
     def create(self, title: str = "新对话", meta: dict[str, Any] | None = None) -> dict[str, Any]:
         now = _now()
-        row = {"id": _id("conv"), "title": title or "新对话",
-               "created_at": now, "updated_at": now, "meta": meta or {}}
+        row = {
+            "id": _id("conv"),
+            "title": title or "新对话",
+            "created_at": now,
+            "updated_at": now,
+            "meta": meta or {},
+        }
         with self._connect() as conn:
             conn.execute(
                 "INSERT INTO conv_conversations (id,title,created_at,updated_at,meta) VALUES (?,?,?,?,?)",
@@ -175,14 +184,18 @@ class ConversationStore:
 
     def rename(self, conversation_id: str, title: str) -> bool:
         with self._connect() as conn:
-            cur = conn.execute("UPDATE conv_conversations SET title=?, updated_at=? WHERE id=?",
-                               (title, _now(), conversation_id))
+            cur = conn.execute(
+                "UPDATE conv_conversations SET title=?, updated_at=? WHERE id=?",
+                (title, _now(), conversation_id),
+            )
             conn.commit()
         return cur.rowcount > 0
 
     def delete(self, conversation_id: str) -> bool:
         with self._connect() as conn:
-            c1 = conn.execute("DELETE FROM conv_messages WHERE conversation_id=?", (conversation_id,))
+            c1 = conn.execute(
+                "DELETE FROM conv_messages WHERE conversation_id=?", (conversation_id,)
+            )
             c2 = conn.execute("DELETE FROM conv_conversations WHERE id=?", (conversation_id,))
             conn.commit()
         return c2.rowcount > 0 or c1.rowcount > 0
@@ -205,22 +218,33 @@ class ConversationStore:
         return self.get(conv["id"])
 
     def _count_messages(self, conn: sqlite3.Connection, cid: str) -> int:
-        return conn.execute("SELECT COUNT(*) c FROM conv_messages WHERE conversation_id=?", (cid,)).fetchone()["c"]
+        return conn.execute(
+            "SELECT COUNT(*) c FROM conv_messages WHERE conversation_id=?", (cid,)
+        ).fetchone()["c"]
 
     # ── messages & feedback ──────────────────────────────────────────
 
     def add_message(self, conversation_id: str, role: str, content: str) -> dict[str, Any] | None:
         if not self.get(conversation_id):
             return None
-        row = {"id": _id("msg"), "conversation_id": conversation_id, "role": role,
-               "content": content, "ts": _now(), "feedback": 0, "feedback_comment": ""}
+        row = {
+            "id": _id("msg"),
+            "conversation_id": conversation_id,
+            "role": role,
+            "content": content,
+            "ts": _now(),
+            "feedback": 0,
+            "feedback_comment": "",
+        }
         with self._connect() as conn:
             conn.execute(
                 "INSERT INTO conv_messages (id,conversation_id,role,content,ts,feedback,feedback_comment) "
                 "VALUES (?,?,?,?,?,?,?)",
                 (row["id"], conversation_id, role, content, row["ts"], 0, ""),
             )
-            conn.execute("UPDATE conv_conversations SET updated_at=? WHERE id=?", (_now(), conversation_id))
+            conn.execute(
+                "UPDATE conv_conversations SET updated_at=? WHERE id=?", (_now(), conversation_id)
+            )
             conn.commit()
         return row
 
@@ -238,10 +262,13 @@ class ConversationStore:
         with self._connect() as conn:
             convs = conn.execute("SELECT COUNT(*) c FROM conv_conversations").fetchone()["c"]
             msgs = conn.execute("SELECT COUNT(*) c FROM conv_messages").fetchone()["c"]
-            likes = conn.execute("SELECT COUNT(*) c FROM conv_messages WHERE feedback=1").fetchone()["c"]
-            dislikes = conn.execute("SELECT COUNT(*) c FROM conv_messages WHERE feedback=-1").fetchone()["c"]
-        return {"conversations": convs, "messages": msgs,
-                "likes": likes, "dislikes": dislikes}
+            likes = conn.execute(
+                "SELECT COUNT(*) c FROM conv_messages WHERE feedback=1"
+            ).fetchone()["c"]
+            dislikes = conn.execute(
+                "SELECT COUNT(*) c FROM conv_messages WHERE feedback=-1"
+            ).fetchone()["c"]
+        return {"conversations": convs, "messages": msgs, "likes": likes, "dislikes": dislikes}
 
 
 def _dumps(d: dict[str, Any]) -> str:

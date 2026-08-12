@@ -11,7 +11,6 @@ Register via :func:`register_workspace_tools`.
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
@@ -53,8 +52,17 @@ class ListPromptsTool(_WorkspaceTool):
             items = self.store.list_prompts()
         except Exception as exc:  # noqa: BLE001
             return _result(False, error=str(exc))
-        return _result(True, [{"name": p["name"], "description": p["description"],
-                               "template": p["template"][:120]} for p in items])
+        return _result(
+            True,
+            [
+                {
+                    "name": p["name"],
+                    "description": p["description"],
+                    "template": p["template"][:120],
+                }
+                for p in items
+            ],
+        )
 
 
 class CreatePromptTool(_WorkspaceTool):
@@ -62,14 +70,22 @@ class CreatePromptTool(_WorkspaceTool):
     description = "Create or update a prompt template (system prompt) by name."
     parameters: list[dict[str, Any]] = [
         {"name": "name", "type": "string", "required": True, "description": "template name"},
-        {"name": "template", "type": "string", "required": True, "description": "prompt text, may use {var}"},
+        {
+            "name": "template",
+            "type": "string",
+            "required": True,
+            "description": "prompt text, may use {var}",
+        },
         {"name": "description", "type": "string", "required": False, "description": "purpose"},
     ]
 
     async def execute(self, **kwargs: Any) -> ToolResult:
         try:
-            p = self.store.upsert_prompt(kwargs.get("name", ""), kwargs.get("template", ""),
-                                         description=kwargs.get("description", ""))
+            p = self.store.upsert_prompt(
+                kwargs.get("name", ""),
+                kwargs.get("template", ""),
+                description=kwargs.get("description", ""),
+            )
         except Exception as exc:  # noqa: BLE001
             return _result(False, error=str(exc))
         return _result(True, {"ok": True, "prompt": p["name"]})
@@ -101,8 +117,13 @@ class ListSkillsTool(_WorkspaceTool):
             items = self.store.list_skills()
         except Exception as exc:  # noqa: BLE001
             return _result(False, error=str(exc))
-        return _result(True, [{"name": s["name"], "description": s["description"],
-                               "triggers": s["triggers"]} for s in items])
+        return _result(
+            True,
+            [
+                {"name": s["name"], "description": s["description"], "triggers": s["triggers"]}
+                for s in items
+            ],
+        )
 
 
 class RegisterSkillTool(_WorkspaceTool):
@@ -110,14 +131,22 @@ class RegisterSkillTool(_WorkspaceTool):
     description = "Register a new custom skill (a reusable capability pack)."
     parameters: list[dict[str, Any]] = [
         {"name": "name", "type": "string", "required": True, "description": "skill name"},
-        {"name": "description", "type": "string", "required": True, "description": "what the skill does"},
+        {
+            "name": "description",
+            "type": "string",
+            "required": True,
+            "description": "what the skill does",
+        },
         {"name": "triggers", "type": "list", "required": False, "description": "trigger keywords"},
     ]
 
     async def execute(self, **kwargs: Any) -> ToolResult:
         try:
-            s = self.store.register_skill(kwargs.get("name", ""), kwargs.get("description", ""),
-                                          triggers=kwargs.get("triggers"))
+            s = self.store.register_skill(
+                kwargs.get("name", ""),
+                kwargs.get("description", ""),
+                triggers=kwargs.get("triggers"),
+            )
         except Exception as exc:  # noqa: BLE001
             return _result(False, error=str(exc))
         return _result(True, {"ok": True, "skill": s["name"]})
@@ -133,31 +162,54 @@ class ListExpertsTool(_WorkspaceTool):
             items = self.store.list_experts()
         except Exception as exc:  # noqa: BLE001
             return _result(False, error=str(exc))
-        return _result(True, [{"name": e["name"], "title": e["title"],
-                               "system_prompt": e["system_prompt"][:120]} for e in items])
+        return _result(
+            True,
+            [
+                {"name": e["name"], "title": e["title"], "system_prompt": e["system_prompt"][:120]}
+                for e in items
+            ],
+        )
 
 
 class CreateExpertTool(_WorkspaceTool):
     name = "create_expert"
-    description = "Create a custom expert: a named persona with its own system prompt and optional tools."
+    description = (
+        "Create a custom expert: a named persona with its own system prompt and optional tools."
+    )
     parameters: list[dict[str, Any]] = [
         {"name": "name", "type": "string", "required": True, "description": "expert name"},
         {"name": "title", "type": "string", "required": True, "description": "display title"},
-        {"name": "system_prompt", "type": "string", "required": True, "description": "persona system prompt"},
+        {
+            "name": "system_prompt",
+            "type": "string",
+            "required": True,
+            "description": "persona system prompt",
+        },
         {"name": "tools", "type": "list", "required": False, "description": "tool names to enable"},
     ]
 
     async def execute(self, **kwargs: Any) -> ToolResult:
         try:
-            e = self.store.create_expert(kwargs.get("name", ""), kwargs.get("title", ""),
-                                         kwargs.get("system_prompt", ""), tools=kwargs.get("tools"))
+            e = self.store.create_expert(
+                kwargs.get("name", ""),
+                kwargs.get("title", ""),
+                kwargs.get("system_prompt", ""),
+                tools=kwargs.get("tools"),
+            )
         except Exception as exc:  # noqa: BLE001
             return _result(False, error=str(exc))
         return _result(True, {"ok": True, "expert": e["name"]})
 
 
-_TOOL_CLASSES = (ListPromptsTool, CreatePromptTool, UpdatePromptTool,
-                 ListSkillsTool, RegisterSkillTool, ListExpertsTool, CreateExpertTool)
+_TOOL_CLASSES = (
+    ListPromptsTool,
+    CreatePromptTool,
+    UpdatePromptTool,
+    ListSkillsTool,
+    RegisterSkillTool,
+    ListExpertsTool,
+    CreateExpertTool,
+)
 
 
 def register_workspace_tools(registry: Any, store: Any) -> list[str]:

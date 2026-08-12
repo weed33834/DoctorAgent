@@ -10,9 +10,10 @@ from __future__ import annotations
 
 import sqlite3
 import uuid
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 TASK_TYPES = {"import", "export", "reindex", "backup", "sync", "custom"}
 
@@ -57,20 +58,41 @@ class TaskCenter:
     def register_handler(self, task_type: str, fn: Callable[[dict[str, Any]], Any]) -> None:
         self._handlers[task_type] = fn
 
-    def create(self, task_type: str, name: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+    def create(
+        self, task_type: str, name: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         if task_type not in TASK_TYPES:
             raise ValueError(f"unknown task_type {task_type}")
-        row = {"id": _id("task"), "task_type": task_type, "name": name,
-               "params": params or {}, "status": "pending", "progress": 0.0,
-               "error": "", "result": "", "retries": 0,
-               "created_at": _now(), "updated_at": _now()}
+        row = {
+            "id": _id("task"),
+            "task_type": task_type,
+            "name": name,
+            "params": params or {},
+            "status": "pending",
+            "progress": 0.0,
+            "error": "",
+            "result": "",
+            "retries": 0,
+            "created_at": _now(),
+            "updated_at": _now(),
+        }
         with self._connect() as conn:
             conn.execute(
                 "INSERT INTO tasks (id,task_type,name,params,status,progress,error,result,"
                 "retries,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                (row["id"], task_type, name,
-                 __import__("json").dumps(row["params"], ensure_ascii=False),
-                 "pending", 0.0, "", "", 0, row["created_at"], row["updated_at"]),
+                (
+                    row["id"],
+                    task_type,
+                    name,
+                    __import__("json").dumps(row["params"], ensure_ascii=False),
+                    "pending",
+                    0.0,
+                    "",
+                    "",
+                    0,
+                    row["created_at"],
+                    row["updated_at"],
+                ),
             )
             conn.commit()
         # Auto-execute synchronously when a handler is registered (keeps it real).
@@ -78,8 +100,7 @@ class TaskCenter:
             try:
                 self._update(row["id"], status="running", progress=0.05)
                 result = self._handlers[task_type](row["params"])
-                self._update(row["id"], status="completed", progress=1.0,
-                             result=str(result))
+                self._update(row["id"], status="completed", progress=1.0, result=str(result))
             except Exception as exc:  # noqa: BLE001
                 self._update(row["id"], status="failed", error=str(exc))
         return row

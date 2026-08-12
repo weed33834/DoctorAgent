@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
+from fastapi.security import HTTPBearer
 
 from doctoragent.api.auth._guards import (
     is_local_request as _is_local_request,
@@ -21,7 +22,6 @@ from doctoragent.api.auth._guards import (
 from doctoragent.api.auth._guards import (
     verify_bearer as _verify_bearer,
 )
-from fastapi.security import HTTPBearer
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -41,7 +41,9 @@ async def _auth_dependency(
             raise HTTPException(status_code=401, detail="Invalid or missing authentication token")
         return provided
     if not _is_local_request(request):
-        raise HTTPException(status_code=401, detail="DOCTORAGENT_API_TOKEN not set; remote access denied")
+        raise HTTPException(
+            status_code=401, detail="DOCTORAGENT_API_TOKEN not set; remote access denied"
+        )
     return None
 
 
@@ -58,7 +60,9 @@ def get_router() -> APIRouter:
     # ── error catalog (M19 docs-support) ────────────────────────────
 
     @router.get("/errors", summary="Error code catalog")
-    async def error_catalog(request: Request, _auth: Any = Depends(_auth_dependency)) -> dict[str, Any]:
+    async def error_catalog(
+        request: Request, _auth: Any = Depends(_auth_dependency)
+    ) -> dict[str, Any]:
         from doctoragent.api.error_catalog import catalog
 
         items = catalog()
@@ -113,7 +117,9 @@ def get_router() -> APIRouter:
         }
 
     @router.get("/governance/summary", summary="Data catalog summary")
-    async def governance_summary(request: Request, _auth: Any = Depends(_auth_dependency)) -> dict[str, Any]:
+    async def governance_summary(
+        request: Request, _auth: Any = Depends(_auth_dependency)
+    ) -> dict[str, Any]:
         return _get(request, "governance_service").catalog_summary()
 
     @router.post("/governance/lineage", summary="Record a lineage edge")
@@ -123,24 +129,32 @@ def get_router() -> APIRouter:
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
         svc = _get(request, "governance_service")
-        edge = svc.record_lineage(payload.get("upstream", ""), payload.get("downstream", ""),
-                                  payload.get("transform", ""))
+        edge = svc.record_lineage(
+            payload.get("upstream", ""), payload.get("downstream", ""), payload.get("transform", "")
+        )
         return edge.model_dump()
 
     @router.post("/governance/assets/{asset_id}/quality", summary="Add a quality check")
     async def add_quality(
-        asset_id: str, request: Request,
+        asset_id: str,
+        request: Request,
         payload: dict[str, Any] = Body(...),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
         from doctoragent.governance.models import QualityCheck
 
         svc = _get(request, "governance_service")
-        q = svc.store.add_quality(QualityCheck(
-            id="", asset_id=asset_id, check_type=payload.get("check_type", "accuracy"),
-            score=float(payload.get("score", 0.0)), status=payload.get("status", "pass"),
-            detail=payload.get("detail", ""), created_at="",
-        ))
+        q = svc.store.add_quality(
+            QualityCheck(
+                id="",
+                asset_id=asset_id,
+                check_type=payload.get("check_type", "accuracy"),
+                score=float(payload.get("score", 0.0)),
+                status=payload.get("status", "pass"),
+                detail=payload.get("detail", ""),
+                created_at="",
+            )
+        )
         return q.model_dump()
 
     @router.post("/governance/rules", summary="Add a classification rule")
@@ -162,7 +176,9 @@ def get_router() -> APIRouter:
     # ── model pricing (M21) ─────────────────────────────────────────
 
     @router.get("/pricing/models", summary="List model price table")
-    async def list_prices(request: Request, _auth: Any = Depends(_auth_dependency)) -> dict[str, Any]:
+    async def list_prices(
+        request: Request, _auth: Any = Depends(_auth_dependency)
+    ) -> dict[str, Any]:
         return _get(request, "pricing").list_prices()
 
     @router.post("/pricing/compare", summary="Compare models on cost/context (比价器)")
@@ -192,7 +208,9 @@ def get_router() -> APIRouter:
     # ── semantic cache (M23) ────────────────────────────────────────
 
     @router.get("/cache/stats", summary="Semantic cache stats")
-    async def cache_stats(request: Request, _auth: Any = Depends(_auth_dependency)) -> dict[str, Any]:
+    async def cache_stats(
+        request: Request, _auth: Any = Depends(_auth_dependency)
+    ) -> dict[str, Any]:
         cache = _get(request, "semantic_cache")
         return cache.stats()
 
@@ -207,7 +225,9 @@ def get_router() -> APIRouter:
         return {"ok": True}
 
     @router.delete("/cache", summary="Clear the semantic cache")
-    async def cache_clear(request: Request, _auth: Any = Depends(_auth_dependency)) -> dict[str, Any]:
+    async def cache_clear(
+        request: Request, _auth: Any = Depends(_auth_dependency)
+    ) -> dict[str, Any]:
         cache = _get(request, "semantic_cache")
         cache.clear()
         return {"ok": True}
@@ -215,7 +235,9 @@ def get_router() -> APIRouter:
     # ── cost dashboard (M21) ────────────────────────────────────────
 
     @router.get("/cost/overview", summary="Cost dashboard overview")
-    async def cost_overview(request: Request, _auth: Any = Depends(_auth_dependency)) -> dict[str, Any]:
+    async def cost_overview(
+        request: Request, _auth: Any = Depends(_auth_dependency)
+    ) -> dict[str, Any]:
         tracker = _get(request, "cost_tracker")
         summary = tracker.get_summary() if hasattr(tracker, "get_summary") else {}
         pricing = _get(request, "pricing")

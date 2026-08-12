@@ -62,7 +62,9 @@ class OpenAIAgentsAdapter(AgentRuntimeAdapter):
 
     name = "openai_agents"
 
-    def __init__(self, model: str = "gpt-4o", instructions: str = "You are a helpful assistant.") -> None:
+    def __init__(
+        self, model: str = "gpt-4o", instructions: str = "You are a helpful assistant."
+    ) -> None:
         self.model = model
         self.instructions = instructions
 
@@ -92,7 +94,9 @@ class ClaudeSDKAdapter(AgentRuntimeAdapter):
         system = kwargs.get("system", "You are a helpful assistant.")
         prompt = messages[-1].get("content", "") if messages else ""
         resp = await client.messages.create(
-            model=self.model, max_tokens=1024, system=system,
+            model=self.model,
+            max_tokens=1024,
+            system=system,
             messages=[{"role": "user", "content": prompt}],
         )
         return "".join(b.text for b in resp.content if b.type == "text")

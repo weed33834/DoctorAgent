@@ -12,8 +12,9 @@ to PDF/DOCX so the assistant can turn an answer into a shareable file.
 from __future__ import annotations
 
 import io
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 # reportlab / python-docx are optional; import lazily and degrade gracefully.
 try:
@@ -21,13 +22,14 @@ try:
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.units import mm
     from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+
     _REPORTLAB_OK = True
 except Exception:  # pragma: no cover
     _REPORTLAB_OK = False
 
 try:
     from docx import Document
-    from docx.shared import Pt
+
     _DOCX_OK = True
 except Exception:  # pragma: no cover
     _DOCX_OK = False
@@ -63,14 +65,23 @@ def markdown_to_pdf(md: str, out: Path) -> Path:
     if not _REPORTLAB_OK:
         raise DocExportError("PDF export requires reportlab (pip install reportlab)")
     styles = {
-        "h1": ParagraphStyle("h1", fontName="Helvetica-Bold", fontSize=20, leading=26, spaceAfter=10),
-        "h2": ParagraphStyle("h2", fontName="Helvetica-Bold", fontSize=15, leading=20, spaceAfter=8, spaceBefore=10),
+        "h1": ParagraphStyle(
+            "h1", fontName="Helvetica-Bold", fontSize=20, leading=26, spaceAfter=10
+        ),
+        "h2": ParagraphStyle(
+            "h2", fontName="Helvetica-Bold", fontSize=15, leading=20, spaceAfter=8, spaceBefore=10
+        ),
         "body": ParagraphStyle("body", fontName="Helvetica", fontSize=10.5, leading=15),
     }
     buf = io.BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=A4,
-                            leftMargin=18 * mm, rightMargin=18 * mm,
-                            topMargin=18 * mm, bottomMargin=18 * mm)
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=A4,
+        leftMargin=18 * mm,
+        rightMargin=18 * mm,
+        topMargin=18 * mm,
+        bottomMargin=18 * mm,
+    )
     story: list[Any] = []
     for raw in md.splitlines():
         line = raw.strip()

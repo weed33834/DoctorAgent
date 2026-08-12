@@ -89,7 +89,10 @@ class ToolDefinition(BaseModel):
         required = []
 
         for param in self.parameters:
-            prop: dict[str, Any] = {"type": _json_schema_type(param.type), "description": param.description}
+            prop: dict[str, Any] = {
+                "type": _json_schema_type(param.type),
+                "description": param.description,
+            }
             if prop["type"] == "array":
                 prop["items"] = {"type": "string"}
             if param.enum:

@@ -10,25 +10,101 @@ Real, dependency-light text utilities used across the agent:
 from __future__ import annotations
 
 import re
-import string
 from collections import Counter
-from typing import Any
 
 # CJK + ASCII word tokens
 _WORD_RE = re.compile(r"[\u4e00-\u9fff]|[a-zA-Z0-9]+")
 
 _EN_STOP = {
-    "the", "a", "an", "and", "or", "but", "if", "then", "else", "for", "of",
-    "to", "in", "on", "at", "with", "by", "from", "is", "are", "was", "were",
-    "this", "that", "these", "those", "it", "its", "as", "be", "been", "can",
-    "will", "would", "should", "may", "might", "do", "does", "did", "have",
-    "has", "had", "not", "no", "also", "such", "which", "what", "how", "why",
+    "the",
+    "a",
+    "an",
+    "and",
+    "or",
+    "but",
+    "if",
+    "then",
+    "else",
+    "for",
+    "of",
+    "to",
+    "in",
+    "on",
+    "at",
+    "with",
+    "by",
+    "from",
+    "is",
+    "are",
+    "was",
+    "were",
+    "this",
+    "that",
+    "these",
+    "those",
+    "it",
+    "its",
+    "as",
+    "be",
+    "been",
+    "can",
+    "will",
+    "would",
+    "should",
+    "may",
+    "might",
+    "do",
+    "does",
+    "did",
+    "have",
+    "has",
+    "had",
+    "not",
+    "no",
+    "also",
+    "such",
+    "which",
+    "what",
+    "how",
+    "why",
 }
 
 _CJK_STOP = {
-    "的", "了", "在", "是", "和", "与", "及", "或", "也", "都", "很", "把",
-    "被", "于", "对", "为", "从", "到", "这", "那", "之", "有", "上", "下",
-    "中", "而", "且", "并", "其", "它", "他", "她", "我", "你", "们",
+    "的",
+    "了",
+    "在",
+    "是",
+    "和",
+    "与",
+    "及",
+    "或",
+    "也",
+    "都",
+    "很",
+    "把",
+    "被",
+    "于",
+    "对",
+    "为",
+    "从",
+    "到",
+    "这",
+    "那",
+    "之",
+    "有",
+    "上",
+    "下",
+    "中",
+    "而",
+    "且",
+    "并",
+    "其",
+    "它",
+    "他",
+    "她",
+    "我",
+    "你",
+    "们",
 }
 
 
@@ -102,7 +178,7 @@ def summarize(text: str, max_sentences: int = 3, keywords: list[str] | None = No
             chosen.append(s)
         elif kws and any(k in s for k in kws):
             chosen.append(s)
-    return " ".join(chosen[:max_sentences + 1])
+    return " ".join(chosen[: max_sentences + 1])
 
 
 def token_count(text: str) -> int:

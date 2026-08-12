@@ -25,9 +25,27 @@ DEFAULT_MODEL_PRICES: dict[str, dict[str, Any]] = {
     "claude-3-haiku": {"input": 0.00025, "output": 0.00125, "context": 200000, "tier": "medium"},
     "deepseek-v3": {"input": 0.00027, "output": 0.00110, "context": 64000, "tier": "medium"},
     "deepseek-r1": {"input": 0.00055, "output": 0.00219, "context": 64000, "tier": "high"},
-    "qwen2.5-7b": {"input": 0.00010, "output": 0.00030, "context": 32768, "tier": "low", "local": True},
-    "llama3.1-8b": {"input": 0.00010, "output": 0.00030, "context": 128000, "tier": "low", "local": True},
-    "mistral-7b": {"input": 0.00010, "output": 0.00030, "context": 32768, "tier": "low", "local": True},
+    "qwen2.5-7b": {
+        "input": 0.00010,
+        "output": 0.00030,
+        "context": 32768,
+        "tier": "low",
+        "local": True,
+    },
+    "llama3.1-8b": {
+        "input": 0.00010,
+        "output": 0.00030,
+        "context": 128000,
+        "tier": "low",
+        "local": True,
+    },
+    "mistral-7b": {
+        "input": 0.00010,
+        "output": 0.00030,
+        "context": 32768,
+        "tier": "low",
+        "local": True,
+    },
 }
 
 
@@ -65,16 +83,18 @@ class ModelPricing:
             spec = self.lookup(m)
             if spec is None:
                 continue
-            result.append({
-                "model": spec["model"],
-                "input_per_1k_usd": spec["input"],
-                "output_per_1k_usd": spec["output"],
-                "context_tokens": spec.get("context", 0),
-                "tier": spec.get("tier", "?"),
-                "local": spec.get("local", False),
-                # combined cost of a typical 1K-in / 1K-out exchange
-                "example_cost_usd": round(spec["input"] + spec["output"], 5),
-            })
+            result.append(
+                {
+                    "model": spec["model"],
+                    "input_per_1k_usd": spec["input"],
+                    "output_per_1k_usd": spec["output"],
+                    "context_tokens": spec.get("context", 0),
+                    "tier": spec.get("tier", "?"),
+                    "local": spec.get("local", False),
+                    # combined cost of a typical 1K-in / 1K-out exchange
+                    "example_cost_usd": round(spec["input"] + spec["output"], 5),
+                }
+            )
         # cheaper first
         result.sort(key=lambda x: x["example_cost_usd"])
         return result

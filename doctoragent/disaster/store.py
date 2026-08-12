@@ -73,9 +73,18 @@ class DisasterStore:
                 "INSERT OR REPLACE INTO dr_backup_jobs "
                 "(id,name,scope,backup_type,schedule,retention_days,enabled,last_run,last_status,created_at) "
                 "VALUES (?,?,?,?,?,?,?,?,?,?)",
-                (job["id"], job["name"], job["scope"], job["backup_type"],
-                 job["schedule"], job["retention_days"], 1 if job["enabled"] else 0,
-                 job.get("last_run", ""), job.get("last_status", "never"), job["created_at"]),
+                (
+                    job["id"],
+                    job["name"],
+                    job["scope"],
+                    job["backup_type"],
+                    job["schedule"],
+                    job["retention_days"],
+                    1 if job["enabled"] else 0,
+                    job.get("last_run", ""),
+                    job.get("last_status", "never"),
+                    job["created_at"],
+                ),
             )
             conn.commit()
 
@@ -100,8 +109,16 @@ class DisasterStore:
                 "INSERT OR REPLACE INTO dr_plans "
                 "(id,name,tier,rto_target_s,rpo_target_s,scenarios,status,created_at) "
                 "VALUES (?,?,?,?,?,?,?,?)",
-                (plan["id"], plan["name"], plan["tier"], plan["rto_target_s"],
-                 plan["rpo_target_s"], plan["scenarios"], plan["status"], plan["created_at"]),
+                (
+                    plan["id"],
+                    plan["name"],
+                    plan["tier"],
+                    plan["rto_target_s"],
+                    plan["rpo_target_s"],
+                    plan["scenarios"],
+                    plan["status"],
+                    plan["created_at"],
+                ),
             )
             conn.commit()
 
@@ -118,9 +135,18 @@ class DisasterStore:
                 "INSERT OR REPLACE INTO dr_drills "
                 "(id,name,plan_id,scenario,status,actual_rto_s,actual_rpo_s,result,report,created_at) "
                 "VALUES (?,?,?,?,?,?,?,?,?,?)",
-                (drill["id"], drill["name"], drill["plan_id"], drill["scenario"],
-                 drill["status"], drill.get("actual_rto_s", 0), drill.get("actual_rpo_s", 0),
-                 drill.get("result", ""), drill.get("report", ""), drill["created_at"]),
+                (
+                    drill["id"],
+                    drill["name"],
+                    drill["plan_id"],
+                    drill["scenario"],
+                    drill["status"],
+                    drill.get("actual_rto_s", 0),
+                    drill.get("actual_rpo_s", 0),
+                    drill.get("result", ""),
+                    drill.get("report", ""),
+                    drill["created_at"],
+                ),
             )
             conn.commit()
 
@@ -151,18 +177,36 @@ class DisasterStore:
 class DisasterService:
     """Facade: backup jobs, DR plans, drills (measured RTO/RPO) and metrics."""
 
-    def __init__(self, store: DisasterStore, backup_engine: Any | None = None,
-                 vault_path: Path | None = None, backup_root: Path | None = None) -> None:
+    def __init__(
+        self,
+        store: DisasterStore,
+        backup_engine: Any | None = None,
+        vault_path: Path | None = None,
+        backup_root: Path | None = None,
+    ) -> None:
         self.store = store
         self.backup_engine = backup_engine
         self.vault_path = Path(vault_path) if vault_path else None
         self.backup_root = Path(backup_root) if backup_root else None
 
-    def register_backup_job(self, name: str, scope: str, backup_type: str = "full",
-                            schedule: str = "0 2 * * 0", retention_days: int = 30) -> dict[str, Any]:
-        job = {"id": _id("bk"), "name": name, "scope": scope, "backup_type": backup_type,
-               "schedule": schedule, "retention_days": retention_days, "enabled": True,
-               "created_at": _now()}
+    def register_backup_job(
+        self,
+        name: str,
+        scope: str,
+        backup_type: str = "full",
+        schedule: str = "0 2 * * 0",
+        retention_days: int = 30,
+    ) -> dict[str, Any]:
+        job = {
+            "id": _id("bk"),
+            "name": name,
+            "scope": scope,
+            "backup_type": backup_type,
+            "schedule": schedule,
+            "retention_days": retention_days,
+            "enabled": True,
+            "created_at": _now(),
+        }
         self.store.upsert_backup_job(job)
         return job
 
@@ -206,12 +250,24 @@ class DisasterService:
         self.store.record_metric("backup_success_rate", 1.0 if ok else 0.0, "daily")
         return {"job_id": job_id, "ok": ok, "detail": detail}
 
-    def create_dr_plan(self, name: str, rto_target_s: int, rpo_target_s: int,
-                       tier: int = 3, scenarios: list[str] | None = None) -> dict[str, Any]:
-        plan = {"id": _id("plan"), "name": name, "tier": tier,
-                "rto_target_s": rto_target_s, "rpo_target_s": rpo_target_s,
-                "scenarios": ",".join(scenarios or ["failover", "restore"]),
-                "status": "active", "created_at": _now()}
+    def create_dr_plan(
+        self,
+        name: str,
+        rto_target_s: int,
+        rpo_target_s: int,
+        tier: int = 3,
+        scenarios: list[str] | None = None,
+    ) -> dict[str, Any]:
+        plan = {
+            "id": _id("plan"),
+            "name": name,
+            "tier": tier,
+            "rto_target_s": rto_target_s,
+            "rpo_target_s": rpo_target_s,
+            "scenarios": ",".join(scenarios or ["failover", "restore"]),
+            "status": "active",
+            "created_at": _now(),
+        }
         self.store.upsert_plan(plan)
         return plan
 
@@ -244,8 +300,13 @@ class DisasterService:
         self.store.record_metric("actual_rpo", actual_rpo, "drill")
         self.store.record_metric("drill_pass_rate", 1.0 if result == "pass" else 0.0, "drill")
         drill = {
-            "id": _id("drill"), "name": name, "plan_id": plan_id, "scenario": scenario,
-            "status": "completed", "actual_rto_s": actual_rto, "actual_rpo_s": actual_rpo,
+            "id": _id("drill"),
+            "name": name,
+            "plan_id": plan_id,
+            "scenario": scenario,
+            "status": "completed",
+            "actual_rto_s": actual_rto,
+            "actual_rpo_s": actual_rpo,
             "result": result,
             "report": f"drill {name}: RTO={actual_rto}s RPO={actual_rpo}s [{measure}]",
             "created_at": _now(),

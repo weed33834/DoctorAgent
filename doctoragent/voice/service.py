@@ -88,7 +88,7 @@ class VoiceService:
     ) -> str:
         """Transcribe an audio clip to text (speech-to-text)."""
         if not self.transcribe_available:
-            raise VoiceUnavailable("transcribe")
+            raise VoiceUnavailableError("transcribe")
         url = _audio_endpoint(self.config.transcribe_base_url, "audio/transcriptions")
         headers: dict[str, str] = {}
         if self.config.transcribe_api_key:
@@ -115,7 +115,7 @@ class VoiceService:
     async def synthesize(self, text: str, *, voice: str | None = None) -> bytes:
         """Synthesize speech audio for *text* (text-to-speech)."""
         if not self.tts_available:
-            raise VoiceUnavailable("tts")
+            raise VoiceUnavailableError("tts")
         url = _audio_endpoint(self.config.tts_base_url, "audio/speech")
         headers = {"Content-Type": "application/json"}
         if self.config.tts_api_key:
@@ -150,7 +150,7 @@ class VoiceError(Exception):
     """Voice service failure."""
 
 
-class VoiceUnavailable(VoiceError):
+class VoiceUnavailableError(VoiceError):
     """A voice capability is disabled (no endpoint configured)."""
 
     def __init__(self, capability: str) -> None:

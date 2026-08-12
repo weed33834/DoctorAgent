@@ -10,7 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import HTTPBearer
 
 from doctoragent.api.auth._guards import (
@@ -44,7 +44,9 @@ async def _auth_dependency(
             raise HTTPException(status_code=401, detail="Invalid or missing authentication token")
         return provided
     if not _is_local_request(request):
-        raise HTTPException(status_code=401, detail="DOCTORAGENT_API_TOKEN not set; remote access denied")
+        raise HTTPException(
+            status_code=401, detail="DOCTORAGENT_API_TOKEN not set; remote access denied"
+        )
     return None
 
 

@@ -9,11 +9,8 @@ one is provided.
 
 from __future__ import annotations
 
-import hashlib
 import secrets
 import uuid
-from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
 from doctoragent.enterprise.models import (
@@ -73,8 +70,15 @@ class EnterpriseService:
 
     def create_org(self, name: str, domain: str = "", plan: str = "free") -> Org:
         now = _now()
-        org = Org(id=_id("org"), name=name, domain=domain, plan=plan,
-                  status=OrgStatus.ACTIVE, created_at=now, updated_at=now)
+        org = Org(
+            id=_id("org"),
+            name=name,
+            domain=domain,
+            plan=plan,
+            status=OrgStatus.ACTIVE,
+            created_at=now,
+            updated_at=now,
+        )
         self.store.create_org(org)
         self._audit("enterprise.org.created", {"org_id": org.id, "name": name})
         return org
@@ -93,9 +97,14 @@ class EnterpriseService:
             parent = self.store.get_department(parent_id)
             if parent:
                 parent_path = parent.path
-        dept = Department(id=_id("dept"), org_id=org_id, name=name,
-                          parent_id=parent_id, path=f"{parent_path}/{_id('')}".strip("/"),
-                          created_at=_now())
+        dept = Department(
+            id=_id("dept"),
+            org_id=org_id,
+            name=name,
+            parent_id=parent_id,
+            path=f"{parent_path}/{_id('')}".strip("/"),
+            created_at=_now(),
+        )
         self.store.create_department(dept)
         return dept
 
@@ -133,13 +142,22 @@ class EnterpriseService:
         self.policy.validate(password)
         now = _now()
         user = UserAccount(
-            id=_id("usr"), org_id=org_id, dept_id=dept_id, email=email,
-            display_name=display_name, role=role, status=AccountStatus.ACTIVE,
-            password_hash=hash_password(password), mfa_status="not_enrolled",
-            created_at=now, updated_at=now,
+            id=_id("usr"),
+            org_id=org_id,
+            dept_id=dept_id,
+            email=email,
+            display_name=display_name,
+            role=role,
+            status=AccountStatus.ACTIVE,
+            password_hash=hash_password(password),
+            mfa_status="not_enrolled",
+            created_at=now,
+            updated_at=now,
         )
         self.store.create_user(user)
-        self._audit("enterprise.user.created", {"org_id": org_id, "email": email, "role": role.value})
+        self._audit(
+            "enterprise.user.created", {"org_id": org_id, "email": email, "role": role.value}
+        )
         return user
 
     def set_user_status(self, user_id: str, status: AccountStatus) -> UserAccount:
@@ -156,9 +174,7 @@ class EnterpriseService:
     def list_users(self, org_id: str | None = None, **filters: Any) -> list[UserAccount]:
         return self.store.list_users(org_id, **filters)
 
-    def bulk_import_users(
-        self, org_id: str, rows: list[dict[str, Any]]
-    ) -> dict[str, Any]:
+    def bulk_import_users(self, org_id: str, rows: list[dict[str, Any]]) -> dict[str, Any]:
         """Bulk import users from parsed CSV rows (M14 B.3). Returns results."""
         created, failed = 0, 0
         errors: list[str] = []
@@ -170,12 +186,15 @@ class EnterpriseService:
             if row.get("role") in ("admin", "org_admin"):
                 role = UserRole.ORG_ADMIN
             if not email or "@" not in email:
-                failed += 1; errors.append(f"第{idx + 1}行: 邮箱非法"); continue
+                failed += 1
+                errors.append(f"第{idx + 1}行: 邮箱非法")
+                continue
             try:
                 self.create_user(org_id, email, password, display_name=name, role=role)
                 created += 1
             except Exception as exc:  # noqa: BLE001
-                failed += 1; errors.append(f"第{idx + 1}行 {email}: {exc}")
+                failed += 1
+                errors.append(f"第{idx + 1}行 {email}: {exc}")
         return {"created": created, "failed": failed, "errors": errors[:50]}
 
     # ── authentication (B/C) ────────────────────────────────────────
@@ -208,7 +227,9 @@ class EnterpriseService:
             attempts = user.failed_attempts + 1
             locked_until = self.lockout.next_locked_until(attempts)
             self.store.update_user(user.id, failed_attempts=attempts, locked_until=locked_until)
-            self._record_login(user, org_id, email, ip, user_agent, "bad_password", "wrong password")
+            self._record_login(
+                user, org_id, email, ip, user_agent, "bad_password", "wrong password"
+            )
             return None, "bad_password"
         # Success — reset failure state.
         self.store.update_user(user.id, failed_attempts=0, locked_until="")
@@ -219,12 +240,27 @@ class EnterpriseService:
         self.store.update_user(user.id, last_login=_now())
         return user, "success"
 
-    def _record_login(self, user: UserAccount | None, org_id: str, email: str,
-                      ip: str, ua: str, result: str, detail: str) -> None:
+    def _record_login(
+        self,
+        user: UserAccount | None,
+        org_id: str,
+        email: str,
+        ip: str,
+        ua: str,
+        result: str,
+        detail: str,
+    ) -> None:
         self.store.record_login(
             LoginEvent(
-                id=_id("login"), user_id=user.id if user else "", org_id=org_id,
-                email=email, ip=ip, user_agent=ua, result=result, detail=detail, at=_now(),
+                id=_id("login"),
+                user_id=user.id if user else "",
+                org_id=org_id,
+                email=email,
+                ip=ip,
+                user_agent=ua,
+                result=result,
+                detail=detail,
+                at=_now(),
             )
         )
 
@@ -237,8 +273,13 @@ class EnterpriseService:
             raise KeyError("user not found")
         secret = generate_totp_secret()
         self.store.save_mfa_challenge(
-            MFAChallenge(user_id=user_id, org_id=user.org_id, secret=secret,
-                         verified=False, expires_at=_now())
+            MFAChallenge(
+                user_id=user_id,
+                org_id=user.org_id,
+                secret=secret,
+                verified=False,
+                expires_at=_now(),
+            )
         )
         uri = totp_provisioning_uri(secret, user.email, issuer)
         return {"secret": secret, "provisioning_uri": uri}
@@ -269,16 +310,27 @@ class EnterpriseService:
 
     # ── budget / quota (F) ──────────────────────────────────────────
 
-    def set_budget(self, scope: str, scope_id: str, amount_usd: float,
-                   alert_threshold: float = 0.8, hard_limit: bool = False) -> Budget:
-        b = Budget(id=_id("bud"), scope=scope, scope_id=scope_id,
-                   amount_usd=amount_usd, alert_threshold=alert_threshold,
-                   hard_limit=hard_limit, created_at=_now())
+    def set_budget(
+        self,
+        scope: str,
+        scope_id: str,
+        amount_usd: float,
+        alert_threshold: float = 0.8,
+        hard_limit: bool = False,
+    ) -> Budget:
+        b = Budget(
+            id=_id("bud"),
+            scope=scope,
+            scope_id=scope_id,
+            amount_usd=amount_usd,
+            alert_threshold=alert_threshold,
+            hard_limit=hard_limit,
+            created_at=_now(),
+        )
         self.store.upsert_budget(b)
         return b
 
-    def check_overlimit(self, scope: str, scope_id: str,
-                        current_usd: float) -> dict[str, Any]:
+    def check_overlimit(self, scope: str, scope_id: str, current_usd: float) -> dict[str, Any]:
         """Evaluate a spend amount against the scope budget (M14 F.3)."""
         budget = self.store.get_budget(scope, scope_id)
         if budget is None or budget.amount_usd <= 0:
@@ -299,7 +351,9 @@ class EnterpriseService:
 
     def set_quota(self, scope: str, scope_id: str, **limits: int) -> Quota:
         q = Quota(
-            id=_id("quo"), scope=scope, scope_id=scope_id,
+            id=_id("quo"),
+            scope=scope,
+            scope_id=scope_id,
             tokens_per_day=limits.get("tokens_per_day", -1),
             calls_per_day=limits.get("calls_per_day", -1),
             storage_mb=limits.get("storage_mb", -1),
@@ -318,19 +372,30 @@ class EnterpriseService:
     def list_settings(self) -> list[Any]:
         return self.store.list_settings()
 
-    def create_announcement(self, title: str, content: str, level: str = "info",
-                            pinned: bool = False) -> Announcement:
-        a = Announcement(id=_id("ann"), title=title, content=content, level=level,
-                         pinned=pinned, active=True, created_at=_now())
+    def create_announcement(
+        self, title: str, content: str, level: str = "info", pinned: bool = False
+    ) -> Announcement:
+        a = Announcement(
+            id=_id("ann"),
+            title=title,
+            content=content,
+            level=level,
+            pinned=pinned,
+            active=True,
+            created_at=_now(),
+        )
         self.store.create_announcement(a)
         return a
 
     def list_announcements(self, active_only: bool = True) -> list[Announcement]:
         return self.store.list_announcements(active_only=active_only)
 
-    def set_maintenance(self, enabled: bool, message: str = "", readonly: bool = False) -> MaintenanceState:
-        state = MaintenanceState(enabled=enabled, message=message,
-                                 readonly=readonly, updated_at=_now())
+    def set_maintenance(
+        self, enabled: bool, message: str = "", readonly: bool = False
+    ) -> MaintenanceState:
+        state = MaintenanceState(
+            enabled=enabled, message=message, readonly=readonly, updated_at=_now()
+        )
         self.store.set_maintenance(state)
         return state
 
@@ -339,12 +404,18 @@ class EnterpriseService:
 
     # ── API keys (G) ────────────────────────────────────────────────
 
-    def create_api_key(self, org_id: str, label: str, scopes: list[str] | None = None) -> dict[str, str]:
+    def create_api_key(
+        self, org_id: str, label: str, scopes: list[str] | None = None
+    ) -> dict[str, str]:
         raw = f"dk_{secrets.token_hex(24)}"
         prefix = raw[:12]
         record = ApiKeyRecord(
-            id=_id("key"), org_id=org_id, label=label, prefix=prefix,
-            scopes=scopes or ["*"], created_at=_now(),
+            id=_id("key"),
+            org_id=org_id,
+            label=label,
+            prefix=prefix,
+            scopes=scopes or ["*"],
+            created_at=_now(),
         )
         self.store.create_api_key(record)
         # Store a hash for lookup; return the raw key exactly once.

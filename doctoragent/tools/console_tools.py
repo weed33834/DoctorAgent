@@ -62,9 +62,12 @@ class _CTool(Tool):
 
     @property
     def definition(self) -> ToolDefinition:
-        return ToolDefinition(name=self.name, description=self.description,
-                              parameters=[ToolParameter(**p) for p in self.parameters],
-                              category=self.category)
+        return ToolDefinition(
+            name=self.name,
+            description=self.description,
+            parameters=[ToolParameter(**p) for p in self.parameters],
+            category=self.category,
+        )
 
     def _ok(self, data: Any) -> ToolResult:
         return ToolResult(success=True, data=data)
@@ -95,10 +98,14 @@ class ListDocumentsTool(_CTool):
             if store is None or not hasattr(store, "list_vault_files"):
                 return {"total": 0, "files": []}
             files = store.list_vault_files(kwargs.get("category"))
-            return {"total": len(files), "files": [
-                {"name": getattr(f, "name", str(f)), "path": getattr(f, "path", "")}
-                for f in files[:100]
-            ]}
+            return {
+                "total": len(files),
+                "files": [
+                    {"name": getattr(f, "name", str(f)), "path": getattr(f, "path", "")}
+                    for f in files[:100]
+                ],
+            }
+
         return self._safe(_run)
 
 
@@ -116,6 +123,7 @@ class SearchVaultTool(_CTool):
             if store is None or not hasattr(store, "search"):
                 return {"total": 0, "results": []}
             return store.search(kwargs.get("query", ""), top_k=int(kwargs.get("top_k", 5)))
+
         return self._safe(_run)
 
 
@@ -135,13 +143,18 @@ class ListModelsTool(_CTool):
             conns = cm.list_connections() if hasattr(cm, "list_connections") else []
             out = []
             for c in conns:
-                out.append({
-                    "name": getattr(c, "name", ""),
-                    "model": getattr(c, "model_name", ""),
-                    "provider": getattr(c, "platform_type", "").value if hasattr(getattr(c, "platform_type", ""), "value") else "",
-                    "enabled": getattr(c, "is_enabled", False),
-                })
+                out.append(
+                    {
+                        "name": getattr(c, "name", ""),
+                        "model": getattr(c, "model_name", ""),
+                        "provider": getattr(c, "platform_type", "").value
+                        if hasattr(getattr(c, "platform_type", ""), "value")
+                        else "",
+                        "enabled": getattr(c, "is_enabled", False),
+                    }
+                )
             return {"models": out}
+
         return self._safe(_run)
 
 
@@ -149,7 +162,12 @@ class CompareModelsTool(_CTool):
     name = "compare_models"
     description = "对比多个模型的价格与上下文（模型比价器）。"
     parameters: list[dict[str, Any]] = [
-        {"name": "models", "type": "list", "required": False, "description": "模型名列表，如 gpt-4o,deepseek-v3"},
+        {
+            "name": "models",
+            "type": "list",
+            "required": False,
+            "description": "模型名列表，如 gpt-4o,deepseek-v3",
+        },
     ]
 
     async def execute(self, **kwargs: Any) -> ToolResult:
@@ -159,6 +177,7 @@ class CompareModelsTool(_CTool):
                 return {"models": []}
             names = kwargs.get("models") or ["gpt-4o", "deepseek-v3", "qwen2.5-7b"]
             return {"models": pricing.compare(names)}
+
         return self._safe(_run)
 
 
@@ -175,6 +194,7 @@ class CostReportTool(_CTool):
             summary = ct.get_summary()
             daily = ct.get_daily_costs(7) if hasattr(ct, "get_daily_costs") else []
             return {"summary": summary, "daily_days": len(daily)}
+
         return self._safe(_run)
 
 
@@ -192,10 +212,13 @@ class ConfigViewTool(_CTool):
             if cfg is None:
                 return {}
             return {
-                "app": cfg.app_name, "env": cfg.env, "debug": cfg.debug,
+                "app": cfg.app_name,
+                "env": cfg.env,
+                "debug": cfg.debug,
                 "model_provider": getattr(cfg.model, "provider", ""),
                 "model_name": getattr(cfg.model, "name", ""),
             }
+
         return self._safe(_run)
 
 
@@ -214,6 +237,7 @@ class ConfigSetTool(_CTool):
                 return {"ok": False, "error": "workspace config unavailable"}
             ws.set_settings({kwargs.get("key", ""): kwargs.get("value", "")})
             return {"ok": True, "key": kwargs.get("key"), "value": kwargs.get("value")}
+
         return self._safe(_run)
 
 
@@ -230,11 +254,17 @@ class ListConnectionsTool(_CTool):
             cm = self.ctx.cm
             if cm is None or not hasattr(cm, "list_connections"):
                 return {"connections": []}
-            return {"connections": [
-                {"name": getattr(c, "name", ""), "model": getattr(c, "model_name", ""),
-                 "enabled": getattr(c, "is_enabled", False)}
-                for c in cm.list_connections()
-            ]}
+            return {
+                "connections": [
+                    {
+                        "name": getattr(c, "name", ""),
+                        "model": getattr(c, "model_name", ""),
+                        "enabled": getattr(c, "is_enabled", False),
+                    }
+                    for c in cm.list_connections()
+                ]
+            }
+
         return self._safe(_run)
 
 
@@ -258,6 +288,7 @@ class EnterpriseSummaryTool(_CTool):
                 "maintenance": es.get_maintenance().enabled,
                 "api_keys": len(es.list_api_keys()),
             }
+
         return self._safe(_run)
 
 
@@ -272,7 +303,13 @@ class ListUsersTool(_CTool):
             if es is None:
                 return {"users": []}
             users = es.list_users()
-            return {"users": [{"email": u.email, "role": u.role.value, "status": u.status.value} for u in users[:50]]}
+            return {
+                "users": [
+                    {"email": u.email, "role": u.role.value, "status": u.status.value}
+                    for u in users[:50]
+                ]
+            }
+
         return self._safe(_run)
 
 
@@ -281,8 +318,18 @@ class CreateUserTool(_CTool):
     description = "创建企业用户账号（邮箱+密码+角色）。"
     parameters: list[dict[str, Any]] = [
         {"name": "email", "type": "string", "required": True, "description": "邮箱"},
-        {"name": "password", "type": "string", "required": True, "description": "密码（需含大小写+数字）"},
-        {"name": "org_id", "type": "string", "required": False, "description": "组织ID（默认取第一个组织）"},
+        {
+            "name": "password",
+            "type": "string",
+            "required": True,
+            "description": "密码（需含大小写+数字）",
+        },
+        {
+            "name": "org_id",
+            "type": "string",
+            "required": False,
+            "description": "组织ID（默认取第一个组织）",
+        },
         {"name": "role", "type": "string", "required": False, "description": "member/org_admin"},
     ]
 
@@ -296,9 +343,15 @@ class CreateUserTool(_CTool):
             orgs = es.list_orgs()
             org_id = kwargs.get("org_id") or (orgs[0].id if orgs else "default")
             role = UserRole(kwargs.get("role", "member"))
-            u = es.create_user(org_id, kwargs.get("email", ""), kwargs.get("password", ""),
-                               display_name=kwargs.get("display_name", ""), role=role)
+            u = es.create_user(
+                org_id,
+                kwargs.get("email", ""),
+                kwargs.get("password", ""),
+                display_name=kwargs.get("display_name", ""),
+                role=role,
+            )
             return {"created": True, "email": u.email, "org": org_id, "role": u.role.value}
+
         return self._safe(_run)
 
 
@@ -312,7 +365,12 @@ class ListApiKeysTool(_CTool):
             es = self.ctx.s("enterprise_service")
             if es is None:
                 return {"keys": []}
-            return {"keys": [{"id": k.id, "label": k.label, "prefix": k.prefix} for k in es.list_api_keys()]}
+            return {
+                "keys": [
+                    {"id": k.id, "label": k.label, "prefix": k.prefix} for k in es.list_api_keys()
+                ]
+            }
+
         return self._safe(_run)
 
 
@@ -326,7 +384,9 @@ class MemoryViewTool(_CTool):
 
     async def execute(self, **kwargs: Any) -> ToolResult:
         def _run():
-            mem = getattr(self.ctx.agent, "memory", None) or getattr(self.ctx.agent, "memory_system", None)
+            mem = getattr(self.ctx.agent, "memory", None) or getattr(
+                self.ctx.agent, "memory_system", None
+            )
             if mem is None:
                 return {"memory": "未启用"}
             try:
@@ -334,6 +394,7 @@ class MemoryViewTool(_CTool):
                 return {"facts": [{"content": f.content, "type": f.memory_type} for f in facts]}
             except Exception:
                 return {"facts": []}
+
         return self._safe(_run)
 
 
@@ -344,7 +405,9 @@ class MemoryClearTool(_CTool):
 
     async def execute(self, **kwargs: Any) -> ToolResult:
         def _run():
-            mem = getattr(self.ctx.agent, "memory", None) or getattr(self.ctx.agent, "memory_system", None)
+            mem = getattr(self.ctx.agent, "memory", None) or getattr(
+                self.ctx.agent, "memory_system", None
+            )
             if mem is None or not hasattr(mem, "consolidate_memories"):
                 return {"ok": True, "note": "记忆系统不可用或无需清理"}
             # best-effort: prune
@@ -353,6 +416,7 @@ class MemoryClearTool(_CTool):
             except Exception:
                 pass
             return {"ok": True}
+
         return self._safe(_run)
 
 
@@ -370,6 +434,7 @@ class SecurityStatusTool(_CTool):
             if ts is None:
                 return {"security": "未启用"}
             return ts.overview()
+
         return self._safe(_run)
 
 
@@ -386,8 +451,13 @@ class RunRedteamTool(_CTool):
             if ts is None:
                 raise RuntimeError("安全服务未启用")
             r = ts.run_redteam(kwargs.get("name", "chat-redteam"))
-            return {"run_id": r["run_id"], "block_rate": r["report"]["block_rate"],
-                    "cases": r["report"]["cases"], "bypass": r["report"]["bypass"]}
+            return {
+                "run_id": r["run_id"],
+                "block_rate": r["report"]["block_rate"],
+                "cases": r["report"]["cases"],
+                "bypass": r["report"]["bypass"],
+            }
+
         return self._safe(_run)
 
 
@@ -420,6 +490,7 @@ class SeedKnowledgeTool(_CTool):
                 raise RuntimeError("vault path 未配置")
             n = seed_knowledge(Path(vault))
             return {"seeded": n, "note": "写入 Vault/临床知识/（已有文件不覆盖）"}
+
         return self._safe(_run)
 
 
@@ -433,6 +504,7 @@ class KnowledgeListTool(_CTool):
             from doctoragent.clinical.knowledge import list_knowledge
 
             return {"topics": [k["topic"] for k in list_knowledge()]}
+
         return self._safe(_run)
 
 
@@ -446,16 +518,37 @@ class TaskListTool(_CTool):
             tc = self.ctx.s("task_center")
             if tc is None:
                 return {"tasks": []}
-            return {"tasks": [{"name": t["name"], "type": t["task_type"], "status": t["status"]} for t in tc.list(limit=20)]}
+            return {
+                "tasks": [
+                    {"name": t["name"], "type": t["task_type"], "status": t["status"]}
+                    for t in tc.list(limit=20)
+                ]
+            }
+
         return self._safe(_run)
 
 
 _TOOLS = (
-    ListDocumentsTool, SearchVaultTool, ListModelsTool, CompareModelsTool,
-    CostReportTool, ConfigViewTool, ConfigSetTool, ListConnectionsTool,
-    EnterpriseSummaryTool, ListUsersTool, CreateUserTool, ListApiKeysTool,
-    MemoryViewTool, MemoryClearTool, SecurityStatusTool, RunRedteamTool,
-    HealthStatusTool, SeedKnowledgeTool, KnowledgeListTool, TaskListTool,
+    ListDocumentsTool,
+    SearchVaultTool,
+    ListModelsTool,
+    CompareModelsTool,
+    CostReportTool,
+    ConfigViewTool,
+    ConfigSetTool,
+    ListConnectionsTool,
+    EnterpriseSummaryTool,
+    ListUsersTool,
+    CreateUserTool,
+    ListApiKeysTool,
+    MemoryViewTool,
+    MemoryClearTool,
+    SecurityStatusTool,
+    RunRedteamTool,
+    HealthStatusTool,
+    SeedKnowledgeTool,
+    KnowledgeListTool,
+    TaskListTool,
 )
 
 

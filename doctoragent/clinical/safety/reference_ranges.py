@@ -468,9 +468,7 @@ def get_reference_range(test_name: str, gender: str = "male") -> dict[str, Any] 
 _GLUCOSE_MGDL_PER_MMOL = 18.0  # g/mol ÷ … = 180.156/10, i.e. mg/dL / 18 ≈ mmol/L
 
 
-def _normalise_to_catalogue_unit(
-    test_name: str, value: float, unit: str | None
-) -> float:
+def _normalise_to_catalogue_unit(test_name: str, value: float, unit: str | None) -> float:
     """Convert *value* into the catalogue unit for *test_name* when a known
     mass↔molar conversion applies; otherwise return *value* unchanged."""
     if not unit:

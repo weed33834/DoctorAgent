@@ -7,7 +7,6 @@ visibility, owner). Provides CRUD, config, and a retrieval test.
 
 from __future__ import annotations
 
-import json
 import sqlite3
 import uuid
 from datetime import datetime, timezone
@@ -53,23 +52,53 @@ class KnowledgeBaseManager:
             )
             conn.commit()
 
-    def create(self, name: str, *, description: str = "", embedding_model: str = "default",
-               chunk_size: int = 500, chunk_overlap: int = 50,
-               visibility: str = "private", owner: str = "") -> dict[str, Any]:
+    def create(
+        self,
+        name: str,
+        *,
+        description: str = "",
+        embedding_model: str = "default",
+        chunk_size: int = 500,
+        chunk_overlap: int = 50,
+        visibility: str = "private",
+        owner: str = "",
+    ) -> dict[str, Any]:
         kb_id = _id("kb")
         dir_name = f"kb_{kb_id}"
-        row = {"id": kb_id, "name": name, "description": description, "dir_name": dir_name,
-               "embedding_model": embedding_model, "chunk_size": chunk_size,
-               "chunk_overlap": chunk_overlap, "visibility": visibility, "owner": owner,
-               "doc_count": 0, "created_at": _now(), "updated_at": _now()}
+        row = {
+            "id": kb_id,
+            "name": name,
+            "description": description,
+            "dir_name": dir_name,
+            "embedding_model": embedding_model,
+            "chunk_size": chunk_size,
+            "chunk_overlap": chunk_overlap,
+            "visibility": visibility,
+            "owner": owner,
+            "doc_count": 0,
+            "created_at": _now(),
+            "updated_at": _now(),
+        }
         (self.vault_root / dir_name).mkdir(parents=True, exist_ok=True)
         with self._connect() as conn:
             conn.execute(
                 "INSERT INTO kb_registry "
                 "(id,name,description,dir_name,embedding_model,chunk_size,chunk_overlap,"
                 "visibility,owner,doc_count,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-                (row["id"], name, description, dir_name, embedding_model, chunk_size,
-                 chunk_overlap, visibility, owner, 0, row["created_at"], row["updated_at"]),
+                (
+                    row["id"],
+                    name,
+                    description,
+                    dir_name,
+                    embedding_model,
+                    chunk_size,
+                    chunk_overlap,
+                    visibility,
+                    owner,
+                    0,
+                    row["created_at"],
+                    row["updated_at"],
+                ),
             )
             conn.commit()
         return row
@@ -85,8 +114,15 @@ class KnowledgeBaseManager:
         return dict(row) if row else None
 
     def update(self, kb_id: str, **fields: Any) -> dict[str, Any] | None:
-        allowed = {"name", "description", "embedding_model", "chunk_size",
-                   "chunk_overlap", "visibility", "owner"}
+        allowed = {
+            "name",
+            "description",
+            "embedding_model",
+            "chunk_size",
+            "chunk_overlap",
+            "visibility",
+            "owner",
+        }
         sets = [f"{k}=?" for k in fields if k in allowed]
         if not sets:
             return self.get(kb_id)
@@ -140,6 +176,8 @@ class KnowledgeBaseManager:
         return {
             "knowledge_bases": len(kbs),
             "total_docs": sum(k["doc_count"] for k in kbs),
-            "by_visibility": {v: sum(1 for k in kbs if k["visibility"] == v)
-                              for v in {"private", "team", "public"}},
+            "by_visibility": {
+                v: sum(1 for k in kbs if k["visibility"] == v)
+                for v in {"private", "team", "public"}
+            },
         }

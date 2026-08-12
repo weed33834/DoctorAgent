@@ -12,7 +12,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
 from fastapi.security import HTTPBearer
 
 from doctoragent.api.auth._guards import (
@@ -46,7 +46,9 @@ async def _auth_dependency(
             raise HTTPException(status_code=401, detail="Invalid or missing authentication token")
         return provided
     if not _is_local_request(request):
-        raise HTTPException(status_code=401, detail="DOCTORAGENT_API_TOKEN not set; remote access denied")
+        raise HTTPException(
+            status_code=401, detail="DOCTORAGENT_API_TOKEN not set; remote access denied"
+        )
     return None
 
 
@@ -68,9 +70,10 @@ def get_router() -> APIRouter:
         payload: dict[str, Any] = Body(...),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
-        from doctoragent.security.sandbox import SandboxManager
         import os
         import sys
+
+        from doctoragent.security.sandbox import SandboxManager
 
         code = payload.get("code", "")
         if not code.strip():
@@ -92,8 +95,9 @@ def get_router() -> APIRouter:
             work = Path(sandbox.work_dir)
             (work / "code.py").write_text(code, encoding="utf-8")
             python = sys.executable or "python3"
-            result = sandbox.run_sandboxed([python, "-u", "code.py"],
-                                           timeout=float(payload.get("timeout", 30)))
+            result = sandbox.run_sandboxed(
+                [python, "-u", "code.py"], timeout=float(payload.get("timeout", 30))
+            )
             data: dict[str, Any] = {
                 "returncode": result.returncode,
                 "stdout": result.stdout[-6000:],
@@ -104,11 +108,18 @@ def get_router() -> APIRouter:
             # Capture a generated image if present.
             for f in sorted(work.iterdir()):
                 if f.is_file() and f.suffix.lower() in {".png", ".jpg", ".jpeg", ".svg", ".gif"}:
-                    mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-                            ".svg": "image/svg+xml", ".gif": "image/gif"}.get(f.suffix.lower(), "application/octet-stream")
+                    mime = {
+                        ".png": "image/png",
+                        ".jpg": "image/jpeg",
+                        ".jpeg": "image/jpeg",
+                        ".svg": "image/svg+xml",
+                        ".gif": "image/gif",
+                    }.get(f.suffix.lower(), "application/octet-stream")
                     import base64
 
-                    data["image"] = f"data:{mime};base64,{base64.b64encode(f.read_bytes()).decode()}"
+                    data["image"] = (
+                        f"data:{mime};base64,{base64.b64encode(f.read_bytes()).decode()}"
+                    )
                     break
         finally:
             # Always release the sandbox work directory (even on timeout/error).
@@ -118,7 +129,9 @@ def get_router() -> APIRouter:
     # ── conversation-management: prompts ────────────────────────────
 
     @router.get("/workspace/prompts", summary="List prompt templates")
-    async def list_prompts(request: Request, _auth: Any = Depends(_auth_dependency)) -> dict[str, Any]:
+    async def list_prompts(
+        request: Request, _auth: Any = Depends(_auth_dependency)
+    ) -> dict[str, Any]:
         items = _get(request, "workspace_config").list_prompts()
         return {"total": len(items), "items": items}
 
@@ -129,14 +142,18 @@ def get_router() -> APIRouter:
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
         return _get(request, "workspace_config").upsert_prompt(
-            payload.get("name", ""), payload.get("template", ""),
-            description=payload.get("description", ""), variables=payload.get("variables"),
+            payload.get("name", ""),
+            payload.get("template", ""),
+            description=payload.get("description", ""),
+            variables=payload.get("variables"),
         )
 
     # ── conversation-management: skills ─────────────────────────────
 
     @router.get("/workspace/skills", summary="List custom skills")
-    async def list_skills(request: Request, _auth: Any = Depends(_auth_dependency)) -> dict[str, Any]:
+    async def list_skills(
+        request: Request, _auth: Any = Depends(_auth_dependency)
+    ) -> dict[str, Any]:
         items = _get(request, "workspace_config").list_skills()
         return {"total": len(items), "items": items}
 
@@ -147,14 +164,18 @@ def get_router() -> APIRouter:
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
         return _get(request, "workspace_config").register_skill(
-            payload.get("name", ""), payload.get("description", ""),
-            triggers=payload.get("triggers"), code=payload.get("code", ""),
+            payload.get("name", ""),
+            payload.get("description", ""),
+            triggers=payload.get("triggers"),
+            code=payload.get("code", ""),
         )
 
     # ── conversation-management: experts ────────────────────────────
 
     @router.get("/workspace/experts", summary="List custom experts")
-    async def list_experts(request: Request, _auth: Any = Depends(_auth_dependency)) -> dict[str, Any]:
+    async def list_experts(
+        request: Request, _auth: Any = Depends(_auth_dependency)
+    ) -> dict[str, Any]:
         items = _get(request, "workspace_config").list_experts()
         return {"total": len(items), "items": items}
 
@@ -165,12 +186,16 @@ def get_router() -> APIRouter:
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
         return _get(request, "workspace_config").create_expert(
-            payload.get("name", ""), payload.get("title", ""), payload.get("system_prompt", ""),
+            payload.get("name", ""),
+            payload.get("title", ""),
+            payload.get("system_prompt", ""),
             tools=payload.get("tools"),
         )
 
     @router.get("/workspace/summary", summary="Workspace configuration summary")
-    async def workspace_summary(request: Request, _auth: Any = Depends(_auth_dependency)) -> dict[str, Any]:
+    async def workspace_summary(
+        request: Request, _auth: Any = Depends(_auth_dependency)
+    ) -> dict[str, Any]:
         return _get(request, "workspace_config").summary()
 
     # ── document export (chat → md / pdf / docx) ────────────────────
@@ -203,11 +228,17 @@ def get_router() -> APIRouter:
                     out.unlink()
             except OSError:  # pragma: no cover
                 pass
-        media = {"md": "text/markdown", "pdf": "application/pdf", "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}[fmt]
+        media = {
+            "md": "text/markdown",
+            "pdf": "application/pdf",
+            "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        }[fmt]
         return Response(
             content=content,
             media_type=media,
-            headers={"Content-Disposition": f'attachment; filename="doctoragent-{_safe_title(title)}.{fmt}"'},
+            headers={
+                "Content-Disposition": f'attachment; filename="doctoragent-{_safe_title(title)}.{fmt}"'
+            },
         )
 
     return router

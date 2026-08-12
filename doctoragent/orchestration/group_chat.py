@@ -12,7 +12,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +76,7 @@ class GroupChatManager:
         speaker_messages: list[str] = []
         stop = False
 
-        for turn in range(self.max_turns):
+        for _turn in range(self.max_turns):
             agent = agents[idx % len(agents)]
             try:
                 text = await agent.speak(topic, context)
@@ -100,11 +101,12 @@ class GroupChatManager:
 
             # Summarize incremental context for the next speaker.
             context["summary"] = "\n".join(
-                f"{t['speaker']}: {t['content'][:self.max_speaker_chars]}"
-                for t in transcript[-4:]
+                f"{t['speaker']}: {t['content'][: self.max_speaker_chars]}" for t in transcript[-4:]
             )
 
-            if any(t["content"].startswith(prefix) for t in transcript[-1:] for prefix in STOP_PREFIXES):
+            if any(
+                t["content"].startswith(prefix) for t in transcript[-1:] for prefix in STOP_PREFIXES
+            ):
                 stop = True
                 break
 
@@ -122,10 +124,7 @@ class GroupChatManager:
     def _summarize(transcript: list[dict[str, Any]]) -> str:
         if not transcript:
             return ""
-        lines = [
-            f"{t['speaker']}({t['role']}): {t['content']}"
-            for t in transcript
-        ]
+        lines = [f"{t['speaker']}({t['role']}): {t['content']}" for t in transcript]
         return "\n".join(lines[-8:])
 
 
@@ -148,12 +147,13 @@ def run_debate(
     manager = manager or GroupChatManager(max_turns=rounds * 2 + 1)
     pro = GroupChatAgent("正方", "pro", pro_fn, "你是正方辩手，坚持支持立场，给出有据的论证。")
     con = GroupChatAgent("反方", "con", con_fn, "你是反方辩手，坚持反对立场，指出风险与反驳。")
-    judge = GroupChatAgent("裁判", "judge", judge_fn,
-                           "你是中立裁判，综合双方论点，给出最终裁决并说明理由。")
+    judge = GroupChatAgent(
+        "裁判", "judge", judge_fn, "你是中立裁判，综合双方论点，给出最终裁决并说明理由。"
+    )
 
     async def _run() -> dict[str, Any]:
         transcript: list[dict[str, Any]] = []
-        for rnd in range(rounds):
+        for _rnd in range(rounds):
             for agent in (pro, con):
                 try:
                     text = await agent.speak(topic, {"summary": _tail(transcript)})

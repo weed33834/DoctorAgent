@@ -87,10 +87,22 @@ class GovernanceStore:
                 "(id,org_id,name,asset_type,source,sensitivity,owner,description,"
                 "row_count,size_bytes,version,created_at,updated_at,metadata) "
                 "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                (a.id, a.org_id, a.name, a.asset_type.value, a.source,
-                 a.sensitivity.value, a.owner, a.description, a.row_count,
-                 a.size_bytes, a.version, a.created_at, a.updated_at,
-                 json.dumps(a.metadata)),
+                (
+                    a.id,
+                    a.org_id,
+                    a.name,
+                    a.asset_type.value,
+                    a.source,
+                    a.sensitivity.value,
+                    a.owner,
+                    a.description,
+                    a.row_count,
+                    a.size_bytes,
+                    a.version,
+                    a.created_at,
+                    a.updated_at,
+                    json.dumps(a.metadata),
+                ),
             )
             conn.commit()
 
@@ -99,16 +111,23 @@ class GovernanceStore:
             row = conn.execute("SELECT * FROM gov_assets WHERE id=?", (asset_id,)).fetchone()
         return self._row_asset(row) if row else None
 
-    def list_assets(self, org_id: str | None = None, asset_type: str | None = None,
-                    sensitivity: str | None = None) -> list[DataAsset]:
+    def list_assets(
+        self,
+        org_id: str | None = None,
+        asset_type: str | None = None,
+        sensitivity: str | None = None,
+    ) -> list[DataAsset]:
         sql = "SELECT * FROM gov_assets WHERE 1=1"
         params: list[Any] = []
         if org_id:
-            sql += " AND org_id=?"; params.append(org_id)
+            sql += " AND org_id=?"
+            params.append(org_id)
         if asset_type:
-            sql += " AND asset_type=?"; params.append(asset_type)
+            sql += " AND asset_type=?"
+            params.append(asset_type)
         if sensitivity:
-            sql += " AND sensitivity=?"; params.append(sensitivity)
+            sql += " AND sensitivity=?"
+            params.append(sensitivity)
         sql += " ORDER BY updated_at DESC"
         with self._connect() as conn:
             rows = conn.execute(sql, params).fetchall()
@@ -117,34 +136,52 @@ class GovernanceStore:
     def delete_asset(self, asset_id: str) -> None:
         with self._connect() as conn:
             conn.execute("DELETE FROM gov_assets WHERE id=?", (asset_id,))
-            conn.execute("DELETE FROM gov_lineage WHERE upstream=? OR downstream=?",
-                         (asset_id, asset_id))
+            conn.execute(
+                "DELETE FROM gov_lineage WHERE upstream=? OR downstream=?", (asset_id, asset_id)
+            )
             conn.execute("DELETE FROM gov_quality WHERE asset_id=?", (asset_id,))
             conn.commit()
 
     @staticmethod
     def _row_asset(row: Any) -> DataAsset:
         return DataAsset(
-            id=row["id"], org_id=row["org_id"], name=row["name"],
-            asset_type=AssetType(row["asset_type"]), source=row["source"],
-            sensitivity=DataSensitivity(row["sensitivity"]), owner=row["owner"],
-            description=row["description"], row_count=row["row_count"],
-            size_bytes=row["size_bytes"], version=row["version"],
-            created_at=row["created_at"], updated_at=row["updated_at"],
+            id=row["id"],
+            org_id=row["org_id"],
+            name=row["name"],
+            asset_type=AssetType(row["asset_type"]),
+            source=row["source"],
+            sensitivity=DataSensitivity(row["sensitivity"]),
+            owner=row["owner"],
+            description=row["description"],
+            row_count=row["row_count"],
+            size_bytes=row["size_bytes"],
+            version=row["version"],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
             metadata=json.loads(row["metadata"] or "{}"),
         )
 
     # ── lineage ─────────────────────────────────────────────────────
 
     def add_lineage(self, upstream: str, downstream: str, transform: str = "") -> LineageEdge:
-        edge = LineageEdge(id=_id("lin"), upstream_asset_id=upstream,
-                           downstream_asset_id=downstream, transform=transform, created_at=_now())
+        edge = LineageEdge(
+            id=_id("lin"),
+            upstream_asset_id=upstream,
+            downstream_asset_id=downstream,
+            transform=transform,
+            created_at=_now(),
+        )
         with self._connect() as conn:
             conn.execute(
                 "INSERT OR REPLACE INTO gov_lineage (id,upstream,downstream,transform,created_at) "
                 "VALUES (?,?,?,?,?)",
-                (edge.id, edge.upstream_asset_id, edge.downstream_asset_id,
-                 edge.transform, edge.created_at),
+                (
+                    edge.id,
+                    edge.upstream_asset_id,
+                    edge.downstream_asset_id,
+                    edge.transform,
+                    edge.created_at,
+                ),
             )
             conn.commit()
         return edge
@@ -171,7 +208,15 @@ class GovernanceStore:
             conn.execute(
                 "INSERT OR REPLACE INTO gov_quality "
                 "(id,asset_id,check_type,score,status,detail,created_at) VALUES (?,?,?,?,?,?,?)",
-                (q.id, q.asset_id, q.check_type, q.score, q.status, q.detail, q.created_at or _now()),
+                (
+                    q.id,
+                    q.asset_id,
+                    q.check_type,
+                    q.score,
+                    q.status,
+                    q.detail,
+                    q.created_at or _now(),
+                ),
             )
             conn.commit()
         return q
@@ -183,9 +228,15 @@ class GovernanceStore:
                 (asset_id,),
             ).fetchall()
         return [
-            QualityCheck(id=r["id"], asset_id=r["asset_id"], check_type=r["check_type"],
-                         score=r["score"], status=r["status"], detail=r["detail"],
-                         created_at=r["created_at"])
+            QualityCheck(
+                id=r["id"],
+                asset_id=r["asset_id"],
+                check_type=r["check_type"],
+                score=r["score"],
+                status=r["status"],
+                detail=r["detail"],
+                created_at=r["created_at"],
+            )
             for r in rows
         ]
 
@@ -198,8 +249,14 @@ class GovernanceStore:
             conn.execute(
                 "INSERT OR REPLACE INTO gov_classification_rules "
                 "(id,name,sensitivity,keywords,enabled,created_at) VALUES (?,?,?,?,?,?)",
-                (r.id, r.name, r.sensitivity.value, json.dumps(r.keywords),
-                 1 if r.enabled else 0, r.created_at or _now()),
+                (
+                    r.id,
+                    r.name,
+                    r.sensitivity.value,
+                    json.dumps(r.keywords),
+                    1 if r.enabled else 0,
+                    r.created_at or _now(),
+                ),
             )
             conn.commit()
         return r
@@ -211,10 +268,14 @@ class GovernanceStore:
         with self._connect() as conn:
             rows = conn.execute(sql).fetchall()
         return [
-            ClassificationRule(id=r["id"], name=r["name"],
-                               sensitivity=DataSensitivity(r["sensitivity"]),
-                               keywords=json.loads(r["keywords"] or "[]"),
-                               enabled=bool(r["enabled"]), created_at=r["created_at"])
+            ClassificationRule(
+                id=r["id"],
+                name=r["name"],
+                sensitivity=DataSensitivity(r["sensitivity"]),
+                keywords=json.loads(r["keywords"] or "[]"),
+                enabled=bool(r["enabled"]),
+                created_at=r["created_at"],
+            )
             for r in rows
         ]
 
@@ -225,28 +286,49 @@ class GovernanceService:
     def __init__(self, store: GovernanceStore) -> None:
         self.store = store
 
-    def register_asset(self, name: str, asset_type: AssetType, *, org_id: str = "default",
-                       source: str = "", description: str = "", content: str = "",
-                       row_count: int = 0, size_bytes: int = 0) -> DataAsset:
+    def register_asset(
+        self,
+        name: str,
+        asset_type: AssetType,
+        *,
+        org_id: str = "default",
+        source: str = "",
+        description: str = "",
+        content: str = "",
+        row_count: int = 0,
+        size_bytes: int = 0,
+    ) -> DataAsset:
         """Register an asset, auto-classifying its sensitivity from content."""
         sensitivity = self._classify(content)
         now = _now()
         asset = DataAsset(
-            id=_id("asset"), org_id=org_id, name=name, asset_type=asset_type,
-            source=source, sensitivity=sensitivity, description=description,
-            row_count=row_count, size_bytes=size_bytes, version=1,
-            created_at=now, updated_at=now,
+            id=_id("asset"),
+            org_id=org_id,
+            name=name,
+            asset_type=asset_type,
+            source=source,
+            sensitivity=sensitivity,
+            description=description,
+            row_count=row_count,
+            size_bytes=size_bytes,
+            version=1,
+            created_at=now,
+            updated_at=now,
             metadata={"keywords": extract_keywords(content, limit=8)} if content else {},
         )
         self.store.upsert_asset(asset)
         # Automatic quality check: completeness based on presence of content.
-        self.store.add_quality(QualityCheck(
-            id="", asset_id=asset.id, check_type="completeness",
-            score=0.9 if content else 0.3,
-            status="pass" if content else "warn",
-            detail="content present" if content else "no content registered",
-            created_at=_now(),
-        ))
+        self.store.add_quality(
+            QualityCheck(
+                id="",
+                asset_id=asset.id,
+                check_type="completeness",
+                score=0.9 if content else 0.3,
+                status="pass" if content else "warn",
+                detail="content present" if content else "no content registered",
+                created_at=_now(),
+            )
+        )
         return asset
 
     def _classify(self, content: str) -> DataSensitivity:
@@ -256,11 +338,18 @@ class GovernanceService:
                 return rule.sensitivity
         return DataSensitivity.INTERNAL
 
-    def add_classification_rule(self, name: str, sensitivity: DataSensitivity,
-                                keywords: list[str]) -> ClassificationRule:
+    def add_classification_rule(
+        self, name: str, sensitivity: DataSensitivity, keywords: list[str]
+    ) -> ClassificationRule:
         return self.store.upsert_rule(
-            ClassificationRule(id="", name=name, sensitivity=sensitivity,
-                               keywords=keywords, enabled=True, created_at=_now())
+            ClassificationRule(
+                id="",
+                name=name,
+                sensitivity=sensitivity,
+                keywords=keywords,
+                enabled=True,
+                created_at=_now(),
+            )
         )
 
     def record_lineage(self, upstream: str, downstream: str, transform: str = "") -> LineageEdge:
