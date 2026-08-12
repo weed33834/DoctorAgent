@@ -56,7 +56,7 @@ def _coerce_dict(data: dict[str, Any] | str) -> dict[str, Any]:
     if isinstance(data, str):
         try:
             parsed = json.loads(data)
-        except json.JSONDecode as exc:
+        except json.JSONDecodeError as exc:
             raise ValueError(f"FHIR data is not valid JSON: {exc}") from exc
         if not isinstance(parsed, dict):
             raise ValueError("FHIR data must decode to a JSON object")

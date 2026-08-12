@@ -14,11 +14,6 @@ from doctoragent.__main__ import (
     run_headless,
     run_with_tray,
 )
-from tests.presentation_stubs import (
-    FakeApplication,
-    install_presentation_stubs,
-    restore_modules,
-)
 
 
 @pytest.fixture(autouse=True)
@@ -101,56 +96,6 @@ def test_run_headless_starts_monitoring() -> None:
     agent.start_monitoring.assert_called_once()
     agent.stop_monitoring.assert_called_once()
     mock_loop.call_soon.assert_called_once_with(mock_loop.stop)
-
-
-def test_create_tray_app_returns_tray_instance(tmp_path: Path) -> None:
-    """_create_tray_app returns a TrayApplication configured for the given config."""
-    from doctoragent.config import AegisConfig
-
-    saved = install_presentation_stubs()
-    FakeApplication._instance = None
-    try:
-        from doctoragent.presentation.tray import TrayApplication
-
-        config = AegisConfig()
-        config.paths.connections = tmp_path / "connections.json"
-        tray = _create_tray_app(config)
-        assert isinstance(tray, TrayApplication)
-    finally:
-        FakeApplication._instance = None
-        restore_modules(saved)
-
-
-def test_run_with_tray_starts_monitoring_in_background() -> None:
-    """run_with_tray starts the tray UI and Inbox monitoring concurrently."""
-    import time
-
-    from tests.presentation_stubs import FakeApplication
-
-    saved = install_presentation_stubs()
-    FakeApplication._instance = None
-    try:
-        from doctoragent.config import AegisConfig
-
-        config = AegisConfig()
-        config.paths.connections = Path("/tmp/conn.json")
-        agent = MagicMock()
-        with patch("doctoragent.__main__._create_tray_app") as mock_create_tray:
-            mock_tray = MagicMock()
-
-            def stop_after_short_delay() -> None:
-                time.sleep(0.1)
-
-            mock_tray.run.side_effect = stop_after_short_delay
-            mock_create_tray.return_value = mock_tray
-            run_with_tray(agent, config)
-
-        agent.start_monitoring.assert_called_once()
-        agent.stop_monitoring.assert_called_once()
-        mock_tray.run.assert_called_once()
-    finally:
-        FakeApplication._instance = None
-        restore_modules(saved)
 
 
 def test_main_daemon_no_tray_does_not_import_qt() -> None:

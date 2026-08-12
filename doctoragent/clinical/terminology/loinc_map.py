@@ -59,14 +59,15 @@ LOINC_DISPLAYS: dict[str, str] = {
     "6690-2": "Leukocytes [#/volume] in Blood",
     "777-3": "Platelets [#/volume] in Blood",
     # ── Coagulation ────────────────────────────────────────────────────────
-    "2345-7": "Prothrombin time (INR)",
+    "6301-6": "Prothrombin time (INR)",
     # ── Metabolic / chemistry ─────────────────────────────────────────────
     "2951-2": "Sodium [Moles/volume] in Serum or Plasma",
+    "2345-7": "Glucose [Mass/volume] in Serum or Plasma",
     "33914-3": "Glucose [Mass/volume] in Body fluid",
     "1558-6": "Glucose [Mass/volume] in Serum or Plasma --fasting",
+    "15074-8": "Glucose [Moles/volume] in Blood",
     "4548-4": "Hemoglobin A1c/Hemoglobin.total in Blood",
     # ── Renal / hepatic (commonly added to safety checks) ─────────────────
-    "33914-3_2": "Glucose [Moles/volume] in Serum or Plasma",  # alt unit
     "38483-4": "Creatinine [Mass/volume] in Serum or Plasma",
     "2160-0": "Creatinine [Mass/volume] in Serum",
     "3094-0": "Urea nitrogen [Mass/volume] in Serum",
@@ -105,11 +106,13 @@ LOINC_TO_REFERENCE_RANGES_TEST: dict[str, str] = {
     "789-8": "rbc",
     "6690-2": "wbc",
     "777-3": "platelets",
-    "2345-7": "inr",
+    "2345-7": "glucose_fasting",
     "2951-2": "sodium",
     "33914-3": "glucose_fasting",
     "1558-6": "glucose_fasting",
+    "15074-8": "glucose_fasting",
     "4548-4": "hba1c",
+    "6301-6": "inr",
 }
 
 # LOINC codes that should be treated as vitals (not labs) even when the

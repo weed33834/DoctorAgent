@@ -500,6 +500,20 @@ class AuditLogger:
             hashlib.sha256,
         ).hexdigest()
 
+    def _last_hmac(self) -> str | None:
+        """Return the HMAC of the most recent audit record, if any.
+
+        Used to link each new record to its predecessor so the audit log
+        forms a tamper-evident hash chain (delete/reorder/replay of whole
+        entries becomes detectable). See issue #16.
+        """
+        last: str | None = None
+        for _lineno, rec in self._iter_records():
+            h = rec.get("hmac")
+            if h:
+                last = h
+        return last
+
     def _redact_paths_in_details(self, details: dict[str, Any]) -> dict[str, Any]:
         """对敏感路径字段只保留 basename，避免泄露用户名/目录结构。
 
@@ -528,6 +542,9 @@ class AuditLogger:
             "event_type": event_type,
             "details": details_resolved,
         }
+        prev = self._last_hmac()
+        if prev is not None:
+            record["prev_hash"] = prev
         record["hmac"] = self._sign(record)
 
         try:
@@ -754,15 +771,30 @@ class AuditLogger:
     def verify(self) -> tuple[bool, list[int]]:
         """Verify the integrity of all logged records.
 
+        Checks BOTH per-record HMAC integrity AND chain continuity: each
+        record's ``prev_hash`` must equal the preceding record's HMAC, so a
+        deleted / reordered / replayed whole entry breaks the chain and is
+        flagged. See issue #16.
+
         Returns ``(ok, invalid_line_numbers)``.
         """
         invalid: list[int] = []
+        expected_prev: str | None = None
         for lineno, record in self._iter_records():
             record = record.copy()
             stored_hmac = record.pop("hmac", None)
-            expected = self._sign(record)
-            if not hmac.compare_digest(stored_hmac or "", expected):
+            # The HMAC was computed over the record *including* prev_hash, so
+            # keep prev_hash in place for the signature check and only read
+            # it for the chain-continuity check below.
+            prev_hash = record.get("prev_hash")
+            if not hmac.compare_digest(self._sign(record), stored_hmac or ""):
                 invalid.append(lineno)
+                continue
+            if (prev_hash or None) != expected_prev:
+                # Predecessor mismatch / gap / reorder.
+                invalid.append(lineno)
+                continue
+            expected_prev = stored_hmac
         return not invalid, invalid
 
     def _validate_time_range(

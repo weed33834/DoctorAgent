@@ -131,7 +131,10 @@ REFERENCE_RANGES: dict[str, dict[str, Any]] = {
         "max": 100,
         "unit": "%",
         "critical_low": 90,
-        "critical_high": 100,
+        # SpO2 is bounded at 100% by definition; the normal upper limit and
+        # a critical threshold cannot coincide (a value of 100% is normal,
+        # not critical). See issue #13.
+        "critical_high": None,
     },
     # ── Metabolic / endocrine ──────────────────────────────────────────
     "glucose_fasting": {
@@ -440,10 +443,44 @@ def get_reference_range(test_name: str, gender: str = "male") -> dict[str, Any] 
     if base is None:
         return None
     resolved = dict(base)
-    override = _GENDER_OVERRIDES.get(test_name, {}).get(gender)
+    # Normalise gender (case/whitespace/aliases) so a non-lowercase value
+    # does not silently fall back to the male interval. See issue #12.
+    gender_key = (gender or "male").strip().lower()
+    if gender_key in ("female", "f", "women", "woman", "femme"):
+        gender_key = "female"
+    elif gender_key not in ("male", "m", "men", "man"):
+        # Anything else we cannot map is treated as the default (male) range.
+        gender_key = "male"
+    else:
+        gender_key = "male"
+    override = _GENDER_OVERRIDES.get(test_name, {}).get(gender_key)
     if override is not None:
         resolved.update(override)
     return resolved
+
+
+# Unit conversion to bring a supplied value into the catalogue unit before
+# classification. Only glucose is wired up today (mg/dL ↔ mmol/L); the engine
+# historically evaluated raw numbers against the mmol/L range, so a glucose
+# value supplied in mg/dL was classified against the wrong scale and the
+# critical-value direction could be reversed (e.g. 40 mg/dL → "critical high").
+# See issue #14.
+_GLUCOSE_MGDL_PER_MMOL = 18.0  # g/mol ÷ … = 180.156/10, i.e. mg/dL / 18 ≈ mmol/L
+
+
+def _normalise_to_catalogue_unit(
+    test_name: str, value: float, unit: str | None
+) -> float:
+    """Convert *value* into the catalogue unit for *test_name* when a known
+    mass↔molar conversion applies; otherwise return *value* unchanged."""
+    if not unit:
+        return value
+    u = unit.strip().lower()
+    if test_name == "glucose_fasting":
+        # mg/dL → mmol/L. mmol/L (the catalogue unit) is left untouched.
+        if u in ("mg/dl", "mg/100ml", "mg%", "mg/dl.ucum", "mg/100 ml", "mg"):
+            return value / _GLUCOSE_MGDL_PER_MMOL
+    return value
 
 
 def get_abnormality_flag(test_name: str, value: float, gender: str = "male") -> AbnormalityFlag:
@@ -502,11 +539,17 @@ def evaluate_vitals(vitals: dict[str, float]) -> list[dict[str, Any]]:
         ref = get_reference_range(test_name)
         if ref is None:
             continue
-        flag = get_abnormality_flag(test_name, value)
+        # Guard against non-numeric input (mirrors the defensive lab path)
+        # so the vitals evaluator never crashes on a malformed value.
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            continue
+        flag = get_abnormality_flag(test_name, numeric)
         results.append(
             {
                 "test": test_name,
-                "value": value,
+                "value": numeric,
                 "flag": flag,
                 "reference": _format_reference(ref),
                 "unit": ref.get("unit"),
@@ -553,6 +596,10 @@ def evaluate_lab_value(
             "unit": unit,
             "abnormal": False,
         }
+    # Convert to the catalogue unit first so glucose in mg/dL (the LOINC
+    # [Mass/volume] codes) is classified on the correct mmol/L scale and the
+    # critical-value direction is not reversed. See issue #14.
+    value = _normalise_to_catalogue_unit(test_name, float(value), unit)
     flag = get_abnormality_flag(test_name, value, gender)
     result: dict[str, Any] = {
         "test": test_name,

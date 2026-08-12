@@ -177,7 +177,7 @@ PRs that come with tests and a security note get reviewed within a week.
 
 ## Commercial use
 
-The code is MIT. You can use it inside a hospital, sell it as a hosted service, wrap it in a product, embed it in a larger system — whatever your business model needs. The maintainers offer paid support contracts (response SLA, security review, version pinning) for organizations that need them. Reach out via GitCode issues or the email in `pyproject.toml`.
+The code is Apache-2.0. You can use it inside a hospital, sell it as a hosted service, wrap it in a product, embed it in a larger system — whatever your business model needs. The maintainers offer paid support contracts (response SLA, security review, version pinning) for organizations that need them. Reach out via GitCode issues or the email in `pyproject.toml`.
 
 What we will not accept:
 
@@ -219,7 +219,7 @@ The four "Roadmap" rows are explicit because pretending they're already done was
 ## FAQ
 
 **Is DoctorAgent free? Can I use it commercially?**
-Yes. MIT license, including commercial use, hosted services, and embedding in products. See [Commercial use](#commercial-use) for the three things we won't accept in derivative works.
+Yes. Apache-2.0 license, including commercial use, hosted services, and embedding in products. See [Commercial use](#commercial-use) for the three things we won't accept in derivative works.
 
 **Does it work without an LLM?**
 The deterministic safety engine (drug interactions, critical values, allergy cross-reactivity, duplicate therapy) and the document vault run fully offline — no API key, no network. The agent / chat features need an LLM backend: any OpenAI-compatible endpoint works, including a local Ollama instance (air-gapped setup is supported).
@@ -250,7 +250,7 @@ v0.3.x is the current line: expanding the deterministic rule set, Postgres backe
 
 ## License
 
-MIT. See `LICENSE`. The included SNOMED CT, LOINC, and ICD-10-CM reference data are redistributed under their respective licenses (see `docs/COMPLIANCE_ROADMAP.md`).
+Apache-2.0. See `LICENSE`. The included SNOMED CT, LOINC, and ICD-10-CM reference data are redistributed under their respective licenses (see `docs/COMPLIANCE_ROADMAP.md`).
 
 ---
 

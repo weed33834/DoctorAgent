@@ -73,6 +73,27 @@ python -m pytest tests/test_main.py -v
 python -m pytest tests/ --cov=doctoragent --cov-report=term-missing
 ```
 
+**Minimal extras to run the full default suite locally** (the suite excludes
+`integration` / `gui` / `slow`-marked tests by default):
+
+```bash
+pip install -e ".[server,clinical,dev]"
+# Optional-but-recommended extras so every non-skipped test actually runs:
+pip install "fhir.resources" boto3 mcp authlib  # FHIR, AWS KMS, MCP, OIDC
+```
+
+Notes:
+- `dev` provides `pytest`/`pytest-asyncio`/`pytest-cov`/`ruff`/`bandit`.
+- `server` is required for the API-router tests (FastAPI/TestClient).
+- `clinical` is required for the clinical / safety / CDS-Hooks / terminology tests.
+- `fhir.resources`, `boto3`, `mcp`, `authlib` are lightweight; without them the
+  FHIR / AWS-KMS / MCP / OIDC test modules are skipped or fail with a clear
+  ImportError rather than running.
+- `gui`, `semantic`, `multimodal`, `sync`, `observability`, `evaluation`,
+  `chroma`, `s3`, `notifications` are only needed for their corresponding
+  test modules and for real feature use — not for the core default suite.
+
+
 ### Code Style
 
 We use **ruff** for linting and formatting:

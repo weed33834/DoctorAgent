@@ -12,9 +12,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import pytest
+
 API = "https://zhiyunapi.cc"
 KEY = os.environ.get("TEST_KEY", "")
 MODEL = os.environ.get("DEEP_MODEL", "deepseek-v4-flash")
+
+# Live tests against an external API — excluded from the default suite and
+# skipped unless TEST_KEY is provided.
+pytestmark = pytest.mark.integration
+if not KEY:
+    pytest.skip("TEST_KEY not set; this is a live test against an external API", allow_module_level=True)
 
 results: list[tuple[str, bool, str]] = []
 

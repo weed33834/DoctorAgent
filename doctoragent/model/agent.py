@@ -70,16 +70,25 @@ def _estimate_tokens(text: str) -> int:
     """
     if not text:
         return 0
-    try:
-        import tiktoken
+    # Cache BOTH success and failure so an offline / rate-limited tiktoken
+    # download is not retried on every call (which blocks for seconds).
+    # See issue #8.
+    enc = getattr(_estimate_tokens, "_enc", None)
+    if enc is None and not getattr(_estimate_tokens, "_enc_tried", False):
+        _estimate_tokens._enc_tried = True  # type: ignore[attr-defined]
+        try:
+            import tiktoken
 
+            _estimate_tokens._enc = tiktoken.get_encoding("cl100k_base")  # type: ignore[attr-defined]
+        except Exception:  # noqa: BLE001 - tiktoken unavailable / download failed
+            _estimate_tokens._enc = False  # type: ignore[attr-defined]
         enc = getattr(_estimate_tokens, "_enc", None)
-        if enc is None:
-            enc = tiktoken.get_encoding("cl100k_base")
-            _estimate_tokens._enc = enc  # type: ignore[attr-defined]
-        return len(enc.encode(text))
-    except Exception:  # noqa: BLE001 - tiktoken unavailable / download failed
-        return max(1, len(text) // 4)
+    if enc:
+        try:
+            return len(enc.encode(text))
+        except Exception:  # noqa: BLE001
+            pass
+    return max(1, len(text) // 4)
 
 
 def _extract_json(text: str) -> Any:
@@ -1457,16 +1466,25 @@ class Agent:
         # Record the assistant tool-call request for context.
         assistant_msg: dict[str, Any] = {"role": "assistant", "content": ""}
         if tools_spec:
+            # Materialize a stable fallback id up-front and reuse it for both
+            # the assistant tool_call and the matching tool result. Deriving it
+            # lazily from ``self._tool_calls_used`` at result-append time is
+            # wrong: the counter is incremented during execution, so the fallback
+            # id would drift from the assistant's and violate the provider's
+            # ``tool_call_id`` contract (OpenAI/Anthropic reject or mismap it).
+            for idx, tc in enumerate(tool_calls):
+                if not tc.get("id"):
+                    tc["id"] = f"call_{self._tool_calls_used}_{idx}"
             assistant_msg["tool_calls"] = [
                 {
-                    "id": tc.get("id") or f"call_{self._tool_calls_used}_{idx}",
+                    "id": tc["id"],
                     "type": "function",
                     "function": {
                         "name": tc.get("name", ""),
                         "arguments": json.dumps(tc.get("arguments", {}), ensure_ascii=False),
                     },
                 }
-                for idx, tc in enumerate(tool_calls)
+                for tc in tool_calls
             ]
         messages.append(assistant_msg)
 
@@ -1527,8 +1545,9 @@ class Agent:
                 tool_name=tc.get("name", ""),
                 tool_result=result,
             )
-            call_id = tc.get("id") or f"call_{self._tool_calls_used}_{idx}"
+            call_id = tc["id"]
             messages.append({"role": "tool", "tool_call_id": call_id, "content": observation})
+
         return [r for _, _, r in flat]
 
     async def _react_loop(

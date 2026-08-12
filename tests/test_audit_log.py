@@ -113,6 +113,37 @@ def test_verify_valid_records(logger: AuditLogger) -> None:
     assert invalid == []
 
 
+def test_verify_detects_deleted_middle_record(config: AegisConfig, logger: AuditLogger) -> None:
+    """Regression for #16: a deleted whole entry breaks the hash chain."""
+    logger.log("file_ingested", {"task_id": "1"})
+    logger.log("encrypted", {"task_id": "2"})
+    logger.log("agent_initialized", {"task_id": "3"})
+
+    log_path = config.paths.logs / "audit.log.ndjson"
+    lines = log_path.read_text().strip().splitlines()
+    del lines[1]  # remove the middle record
+    log_path.write_text("\n".join(lines) + "\n")
+
+    ok, invalid = logger.verify()
+    assert ok is False
+    assert 2 in invalid  # the record after the gap is flagged
+
+
+def test_verify_detects_reordered_records(config: AegisConfig, logger: AuditLogger) -> None:
+    """Regression for #16: reordering whole entries breaks the chain."""
+    logger.log("file_ingested", {"task_id": "1"})
+    logger.log("encrypted", {"task_id": "2"})
+    logger.log("agent_initialized", {"task_id": "3"})
+
+    log_path = config.paths.logs / "audit.log.ndjson"
+    lines = log_path.read_text().strip().splitlines()
+    log_path.write_text("\n".join(reversed(lines)) + "\n")
+
+    ok, invalid = logger.verify()
+    assert ok is False
+    assert invalid
+
+
 def test_verify_detects_tampering(config: AegisConfig, logger: AuditLogger) -> None:
     """verify flags lines whose payload was modified."""
     logger.log("file_ingested", {"task_id": "1"})

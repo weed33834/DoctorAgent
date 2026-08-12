@@ -184,6 +184,23 @@ class TestLoincMap:
                 f"Vital LOINC code {code} not in test-name map"
             )
 
+    def test_loinc_2345_7_is_glucose_not_inr(self) -> None:
+        # LOINC 2345-7 is "Glucose [Mass/volume] in Serum or Plasma", NOT
+        # prothrombin/INR. It must resolve to the glucose test, never inr.
+        assert lookup_loinc_display("2345-7") == (
+            "Glucose [Mass/volume] in Serum or Plasma"
+        )
+        assert lookup_loinc_test_name("2345-7") == "glucose_fasting"
+
+    def test_inr_loinc_code_is_6301_6(self) -> None:
+        # The correct INR LOINC code is 6301-6; it must bind to the inr test.
+        assert lookup_loinc_display("6301-6") == "Prothrombin time (INR)"
+        assert lookup_loinc_test_name("6301-6") == "inr"
+
+    def test_glucose_molar_loinc_15074_8_binds_to_glucose(self) -> None:
+        # 15074-8 is "Glucose [Moles/volume] in Blood" (mmol/L).
+        assert lookup_loinc_test_name("15074-8") == "glucose_fasting"
+
 
 class TestLoincBulkLoader:
     def test_load_table_adds_new_codes(self, tmp_path, monkeypatch):

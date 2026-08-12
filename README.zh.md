@@ -187,7 +187,7 @@ DoctorAgent 在核心临床能力之外，已落地一整套**可上线、可信
 
 ## 商业使用
 
-代码 MIT。医院内部用、做成托管服务卖、裹进产品卖、嵌入更大系统——按你的商业模式来。维护者提供付费支持合同（响应 SLA、安全审查、版本钉死），有需要的机构联系我们（GitCode 议题或 pyproject.toml 里的邮箱）。
+代码 Apache-2.0。医院内部用、做成托管服务卖、裹进产品卖、嵌入更大系统——按你的商业模式来。维护者提供付费支持合同（响应 SLA、安全审查、版本钉死），有需要的机构联系我们（GitCode 议题或 pyproject.toml 里的邮箱）。
 
 我们不接受的：
 
@@ -257,7 +257,7 @@ PHI 脱敏（HIPAA Safe Harbor，19 类标识符含身份证号，4 种策略：
 
 ## 许可证
 
-MIT，见 `LICENSE`。内置的 SNOMED CT、LOINC、ICD-10-CM 参考数据按各自许可证再分发（见 `docs/COMPLIANCE_ROADMAP.md`）。
+Apache-2.0，见 `LICENSE`。内置的 SNOMED CT、LOINC、ICD-10-CM 参考数据按各自许可证再分发（见 `docs/COMPLIANCE_ROADMAP.md`）。
 
 ---
 

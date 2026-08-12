@@ -5,6 +5,29 @@
 
 ---
 
+## [0.6.0] - 2026-08-12
+
+### 临床正确性与安全链修复（GitHub issues #7–#22）
+
+- **#21 FHIR**：`clinical/fhir/resources.py` 的 `except json.JSONDecode` 笔误改为 `json.JSONDecodeError`（异常触发时崩溃的潜伏 bug）
+- **#12 参考范围**：`get_reference_range` 对性别做大小写/别名归一化，非小写性别不再静默退回男性区间
+- **#13 SpO2**：移除 SpO2 的 `critical_high=100`（与正常上限重合），SpO2=100% 不再被误判 CRITICAL_HIGH
+- **#17 vitals**：`evaluate_vitals` 对非数值输入防御性跳过（与 labs 路径一致）
+- **#14 LOINC + 单位换算**：纠正 LOINC 2345-7 误绑到 INR、补齐 INR 6301-6 与血糖 15074-8 绑定；`evaluate_lab_value` 增加 mg/dL→mmol/L 葡萄糖换算，修复危急值方向反转
+- **#19 CDS Hooks**：解耦 vitals/labs 提取，传入 `context.vitals` 不再静默丢弃 prefetch 中的 labs
+- **#20 agent**：回退路径下 `tool_call_id` 与 assistant `tool_calls[].id` 不再漂移，符合 API 契约
+- **#16 审计链**：审计日志新增 `prev_hash` 链式链接，`verify()` 检测删除/重排/重放整个条目
+- **#18 KMS**：`LocalKMSProvider.info()['ephemeral_key']` 同时考虑 master_key 与环境变量，不再误报密钥持久性
+- **#8 性能**：`_estimate_tokens` 缓存 tiktoken 失败状态，离线/受限网下不再每次调用重试下载（秒级阻塞）
+- **#15 RAG**：递归分块负数索引切片改为安全边界，不再静默丢弃正文/偏移错位
+- **#7 清理**：移除已删除 `doctoragent.presentation` 的残留测试（GUI/PyQt6 已移除）
+- **测试稳定性**：并发分派测试改为断言执行区间重叠而非绝对耗时（#9）；live 深测无 `TEST_KEY` 时跳过并标记 `integration`（#10 由 datasets loader fallback 覆盖）；修复 `_base32_decode` 缺失导致的 TOTP fallback NameError 与 `/inbox/submit` 响应契约（补 `state`/`source`）
+- **docs**：`CONTRIBUTING.md` 明确本地跑全量测试的最小 extra 组合（#11）
+- **CI 依赖升级**：`release.yml` 的 5 个 GitHub Actions 升级到 dependabot 提议版本（setup-qemu/setup-buildx/login@v4、metadata@v6、action-gh-release@v3）
+- 完整默认测试套件：**2365 passed, 31 skipped**
+
+---
+
 ## [0.5.9] - 2026-08-11
 
 ### 开源仓库就绪度体检与修复

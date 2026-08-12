@@ -227,9 +227,13 @@ def translate_request_to_workflow(
     if "allergy_names" not in patient_context:
         names = [_extract_allergen_name(a) for a in allergy_resources]
         patient_context["allergy_names"] = [n for n in names if n]
-    if observations and "vitals" not in patient_context:
+    # Decouple vitals and labs: a vendor-supplied ``context.vitals`` must not
+    # suppress the labs extracted from prefetch Observations (and vice versa).
+    # Each slot is filled independently only when it wasn't already provided
+    # by a higher-priority vendor extension above.
+    if observations:
         vitals, labs = _extract_vitals_labs(observations)
-        if vitals:
+        if vitals and "vitals" not in patient_context:
             patient_context["vitals"] = vitals
         if labs and "labs" not in patient_context:
             patient_context["labs"] = labs

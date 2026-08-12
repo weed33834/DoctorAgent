@@ -205,6 +205,45 @@ class TestTranslateRequestToWorkflow:
         assert ctx["labs"][0]["test"] == "hemoglobin"
         assert ctx["labs"][0]["value"] == 60.0
 
+    def test_vendor_vitals_do_not_drop_prefetch_labs(self) -> None:
+        """Regression (GH #19): when ``context.vitals`` is provided but labs
+        come only from prefetch Observations, the labs must NOT be silently
+        dropped. Filling vitals must not gate labs extraction."""
+        req = CDSHookRequest(
+            hook="patient-view",
+            hookInstance="inst-19",
+            context={"patientId": "p1", "vitals": {"heart_rate": 28}},
+            prefetch={
+                "observations": _bundle([_lab_observation("718-7", 60, "g/L")]),
+            },
+        )
+        ctx, _ = translate_request_to_workflow(req)
+        # Vendor vitals win …
+        assert ctx["vitals"] == {"heart_rate": 28}
+        # … but the prefetch lab still reaches the rule engine.
+        assert ctx["labs"][0]["test"] == "hemoglobin"
+        assert ctx["labs"][0]["value"] == 60.0
+
+    def test_vendor_labs_do_not_drop_prefetch_vitals(self) -> None:
+        """Symmetric case: a vendor ``context.labs`` must not gate the
+        vitals extracted from prefetch Observations."""
+        req = CDSHookRequest(
+            hook="patient-view",
+            hookInstance="inst-19b",
+            context={
+                "patientId": "p1",
+                "labs": [{"test": "potassium", "value": 2.9, "unit": "mmol/L"}],
+            },
+            prefetch={
+                "observations": _bundle([_vital_observation("8867-4", 35)]),
+            },
+        )
+        ctx, _ = translate_request_to_workflow(req)
+        # Vendor labs win …
+        assert ctx["labs"][0]["test"] == "potassium"
+        # … but the prefetch vital still reaches the rule engine.
+        assert ctx["vitals"] == {"heart_rate": 35.0}
+
     def test_vendor_extension_vitals_pass_through(self) -> None:
         """EHRs may send vitals as a context extension; that value must win
         over (or stand in for) any prefetch Observations."""

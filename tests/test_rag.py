@@ -150,6 +150,37 @@ class TestSemanticChunker:
         assert len(chunks) > 0
         assert all("text" in c for c in chunks)
 
+    def test_recursive_split_no_negative_index_drops_content(self):
+        """Regression: early separator must not produce a negative slice.
+
+        A separator found near the start makes ``split_point < chunk_overlap``,
+        so ``text[split_point - chunk_overlap:]`` used to wrap to the *tail* of
+        the text (Python negative indexing), silently dropping the middle and
+        yielding negative / wrong ``start_char`` offsets.
+        """
+        chunker = SemanticChunker(chunk_size=512, chunk_overlap=64)
+        # Separator '.' found at idx 1 -> split_point 2 < overlap 64.
+        text = "A。" + "x" * 600
+        chunks = chunker.chunk_text(text)
+
+        assert len(chunks) > 0
+        # No offset may be negative.
+        for c in chunks:
+            assert c["start_char"] >= 0, f"negative start_char: {c}"
+            assert c["start_char"] <= c["end_char"], f"misaligned offsets: {c}"
+
+        # Every character of the source must be covered when the overlapping
+        # middle sections are stripped: append only the not-yet-covered tail of
+        # each chunk.
+        assert chunks[0]["start_char"] == 0
+        reconstructed = ""
+        cursor = 0
+        for c in chunks:
+            if c["end_char"] > cursor:
+                reconstructed += text[max(cursor, c["start_char"]) : c["end_char"]]
+                cursor = c["end_char"]
+        assert reconstructed == text
+
 
 class TestRagPipeline:
     """Test RAG pipeline integration."""

@@ -1893,6 +1893,8 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
             "ok": status.state == "COMPLETED",
             "inbox_path": str(dest),
             "task_state": status.state,
+            "state": status.state,
+            "source": getattr(submission, "source", None),
             "task_id": str(status.task_id),
             "message": status.message,
         }

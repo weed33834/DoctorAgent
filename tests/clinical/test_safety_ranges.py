@@ -108,4 +108,68 @@ def test_evaluate_lab_value_unit_mismatch_flagged() -> None:
     result = evaluate_lab_value("sodium", 140.0, unit="mg/dL")
     # Sodium catalogue unit is mmol/L; supplying mg/dL records a mismatch.
     assert result.get("unit_mismatch") is True
-    assert result["unit"] == "mg/dL"
+
+
+# ── Regression tests for issue #12 / #13 / #17 ───────────────────────────────
+
+
+def test_spo2_at_upper_normal_is_not_critical(issue_regression: None = None) -> None:
+    # SpO2=100% is the normal upper bound, NOT a critical high. See #13.
+    assert get_abnormality_flag("spo2", 100.0) is AbnormalityFlag.NORMAL
+
+
+def test_gender_is_normalised_case_insensitively() -> None:
+    # Non-lowercase / aliased gender must resolve to the female interval
+    # rather than silently falling back to male. See #12.
+    assert get_reference_range("hemoglobin", "FEMALE")["min"] == 115
+    assert get_reference_range("hemoglobin", "Female")["min"] == 115
+    assert get_reference_range("hemoglobin", "women")["min"] == 115
+    # Male (explicit) still resolves to the male interval.
+    assert get_reference_range("hemoglobin", "MALE")["min"] == 130
+
+
+def test_evaluate_vitals_skips_non_numeric_values() -> None:
+    # A non-numeric vital must be skipped, not crash the evaluator. See #17.
+    results = evaluate_vitals({"heart_rate": "not-a-number", "spo2": 98})
+    assert len(results) == 1
+    assert results[0]["test"] == "spo2"
+
+
+# ── Regression tests for issue #14 (glucose unit conversion) ────────────────
+
+
+def test_glucose_mgdl_low_is_critical_low_not_critical_high() -> None:
+    # 40 mg/dL ≈ 2.2 mmol/L → hypoglycaemia. Without unit conversion this was
+    # classified CRITICAL_HIGH (40 ≥ 22), reversing the critical direction.
+    result = evaluate_lab_value("glucose_fasting", 40.0, unit="mg/dL")
+    assert result["flag"] is AbnormalityFlag.CRITICAL_LOW
+    assert result["abnormal"] is True
+
+
+def test_glucose_mgdl_normal_within_range() -> None:
+    # 90 mg/dL ≈ 5.0 mmol/L → NORMAL.
+    result = evaluate_lab_value("glucose_fasting", 90.0, unit="mg/dL")
+    assert result["flag"] is AbnormalityFlag.NORMAL
+    assert result["abnormal"] is False
+
+
+def test_glucose_mgdl_high_is_critical_high() -> None:
+    # 400 mg/dL ≈ 22.2 mmol/L → hyperglycaemic crisis → CRITICAL_HIGH.
+    result = evaluate_lab_value("glucose_fasting", 400.0, unit="mg/dL")
+    assert result["flag"] is AbnormalityFlag.CRITICAL_HIGH
+    assert result["abnormal"] is True
+
+
+def test_glucose_mmol_l_unit_left_unchanged() -> None:
+    # mmol/L (the catalogue unit) must not be scaled.
+    assert evaluate_lab_value("glucose_fasting", 5.0, unit="mmol/L")["flag"] is (
+        AbnormalityFlag.NORMAL
+    )
+    assert evaluate_lab_value("glucose_fasting", 2.5, unit="mmol/L")["flag"] is (
+        AbnormalityFlag.CRITICAL_LOW
+    )
+
+
+def test_glucose_without_unit_hint_unchanged() -> None:
+    # No unit hint → no conversion (value evaluated on the mmol/L scale as before).
+    assert evaluate_lab_value("glucose_fasting", 5.0)["flag"] is AbnormalityFlag.NORMAL

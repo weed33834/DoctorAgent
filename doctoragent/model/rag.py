@@ -1698,7 +1698,10 @@ class SemanticChunker:
             if not separator:
                 split_point = self.chunk_size
                 left = text[:split_point]
-                right = text[split_point - self.chunk_overlap :]
+                right_start = split_point - self.chunk_overlap
+                if right_start <= 0:
+                    right_start = split_point
+                right = text[right_start:]
                 if left.strip():
                     result.append(
                         {
@@ -1709,7 +1712,7 @@ class SemanticChunker:
                     )
                 if right.strip():
                     self._recursive_split(
-                        right, start_offset + split_point - self.chunk_overlap, result
+                        right, start_offset + right_start, result
                     )
                 return
 
@@ -1717,7 +1720,10 @@ class SemanticChunker:
             if idx > 0:
                 split_point = idx + len(separator)
                 left = text[:split_point]
-                right = text[split_point - self.chunk_overlap :]
+                right_start = split_point - self.chunk_overlap
+                if right_start <= 0:
+                    right_start = split_point
+                right = text[right_start:]
                 if left.strip():
                     result.append(
                         {
@@ -1728,13 +1734,16 @@ class SemanticChunker:
                     )
                 if right.strip():
                     self._recursive_split(
-                        right, start_offset + split_point - self.chunk_overlap, result
+                        right, start_offset + right_start, result
                     )
                 return
 
         split_point = self.chunk_size
         left = text[:split_point]
-        right = text[split_point - self.chunk_overlap :]
+        right_start = split_point - self.chunk_overlap
+        if right_start <= 0:
+            right_start = split_point
+        right = text[right_start:]
         if left.strip():
             result.append(
                 {
@@ -1744,7 +1753,7 @@ class SemanticChunker:
                 }
             )
         if right.strip():
-            self._recursive_split(right, start_offset + split_point - self.chunk_overlap, result)
+            self._recursive_split(right, start_offset + right_start, result)
 
     def _merge_small_chunks(self, chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Merge small chunks."""

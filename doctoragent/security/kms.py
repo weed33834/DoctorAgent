@@ -107,6 +107,11 @@ class LocalKMSProvider(KMSProvider):
     _NONCE_LEN = 12
 
     def __init__(self, master_key: bytes | None = None) -> None:
+        # Whether the active key is process-scoped (ephemeral) rather than
+        # persistent. Derived from BOTH the constructor arg and the env var
+        # so info() reports the truth even when a persistent master_key is
+        # supplied without DOCTORAGENT_KMS_LOCAL_KEY being set. See #18.
+        self._ephemeral = master_key is None
         if master_key is not None:
             if len(master_key) != 32:
                 raise ValueError("master_key must be exactly 32 bytes for AES-256")
@@ -114,6 +119,7 @@ class LocalKMSProvider(KMSProvider):
         else:
             env_key = os.environ.get("DOCTORAGENT_KMS_LOCAL_KEY")
             if env_key:
+                self._ephemeral = False
                 try:
                     self._key = bytes.fromhex(env_key)
                 except ValueError as exc:
@@ -160,7 +166,7 @@ class LocalKMSProvider(KMSProvider):
             "provider": "local",
             "algorithm": "AES-256-GCM",
             "version": int.from_bytes(self._VERSION, "big"),
-            "ephemeral_key": "DOCTORAGENT_KMS_LOCAL_KEY" not in os.environ,
+            "ephemeral_key": self._ephemeral,
         }
 
 

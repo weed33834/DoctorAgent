@@ -65,6 +65,18 @@ def _totp_backend():
         return None
 
 
+def _base32_decode(secret: str) -> bytes:
+    """Decode a (possibly unpadded) base32 secret into raw bytes.
+
+    The fallback RFC 6238 path relies on this helper; ``generate_totp_secret``
+    emits unpadded base32, so re-pad before decoding.
+    """
+    secret = secret.strip().upper()
+    secret = "".join(ch for ch in secret if ch not in "= \t")
+    pad = (-len(secret)) % 8
+    return base64.b32decode(secret + "=" * pad)
+
+
 def generate_totp_secret() -> str:
     """Generate a base32-encoded 20-byte TOTP secret."""
     pyotp = _totp_backend()

@@ -137,6 +137,10 @@ class RecordingTool(Tool):
         self._delay = delay
         self._category = category
         self.calls: list[dict[str, Any]] = []
+        # (name, monotonic_timestamp) pairs appended at call start and end,
+        # used to assert execution-interval overlap instead of wall-clock
+        # timing (see issue #9).
+        self.activity: list[tuple[str, float]] = []
 
     @property
     def definition(self) -> ToolDefinition:
@@ -151,8 +155,11 @@ class RecordingTool(Tool):
 
     async def execute(self, **kwargs: Any) -> ToolResult:
         self.calls.append(kwargs)
+        start = time.monotonic()
+        self.activity.append((self._name, start))
         if self._delay:
             await asyncio.sleep(self._delay)
+        self.activity.append((self._name, time.monotonic()))
         if self._failures:
             raise RuntimeError(self._failures.pop(0))
         return ToolResult(
@@ -237,6 +244,44 @@ class TestCoreReactCycle:
         assert StepType.OBSERVATION in step_types
         assert StepType.ANSWER in step_types
 
+    def test_fallback_tool_call_id_matches_assistant(self) -> None:
+        """Tool results reuse the assistant's tool_call_id (API contract).
+
+        Regression test for #20: when a tool call carries no native id (the
+        text-parse / fallback path), the synthetic id must be identical in the
+        assistant ``tool_calls`` entry and the matching ``tool`` result. It used
+        to be recomputed after ``_tool_calls_used`` was incremented during
+        execution, so the two drifted apart and violated the OpenAI/Anthropic
+        ``tool_call_id`` contract.
+        """
+        provider = ScriptedLLMProvider(
+            responses=[
+                _completion("", tool_calls=[_tool_call("search_documents", {"query": "q"})]),
+                "完成。",
+            ]
+        )
+        agent = _agent(provider, _registry(RecordingTool("search_documents")))
+
+        asyncio.run(agent.run("查询"))
+
+        # The final LLM call carries the full conversation, including the
+        # assistant tool_call and the resulting tool message.
+        final_messages = provider.calls[-1]
+        assistant_ids = [
+            tc["id"]
+            for msg in final_messages
+            if msg.get("role") == "assistant" and msg.get("tool_calls")
+            for tc in msg["tool_calls"]
+        ]
+        result_ids = [
+            msg["tool_call_id"]
+            for msg in final_messages
+            if msg.get("role") == "tool"
+        ]
+        assert assistant_ids
+        assert result_ids
+        assert assistant_ids == result_ids
+
     def test_empty_llm_response_enters_error_state(self) -> None:
         """An empty LLM response (no content, no tool calls) → degraded answer.
 
@@ -316,14 +361,21 @@ class TestParallelToolDispatch:
         tool_b = RecordingTool("tool_b", result_data={"b": 2}, delay=slow, category="management")
         agent = _agent(provider, _registry(tool_a, tool_b))
 
-        start = time.monotonic()
         asyncio.run(agent.run("并行问题"))
-        elapsed = time.monotonic() - start
 
-        # If serial, elapsed ≈ 2*slow = 0.30s; parallel ≈ slow = 0.15s.
-        # Allow generous headroom for CI jitter.
-        assert elapsed < 2 * slow, (
-            f"parallel dispatch expected <{2 * slow:.2f}s, got {elapsed:.3f}s"
+        # Assert execution intervals OVERLAP (parallel) rather than relying on
+        # wall-clock elapsed time, which is flaky under CI load. See issue #9.
+        def _interval(tool: RecordingTool) -> tuple[float, float]:
+            stamps = [ts for name, ts in tool.activity if name == tool._name]
+            assert len(stamps) >= 2, f"{tool._name} did not record start/end"
+            return stamps[0], stamps[-1]
+
+        a_start, a_end = _interval(tool_a)
+        b_start, b_end = _interval(tool_b)
+        # Intervals overlap iff a_start < b_end and b_start < a_end.
+        assert a_start < b_end and b_start < a_end, (
+            f"independent tools did not overlap (a=[{a_start:.3f},{a_end:.3f}], "
+            f"b=[{b_start:.3f},{b_end:.3f}]) — executed serially"
         )
         assert len(tool_a.calls) == 1
         assert len(tool_b.calls) == 1

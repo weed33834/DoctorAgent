@@ -76,6 +76,19 @@ class TestLocalKMSProvider:
         provider2 = LocalKMSProvider()
         assert provider2.decrypt(ciphertext, {}) == b"x"
 
+    def test_ephemeral_key_flag_reflects_actual_state(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Regression for #18: info()['ephemeral_key'] must reflect the real
+        # key persistence, considering BOTH the constructor arg and env var.
+        monkeypatch.delenv("DOCTORAGENT_KMS_LOCAL_KEY", raising=False)
+        # No key anywhere → ephemeral.
+        assert LocalKMSProvider().info()["ephemeral_key"] is True
+        # Env key set → persistent.
+        monkeypatch.setenv("DOCTORAGENT_KMS_LOCAL_KEY", (b"\x09" * 32).hex())
+        assert LocalKMSProvider().info()["ephemeral_key"] is False
+        # master_key supplied (even without env) → persistent.
+        monkeypatch.delenv("DOCTORAGENT_KMS_LOCAL_KEY", raising=False)
+        assert LocalKMSProvider(master_key=b"\x0a" * 32).info()["ephemeral_key"] is False
+
     def test_env_key_invalid_hex(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("DOCTORAGENT_KMS_LOCAL_KEY", "not-hex")
         with pytest.raises(ValueError, match="64 hex chars"):
