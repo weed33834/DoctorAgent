@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from pathlib import Path
 
 import pytest
@@ -11,7 +12,6 @@ import pytest
 from doctoragent.docgen import export_messages, messages_to_markdown
 from doctoragent.tools.code_exec_tool import CodeExecTool
 from doctoragent.workspace_config import WorkspaceConfig, _extract_vars
-
 
 # ── workspace config (prompts / skills / experts) ─────────────────────
 
@@ -49,8 +49,9 @@ def test_extract_vars() -> None:
 
 
 def test_messages_to_markdown() -> None:
-    md = messages_to_markdown([{"role": "user", "content": "Q"},
-                               {"role": "assistant", "content": "A"}])
+    md = messages_to_markdown(
+        [{"role": "user", "content": "Q"}, {"role": "assistant", "content": "A"}]
+    )
     assert "Q" in md and "A" in md and "USER" in md
 
 
@@ -89,6 +90,13 @@ def test_export_unsupported(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_code_exec_calc() -> None:
+    from doctoragent.security.sandbox import SandboxManager
+
+    if (
+        not SandboxManager.isolation_effective()
+        and os.environ.get("DOCTORAGENT_ALLOW_UNSAFE_CODE") != "1"
+    ):
+        pytest.skip("no OS sandbox available on this runner")
     t = CodeExecTool()
     r = await t.execute(code="print(6*7)")
     assert r.success is True
@@ -97,6 +105,13 @@ async def test_code_exec_calc() -> None:
 
 @pytest.mark.asyncio
 async def test_code_exec_chart_image() -> None:
+    from doctoragent.security.sandbox import SandboxManager
+
+    if (
+        not SandboxManager.isolation_effective()
+        and os.environ.get("DOCTORAGENT_ALLOW_UNSAFE_CODE") != "1"
+    ):
+        pytest.skip("no OS sandbox available on this runner")
     t = CodeExecTool()
     code = (
         "import matplotlib\n"
@@ -113,6 +128,13 @@ async def test_code_exec_chart_image() -> None:
 
 @pytest.mark.asyncio
 async def test_code_exec_error_surface() -> None:
+    from doctoragent.security.sandbox import SandboxManager
+
+    if (
+        not SandboxManager.isolation_effective()
+        and os.environ.get("DOCTORAGENT_ALLOW_UNSAFE_CODE") != "1"
+    ):
+        pytest.skip("no OS sandbox available on this runner")
     t = CodeExecTool()
     r = await t.execute(code="raise ValueError('boom')")
     assert r.success is False
@@ -142,7 +164,9 @@ def test_manage_tools_registered_and_callable(ws: WorkspaceConfig, registry: obj
 
     async def run():
         r1 = await create_prompt.execute(name="专家提示", template="你是{domain}专家")
-        r2 = await create_expert.execute(name="药师", title="临床药师", system_prompt="你是资深药师")
+        r2 = await create_expert.execute(
+            name="药师", title="临床药师", system_prompt="你是资深药师"
+        )
         return r1, r2
 
     r1, r2 = asyncio.run(run())
@@ -169,14 +193,16 @@ async def test_sandbox_blocks_host_secrets() -> None:
         assert "refused" in (r.error or "").lower() or "sandbox" in (r.error or "").lower()
         return
     t = CodeExecTool()
-    r = await t.execute(code=(
-        "import pathlib\n"
-        "try:\n"
-        "  leaked = pathlib.Path('/etc/passwd').read_text()[:20]\n"
-        "  print('LEAK', leaked)\n"
-        "except Exception:\n"
-        "  print('BLOCKED')\n"
-    ))
+    r = await t.execute(
+        code=(
+            "import pathlib\n"
+            "try:\n"
+            "  leaked = pathlib.Path('/etc/passwd').read_text()[:20]\n"
+            "  print('LEAK', leaked)\n"
+            "except Exception:\n"
+            "  print('BLOCKED')\n"
+        )
+    )
     out = (r.data or {}).get("stdout", "")
     assert "LEAK" not in out  # host secret must never leak
-    assert "BLOCKED" in out   # the read was refused
+    assert "BLOCKED" in out  # the read was refused

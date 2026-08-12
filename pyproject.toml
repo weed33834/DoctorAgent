@@ -156,6 +156,9 @@ dev = [
     "pytest-cov>=5.0,<8.0",
     "ruff>=0.10",
     "bandit>=1.7,<2.0",
+    # Test-only deps for export integration tests
+    "reportlab>=4.0,<5.0",
+    "python-docx>=1.1,<2.0",
 ]
 # HuggingFace datasets loader for the clinical QA benchmark
 # (clinical/evaluation/datasets.py: MedQA / PubMedQA). Optional; the loader
