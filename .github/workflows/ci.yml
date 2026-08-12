@@ -44,7 +44,10 @@ jobs:
           # drifts across hub revisions and the hub is not reliable in CI.
           # Without `datasets` installed, load_dataset() falls back to the
           # built-in sample data and the suite is deterministic.
-          pip install -e ".[dev,server,clinical,mcp,s3,auth,observability]"
+          # NOTE: `observability` is excluded because deepeval requires
+          # click<8.4.0, conflicting with core dep click>=8.4,<9.0.
+          # deepeval is a RAG evaluation library not needed in CI.
+          pip install -e ".[dev,server,clinical,mcp,s3,auth]"
 
       - name: Lint with ruff
         run: |
