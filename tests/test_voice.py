@@ -11,7 +11,7 @@ import pytest
 from doctoragent.config import VoiceConfig
 from doctoragent.voice.service import (
     VoiceService,
-    VoiceUnavailable,
+    VoiceUnavailableError,
     _audio_endpoint,
 )
 
@@ -76,7 +76,7 @@ def test_voice_unavailable_message() -> None:
     svc = VoiceService(VoiceConfig())
     import asyncio
 
-    with pytest.raises(VoiceUnavailable, match="transcribe"):
+    with pytest.raises(VoiceUnavailableError, match="transcribe"):
         asyncio.run(svc.transcribe(b"x"))
 
 
