@@ -6,10 +6,11 @@ checks and classification. Dependency-free (pydantic only).
 
 from __future__ import annotations
 
-from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
+
+from doctoragent.compat import StrEnum
 
 
 class AssetType(StrEnum):

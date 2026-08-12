@@ -7,10 +7,11 @@ levels, interop policies, and A2A task monitoring records. Dependency-free
 
 from __future__ import annotations
 
-from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
+
+from doctoragent.compat import StrEnum
 
 
 class TrustLevel(StrEnum):
