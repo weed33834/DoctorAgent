@@ -5,6 +5,8 @@
 > Open-source, self-hosted clinical decision support (CDS) agent combining deterministic drug-interaction / critical-value safety rules with multi-agent LLM reasoning — FHIR R4, CDS Hooks 2.0, SMART-on-FHIR, PHI de-identification, RAG document vault, HIPAA-aware audit chain.
 
 [中文](README.zh.md) · [日本語](README.ja.md)
+<p align="center"><img src="assets/logo_256.png" alt="DoctorAgent" width="120"/></p>
+
 
 **Keywords**: clinical AI, medical AI, healthcare AI, clinical decision support, CDS Hooks, FHIR R4, SMART-on-FHIR, drug interaction checker, critical value alerting, PHI de-identification, RAG document vault, LangGraph multi-agent, LLM agents, FastAPI, Python, HIPAA, patient safety, self-hosted, on-premise, air-gapped
 

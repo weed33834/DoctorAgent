@@ -1,6 +1,8 @@
 # DoctorAgent
 
 [English](README.md) | [中文](README.zh.md) | [日本語](README.ja.md)
+<p align="center"><img src="assets/logo_256.png" alt="DoctorAgent" width="120"/></p>
+
 
 [![Tests](https://img.shields.io/badge/tests-2350%2B%20passed-brightgreen.svg)](https://github.com/weed33834/DoctorAgent)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)

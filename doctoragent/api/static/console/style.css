@@ -5522,10 +5522,9 @@ html.theme-transition *, html.theme-transition *::before, html.theme-transition 
 @keyframes landingIn { from { opacity: 0; transform: translateY(24px) scale(.98); } to { opacity: 1; transform: none; } }
 .landing-brand { margin-bottom: 26px; }
 .landing-logo {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 76px; height: 76px; border-radius: 22px; color: #fff; margin-bottom: 14px;
-  background: linear-gradient(135deg, var(--primary), var(--accent));
-  box-shadow: var(--glow-primary); animation: floaty 5s ease-in-out infinite;
+  display: inline-block; width: 84px; height: 84px; border-radius: 22px; margin-bottom: 14px;
+  object-fit: cover; box-shadow: var(--glow-primary);
+  animation: floaty 5s ease-in-out infinite;
 }
 .landing-title { font-size: 26px; font-weight: 720; letter-spacing: -0.02em; }
 .landing-sub { color: var(--text-dim); font-size: 13px; margin-top: 6px; }

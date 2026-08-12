@@ -5,6 +5,8 @@
 > 开源自托管的临床决策支持（CDS）智能体：确定性用药相互作用 / 危急值安全规则 + 多智能体 LLM 推理，支持 FHIR R4、CDS Hooks 2.0、SMART-on-FHIR、PHI 脱敏、RAG 文档库、HIPAA 审计链。
 
 [English](README.md) · [日本語](README.ja.md)
+<p align="center"><img src="assets/logo_256.png" alt="DoctorAgent" width="120"/></p>
+
 
 **关键词**：临床AI、医疗AI、医疗大模型、临床决策支持、CDS Hooks、FHIR、药物相互作用检测、危急值预警、PHI脱敏、RAG检索、文档库、LangGraph多智能体、LLM智能体、FastAPI、Python、HIPAA、患者安全、私有化部署、本地部署、离线运行
 
