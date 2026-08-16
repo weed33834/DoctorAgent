@@ -139,7 +139,7 @@ clinical = [
     # a consistent modern stack: instructor>=1.13 + openai>=2.0. Verified
     # against the full clinical structured-output / agent test suite.
     "instructor>=1.13,<2.0",
-    "openai>=2.0,<3.0",
+    "openai>=2.0,<4.0",
     # Declarative multi-agent orchestration. The clinical workflow runs on a
     # compiled, immutable StateGraph (rules → parallel specialists →
     # documentation → guardrail) so the DAG is auditable and cannot be
