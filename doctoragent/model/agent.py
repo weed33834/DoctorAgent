@@ -92,26 +92,14 @@ def _estimate_tokens(text: str) -> int:
 
 
 def _extract_json(text: str) -> Any:
-    """Extract a JSON object/array from an LLM response.
+    """Delegate to the shared :func:`extract_json` in :mod:`doctoragent._utils`.
 
-    Tolerates ```` ```json ... ``` ```` fenced blocks and leading/trailing
-    prose. Returns the parsed value or ``None``.
+    Kept as a thin wrapper for backward compatibility — 8 other modules
+    import ``_extract_json`` from here.
     """
-    if not text:
-        return None
-    match = re.search(r"```(?:json)?\s*(\{.*?\}|\[.*?\])\s*```", text, re.DOTALL)
-    candidate = match.group(1) if match else text
-    try:
-        return json.loads(candidate)
-    except (json.JSONDecodeError, ValueError):
-        # Last resort: scan for the first {...} or [...] span.
-        match = re.search(r"(\{.*\}|\[.*\])", text, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(1))
-            except (json.JSONDecodeError, ValueError):
-                return None
-        return None
+    from doctoragent._utils import extract_json
+
+    return extract_json(text)
 
 
 def _truncate_args(args: Any, max_len: int = 80) -> str:

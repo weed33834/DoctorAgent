@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import asyncio
 import concurrent.futures
+import json as _json
 import re as _re
 import sqlite3
 from pathlib import Path
@@ -42,6 +43,7 @@ __all__ = [
     "tokenize_words",
     "extract_doc_text",
     "extract_doc_id",
+    "extract_json",
 ]
 
 
@@ -331,3 +333,41 @@ def extract_doc_id(doc: Any) -> str:
         or getattr(doc, "id", "")
         or ""
     )
+
+
+# ---------------------------------------------------------------------------
+# JSON extraction from LLM output — shared by agent, query_router,
+# knowledge_graph, agentic_rag, corrective_rag, tree_of_thought,
+# self_evolution, clinical_tools, dynamic_tools. Previously duplicated as
+# _extract_json in agent.py and imported from there by 8 files.
+# ---------------------------------------------------------------------------
+
+# Pre-compiled regexes for JSON extraction.
+_JSON_FENCE_RE = _re.compile(r"```(?:json)?\s*(\{.*?\}|\[.*?\])\s*```", _re.DOTALL)
+_JSON_BARE_RE = _re.compile(r"(\{.*\}|\[.*\])", _re.DOTALL)
+
+
+def extract_json(text: str) -> Any:
+    """Extract a JSON object/array from an LLM response.
+
+    Tolerates ```` ```json ... ``` ```` fenced blocks and leading/trailing
+    prose. Returns the parsed value or ``None``.
+
+    Previously duplicated as ``_extract_json`` in
+    :mod:`doctoragent.model.agent` — now centralised here.
+    """
+    if not text:
+        return None
+    match = _JSON_FENCE_RE.search(text)
+    candidate = match.group(1) if match else text
+    try:
+        return _json.loads(candidate)
+    except (_json.JSONDecodeError, ValueError):
+        # Last resort: scan for the first {...} or [...] span.
+        match = _JSON_BARE_RE.search(text)
+        if match:
+            try:
+                return _json.loads(match.group(1))
+            except (_json.JSONDecodeError, ValueError):
+                return None
+        return None
