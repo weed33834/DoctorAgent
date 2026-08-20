@@ -21,7 +21,13 @@ from typing import Any
 DEFAULT_MODEL_PRICES: dict[str, dict[str, Any]] = {
     "gpt-4o": {"input": 0.0025, "output": 0.0100, "context": 128000, "tier": "high"},
     "gpt-4o-mini": {"input": 0.00015, "output": 0.00060, "context": 128000, "tier": "medium"},
+    "gpt-4-turbo": {"input": 0.0100, "output": 0.0300, "context": 128000, "tier": "high"},
+    "gpt-3.5-turbo": {"input": 0.0005, "output": 0.0015, "context": 16385, "tier": "low"},
+    "o1": {"input": 0.0150, "output": 0.0600, "context": 200000, "tier": "high"},
+    "o1-mini": {"input": 0.0030, "output": 0.0120, "context": 128000, "tier": "medium"},
     "claude-3-5-sonnet": {"input": 0.0030, "output": 0.0150, "context": 200000, "tier": "high"},
+    "claude-3-opus": {"input": 0.0150, "output": 0.0750, "context": 200000, "tier": "high"},
+    "claude-3-sonnet": {"input": 0.0030, "output": 0.0150, "context": 200000, "tier": "medium"},
     "claude-3-haiku": {"input": 0.00025, "output": 0.00125, "context": 200000, "tier": "medium"},
     "deepseek-v3": {"input": 0.00027, "output": 0.00110, "context": 64000, "tier": "medium"},
     "deepseek-r1": {"input": 0.00055, "output": 0.00219, "context": 64000, "tier": "high"},
@@ -46,6 +52,8 @@ DEFAULT_MODEL_PRICES: dict[str, dict[str, Any]] = {
         "tier": "low",
         "local": True,
     },
+    # Fallback for unknown models.
+    "default": {"input": 0.001, "output": 0.002, "context": 0, "tier": "unknown"},
 }
 
 

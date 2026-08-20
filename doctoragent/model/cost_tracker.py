@@ -20,23 +20,16 @@ from pydantic import BaseModel
 
 from doctoragent._utils import open_sqlite
 from doctoragent.compat import UTC
+from doctoragent.model.pricing import DEFAULT_MODEL_PRICES as _PRICING_TABLE
 
 logger = logging.getLogger(__name__)
 
 # 常见模型的定价表（每 1K token 的美元价格）。
+# 从 ``pricing.py`` 的 ``DEFAULT_MODEL_PRICES`` 统一获取，避免两处维护。
 # 未知模型回退到 ``"default"`` 条目。
 MODEL_PRICING: dict[str, dict[str, float]] = {
-    "gpt-4o": {"input": 0.0025, "output": 0.01},
-    "gpt-4o-mini": {"input": 0.00015, "output": 0.0006},
-    "gpt-4-turbo": {"input": 0.01, "output": 0.03},
-    "gpt-3.5-turbo": {"input": 0.0005, "output": 0.0015},
-    "o1": {"input": 0.015, "output": 0.06},
-    "o1-mini": {"input": 0.003, "output": 0.012},
-    "claude-3-5-sonnet": {"input": 0.003, "output": 0.015},
-    "claude-3-opus": {"input": 0.015, "output": 0.075},
-    "claude-3-sonnet": {"input": 0.003, "output": 0.015},
-    "claude-3-haiku": {"input": 0.00025, "output": 0.00125},
-    "default": {"input": 0.001, "output": 0.002},
+    model: {"input": spec["input"], "output": spec["output"]}
+    for model, spec in _PRICING_TABLE.items()
 }
 
 
