@@ -65,9 +65,7 @@ class TTLCache:
         self.max_size = max_size
         self.ttl_seconds = ttl_seconds
         # cachetools handles TTL expiry and LRU eviction internally.
-        self._store: _CTTLCache = _CTTLCache(
-            maxsize=max_size, ttl=ttl_seconds
-        )
+        self._store: _CTTLCache = _CTTLCache(maxsize=max_size, ttl=ttl_seconds)
         self._lock = threading.Lock()
         # Observability counters.
         self._hits = 0

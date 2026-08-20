@@ -40,6 +40,8 @@ __all__ = [
     "truncate_text",
     "tokenize_for_fts",
     "tokenize_words",
+    "extract_doc_text",
+    "extract_doc_id",
 ]
 
 
@@ -266,3 +268,66 @@ def tokenize_words(text: str) -> list[str]:
     tokenisation. Lowercases the result so matching is case-insensitive.
     """
     return [t.lower() for t in _segment(text)]
+
+
+# ---------------------------------------------------------------------------
+# Document field extraction — shared by agentic_rag, corrective_rag,
+# knowledge_graph, and query_router. Previously duplicated as _doc_text /
+# _doc_id / _doc_ref in 4 files with subtly different implementations.
+# ---------------------------------------------------------------------------
+
+# Keys checked in order for text extraction.
+_DOC_TEXT_KEYS = ("text", "content", "chunk", "summary")
+# Keys checked in order for identifier extraction.
+_DOC_ID_KEYS = ("chunk_id", "doc_id", "task_id", "id", "title", "vault_path")
+
+
+def extract_doc_text(doc: Any, *, max_chars: int | None = None) -> str:
+    """Best-effort extraction of textual content from a document.
+
+    Accepts plain strings, dicts with ``text``/``content``/``chunk``/
+    ``summary`` keys, or objects with ``.text``/``.content`` attributes.
+    Returns ``""`` when nothing usable is found.
+
+    When *max_chars* is given, the result is truncated to that length with
+    an ellipsis appended.
+    """
+    if doc is None:
+        return ""
+    if isinstance(doc, str):
+        text = doc
+    elif isinstance(doc, dict):
+        text = ""
+        for key in _DOC_TEXT_KEYS:
+            value = doc.get(key)
+            if isinstance(value, str) and value.strip():
+                text = value
+                break
+    else:
+        text = getattr(doc, "text", "") or getattr(doc, "content", "") or ""
+    if max_chars is not None and len(text) > max_chars:
+        text = text[:max_chars] + "..."
+    return text
+
+
+def extract_doc_id(doc: Any) -> str:
+    """Best-effort extraction of a document identifier.
+
+    Checks ``chunk_id``, ``doc_id``, ``task_id``, ``id``, ``title``,
+    ``vault_path`` keys (for dicts) or the corresponding attributes.
+    Returns ``""`` when no identifier is found.
+    """
+    if isinstance(doc, str):
+        return ""
+    if isinstance(doc, dict):
+        for key in _DOC_ID_KEYS:
+            value = doc.get(key)
+            if value:
+                return str(value)
+    return (
+        getattr(doc, "chunk_id", "")
+        or getattr(doc, "doc_id", "")
+        or getattr(doc, "task_id", "")
+        or getattr(doc, "id", "")
+        or ""
+    )

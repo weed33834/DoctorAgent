@@ -45,35 +45,17 @@ def _llm_response_text(response: Any) -> str:
 
 
 def _doc_text(doc: Any) -> str:
-    """Best-effort extraction of textual content from a document.
+    """Delegate to the shared :func:`extract_doc_text`."""
+    from doctoragent._utils import extract_doc_text
 
-    Accepts plain strings or dict-like objects with a ``text``/``content``/
-    ``chunk`` field. Returns ``""`` when nothing usable is found.
-    """
-    if doc is None:
-        return ""
-    if isinstance(doc, str):
-        return doc
-    if isinstance(doc, dict):
-        for key in ("text", "content", "chunk", "summary"):
-            value = doc.get(key)
-            if isinstance(value, str) and value.strip():
-                return value
-        # Fall back to a JSON dump so the grader still sees something.
-        return ""
-    return getattr(doc, "text", "") or getattr(doc, "content", "") or ""
+    return extract_doc_text(doc)
 
 
 def _doc_id(doc: Any) -> str:
-    """Best-effort extraction of a document identifier."""
-    if isinstance(doc, str):
-        return ""
-    if isinstance(doc, dict):
-        for key in ("chunk_id", "doc_id", "task_id", "id"):
-            value = doc.get(key)
-            if value:
-                return str(value)
-    return getattr(doc, "chunk_id", "") or getattr(doc, "doc_id", "") or ""
+    """Delegate to the shared :func:`extract_doc_id`."""
+    from doctoragent._utils import extract_doc_id
+
+    return extract_doc_id(doc)
 
 
 # ---------------------------------------------------------------------------

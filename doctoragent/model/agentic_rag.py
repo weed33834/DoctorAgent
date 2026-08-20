@@ -80,33 +80,17 @@ def _llm_response_text(response: Any) -> str:
 
 
 def _doc_text(doc: Any, max_chars: int = 400) -> str:
-    """Best-effort text extraction from a document for prompt context."""
-    if doc is None:
-        return ""
-    if isinstance(doc, str):
-        text = doc
-    elif isinstance(doc, dict):
-        text = ""
-        for key in ("text", "content", "chunk", "summary"):
-            value = doc.get(key)
-            if isinstance(value, str) and value.strip():
-                text = value
-                break
-    else:
-        text = getattr(doc, "text", "") or getattr(doc, "content", "") or ""
-    if len(text) > max_chars:
-        text = text[:max_chars] + "..."
-    return text
+    """Delegate to the shared :func:`extract_doc_text`."""
+    from doctoragent._utils import extract_doc_text
+
+    return extract_doc_text(doc, max_chars=max_chars)
 
 
 def _doc_ref(doc: Any) -> str:
-    """A short identifier/title for a document used in action parameters."""
-    if isinstance(doc, dict):
-        for key in ("chunk_id", "doc_id", "task_id", "id", "title", "vault_path"):
-            value = doc.get(key)
-            if value:
-                return str(value)
-    return getattr(doc, "chunk_id", "") or getattr(doc, "doc_id", "") or ""
+    """Delegate to the shared :func:`extract_doc_id`."""
+    from doctoragent._utils import extract_doc_id
+
+    return extract_doc_id(doc)
 
 
 # ---------------------------------------------------------------------------
