@@ -8,7 +8,6 @@ visibility, owner). Provides CRUD, config, and a retrieval test.
 from __future__ import annotations
 
 import sqlite3
-import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -19,7 +18,10 @@ def _now() -> str:
 
 
 def _id(prefix: str) -> str:
-    return f"{prefix}-{uuid.uuid4().hex[:12]}"
+    """Delegate to the shared :func:`generate_id` in :mod:`doctoragent._utils`."""
+    from doctoragent._utils import generate_id
+
+    return generate_id(prefix)
 
 
 class KnowledgeBaseManager:

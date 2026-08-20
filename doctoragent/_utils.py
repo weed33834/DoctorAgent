@@ -30,6 +30,7 @@ import concurrent.futures
 import json as _json
 import re as _re
 import sqlite3
+import uuid as _uuid
 from pathlib import Path
 from typing import Any
 
@@ -44,6 +45,7 @@ __all__ = [
     "extract_doc_text",
     "extract_doc_id",
     "extract_json",
+    "generate_id",
 ]
 
 
@@ -371,3 +373,23 @@ def extract_json(text: str) -> Any:
             except (_json.JSONDecodeError, ValueError):
                 return None
         return None
+
+
+# ---------------------------------------------------------------------------
+# Prefixed ID generation — shared by 9+ modules that previously each defined
+# their own ``def _id(prefix): return f"{prefix}-{uuid.uuid4().hex[:12]}"``.
+# ---------------------------------------------------------------------------
+
+
+def generate_id(prefix: str) -> str:
+    """Return a prefixed unique ID.
+
+    Format: ``{prefix}-{12 hex chars}`` (e.g. ``conv-a1b2c3d4e5f6``).
+    Uses :func:`uuid.uuid4` for cryptographic randomness.
+
+    Previously duplicated as ``_id()`` in governance/store.py,
+    disaster/store.py, conversations.py, knowledge_base.py,
+    taskcenter.py, workspace_config.py, datapipeline/store.py,
+    multimodal/store.py, interop/store.py — now centralised here.
+    """
+    return f"{prefix}-{_uuid.uuid4().hex[:12]}"
