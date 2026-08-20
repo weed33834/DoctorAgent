@@ -38,12 +38,10 @@ logger = logging.getLogger(__name__)
 
 
 def _llm_response_text(response: Any) -> str:
-    """Normalize an LLM provider response to plain text."""
-    if response is None:
-        return ""
-    if isinstance(response, str):
-        return response
-    return getattr(response, "content", "") or ""
+    """Delegate to the shared :func:`normalize_llm_response`."""
+    from doctoragent.model.provider import normalize_llm_response
+
+    return normalize_llm_response(response)
 
 
 def _doc_text(doc: Any) -> str:

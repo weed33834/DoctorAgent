@@ -48,18 +48,10 @@ logger = logging.getLogger(__name__)
 
 
 def _llm_response_text(response: Any) -> str:
-    """Normalize an LLM provider response to plain text.
+    """Delegate to the shared :func:`normalize_llm_response`."""
+    from doctoragent.model.provider import normalize_llm_response
 
-    ``chat_completion_sync`` returns a plain ``str`` when no tools are
-    requested, but may return a richer object (e.g.
-    :class:`~doctoragent.model.provider.ChatCompletionResponse`) in other
-    configurations. This helper hides that difference from callers.
-    """
-    if response is None:
-        return ""
-    if isinstance(response, str):
-        return response
-    return getattr(response, "content", "") or ""
+    return normalize_llm_response(response)
 
 
 def _relation_id(source: str, target: str, relation_type: str) -> str:

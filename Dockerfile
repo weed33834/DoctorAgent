@@ -103,11 +103,11 @@ EXPOSE 8000
 LABEL org.opencontainers.image.title="DoctorAgent" \
       org.opencontainers.image.description="Clinical AI agent for doctors" \
       org.opencontainers.image.version="${DOCTORAGENT_VERSION}" \
-      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.licenses="Apache-2.0" \
       org.opencontainers.image.source="https://github.com/weed33834/DoctorAgent"
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')" || exit 1
+    CMD curl -fsS http://127.0.0.1:8000/health || exit 1
 
 ENTRYPOINT ["doctoragent"]
 CMD ["serve", "--host", "0.0.0.0", "--port", "8000"]

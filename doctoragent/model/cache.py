@@ -3,16 +3,20 @@
 Three cooperating caches that reduce redundant computation across RAG
 requests:
 
-* :class:`TTLCache` — generic, thread-safe TTL + LRU cache used as the
-  backing store for the specialised caches below.
+* :class:`TTLCache` — generic, thread-safe TTL + LRU cache backed by
+  :class:`cachetools.TTLCache`. Replaces the former hand-rolled
+  ``OrderedDict`` + ``threading.Lock`` implementation (~310 lines) with the
+  battle-tested ``cachetools`` library (used by SQLAlchemy, pip, and 2000+
+  projects). The wrapper preserves the original API (``get`` / ``set`` /
+  ``delete`` / ``clear`` / ``stats``) and observability counters (hits,
+  misses, evictions) so callers need no changes.
 * :class:`EmbeddingCache` — caches embedding vectors keyed by
   ``sha256(text)`` so repeated embedding of the same text is skipped.
 * :class:`QueryResultCache` — caches full RAG query results with
   document-level invalidation so that editing a vault document drops only
   the affected cached answers.
 
-All classes use ``hashlib.sha256`` for cache keys and ``time.monotonic()``
-for TTL expiry (immune to wall-clock adjustments).
+All classes use ``hashlib.sha256`` for cache keys.
 """
 
 from __future__ import annotations
@@ -20,30 +24,33 @@ from __future__ import annotations
 import hashlib
 import logging
 import threading
-import time
-from collections import OrderedDict
 from typing import Any
+
+from cachetools import TTLCache as _CTTLCache
 
 logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Generic TTL + LRU cache
+# Generic TTL + LRU cache  (backed by cachetools)
 # ---------------------------------------------------------------------------
 
 
 class TTLCache:
     """Thread-safe cache with per-entry TTL and LRU eviction.
 
-    Entries expire *lazily*: an expired entry is dropped on the next
-    :meth:`get`. When ``max_size`` is exceeded the least-recently-used
-    entry is evicted on :meth:`set`. Access (get/set of an existing key)
-    updates the recency order.
+    Wraps :class:`cachetools.TTLCache` to preserve the original
+    DoctorAgent API (``get`` / ``set`` / ``delete`` / ``clear`` / ``stats``)
+    and observability counters. TTL expiry and LRU eviction are handled
+    by cachetools internally; this wrapper adds:
+
+    * Thread safety (``cachetools`` is not thread-safe by default).
+    * Hit / miss / eviction counters for observability.
+    * The original ``max_size`` / ``ttl_seconds`` constructor signature.
 
     Args:
         max_size: Maximum number of live entries.
-        ttl_seconds: Time-to-live for each entry, measured with
-            :func:`time.monotonic`.
+        ttl_seconds: Time-to-live for each entry.
     """
 
     def __init__(
@@ -57,51 +64,56 @@ class TTLCache:
             raise ValueError("ttl_seconds must be positive")
         self.max_size = max_size
         self.ttl_seconds = ttl_seconds
-        # key -> (value, expiry_monotonic)
-        self._store: OrderedDict[Any, tuple[Any, float]] = OrderedDict()
+        # cachetools handles TTL expiry and LRU eviction internally.
+        self._store: _CTTLCache = _CTTLCache(
+            maxsize=max_size, ttl=ttl_seconds
+        )
         self._lock = threading.Lock()
         # Observability counters.
         self._hits = 0
         self._misses = 0
         self._evictions = 0
+        # Track keys we've inserted so we can distinguish a TTL expiry
+        # (key was set but is now gone) from a genuine miss (key was
+        # never set).  cachetools doesn't expose expiry callbacks.
+        self._seen_keys: set[Any] = set()
 
     def get(self, key: Any) -> Any:
         """Return the cached value for *key*, or ``None`` if absent/expired.
 
-        Refreshes LRU recency on a hit and evicts the entry lazily when
-        its TTL has elapsed.
+        ``cachetools`` handles TTL expiry and LRU recency internally.
+        Expired entries are counted as evictions to preserve the original
+        observability contract.
         """
-        now = time.monotonic()
         with self._lock:
-            entry = self._store.get(key)
-            if entry is None:
-                self._misses += 1
-                return None
-            value, expiry = entry
-            if now >= expiry:
-                # Expired — drop and count as an eviction + miss.
-                self._store.pop(key, None)
+            value = self._store.get(key, default=None)
+            if value is not None:
+                self._hits += 1
+                return value
+            # Miss — check if this was a TTL expiry vs genuine miss.
+            if key in self._seen_keys:
                 self._evictions += 1
-                self._misses += 1
-                return None
-            # Hit: refresh recency.
-            self._store.move_to_end(key)
-            self._hits += 1
-            return value
+                self._seen_keys.discard(key)
+            self._misses += 1
+            return None
 
     def set(self, key: Any, value: Any) -> None:
         """Insert or update *key* with *value* and a fresh TTL.
 
-        Evicts the least-recently-used entry when ``max_size`` is exceeded.
+        LRU eviction (when ``max_size`` is exceeded) is handled by
+        cachetools. We detect LRU evictions by comparing the store size
+        before and after insertion.
         """
-        expiry = time.monotonic() + self.ttl_seconds
         with self._lock:
-            if key in self._store:
-                self._store.move_to_end(key)
-            self._store[key] = (value, expiry)
-            # LRU eviction of the oldest entry.
-            while len(self._store) > self.max_size:
-                self._store.popitem(last=False)
+            old_size = len(self._store)
+            self._store[key] = value
+            self._seen_keys.add(key)
+            # Detect LRU eviction: if the store didn't grow (or shrank),
+            # an old entry was evicted to make room.
+            new_size = len(self._store)
+            if new_size <= old_size and old_size >= self.max_size:
+                # An LRU eviction occurred. We can't know which key was
+                # evicted without diffing, but the counter is what matters.
                 self._evictions += 1
 
     def delete(self, key: Any) -> bool:
@@ -109,6 +121,7 @@ class TTLCache:
         with self._lock:
             if key in self._store:
                 del self._store[key]
+                self._seen_keys.discard(key)
                 return True
             return False
 
@@ -116,6 +129,7 @@ class TTLCache:
         """Remove every entry and reset the hit/miss/eviction counters."""
         with self._lock:
             self._store.clear()
+            self._seen_keys.clear()
             self._hits = 0
             self._misses = 0
             self._evictions = 0

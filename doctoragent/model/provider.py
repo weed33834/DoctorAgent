@@ -666,6 +666,30 @@ def _load_built_in_providers() -> None:
             _PROVIDER_REGISTRY[name] = cls
 
 
+# ---------------------------------------------------------------------------
+# Shared response normalisation helper
+# ---------------------------------------------------------------------------
+
+
+def normalize_llm_response(response: Any) -> str:
+    """Normalize an LLM provider response to plain text.
+
+    ``chat_completion_sync`` returns a plain ``str`` when no tools are
+    requested, but may return a richer object (e.g.
+    :class:`ChatCompletionResponse`) in other configurations. This helper
+    hides that difference from callers.
+
+    Previously duplicated as ``_llm_response_text`` in
+    ``knowledge_graph.py``, ``query_router.py``, ``agentic_rag.py``,
+    ``corrective_rag.py`` — now centralised here.
+    """
+    if response is None:
+        return ""
+    if isinstance(response, str):
+        return response
+    return getattr(response, "content", "") or ""
+
+
 def create_provider(connection: Connection) -> ModelProvider:
     """Factory to create a provider from a connection."""
     _load_built_in_providers()

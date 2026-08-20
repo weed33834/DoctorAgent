@@ -121,7 +121,8 @@ def _split_fact_candidates(text: str) -> list[str]:
     """
     if not text:
         return []
-    import re
+    # ``re`` is already imported at the module level (line 54); no local
+    # import is needed here.
 
     candidates = re.split(r"(?<=[。！？.!?；;])\s*", text)
     return [c.strip() for c in candidates if c.strip()]
@@ -184,6 +185,11 @@ SYNTHESIS_REFINE_MAX = 8  # 4..8 chunks -> Refine
 # Context compression: only invoke the LLM compressor when the assembled
 # retrieved context exceeds this many tokens.
 COMPRESSION_TRIGGER_TOKENS = 2500
+
+# Safety cap for episodic-memory recall: ``recall_episodes`` loads at most this
+# many recent episodes for in-Python ranking, preventing OOM on large tenants.
+# Set generously (10× the typical ``limit``) so recall quality is not impacted.
+_EPISODE_RECALL_SCAN_LIMIT = 200
 
 
 @dataclass
@@ -436,6 +442,45 @@ class MemorySystem:
             conn.commit()
 
         self._ensure_episode_consolidated_column()
+        self._create_indexes()
+
+    def _create_indexes(self) -> None:
+        """Create covering indexes for the memory tables.
+
+        These indexes make the common query patterns (recall by tenant +
+        importance, recall by tenant + timestamp, consolidation scan by
+        tenant + consolidated) use an index seek instead of a full table scan.
+        ``CREATE INDEX IF NOT EXISTS`` is idempotent so this is safe to call
+        on every init.
+        """
+        try:
+            with self._connect() as conn:
+                # Long-term memory: recall_facts filters by tenant_id and
+                # optionally content LIKE, then orders by importance + recency.
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_memory_lt_tenant_imp "
+                    "ON memory_long_term(tenant_id, importance DESC, last_accessed DESC)"
+                )
+                # Episodic memory: recall_episodes filters by tenant_id and
+                # orders by timestamp DESC.
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_memory_ep_tenant_ts "
+                    "ON memory_episodic(tenant_id, timestamp DESC)"
+                )
+                # Consolidation scan: filters by tenant_id + consolidated.
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_memory_ep_consolidated "
+                    "ON memory_episodic(tenant_id, consolidated, timestamp ASC)"
+                )
+                # Conversation turns: get_conversation_history filters by
+                # session_id + tenant_id and orders by timestamp DESC.
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_conv_turns_session_ts "
+                    "ON conversation_turns(session_id, tenant_id, timestamp DESC)"
+                )
+                conn.commit()
+        except Exception:  # noqa: BLE001 — indexes are best-effort
+            pass
 
     def _ensure_episode_consolidated_column(self) -> None:
         """Add the ``consolidated`` marker column to memory_episodic if missing.
@@ -503,19 +548,63 @@ class MemorySystem:
         Uses a single batch ``UPDATE ... WHERE memory_id IN (...)`` to bump
         access counts for all recalled facts, avoiding the N+1 query pattern
         that opened a separate connection per row.
+
+        When *query* is non-empty, facts are first filtered by a lightweight
+        ``LIKE`` match on content. If fewer than ``limit`` results are found
+        (common when the query is in a different language or uses different
+        terminology), the remainder is filled from top-N by importance so the
+        caller always gets up to ``limit`` facts when enough exist.
         """
         with self._connect() as conn:
-            rows = conn.execute(
-                """
-                SELECT memory_id, content, memory_type, importance, created_at,
-                       last_accessed, access_count, metadata
-                FROM memory_long_term
-                WHERE tenant_id = ?
-                ORDER BY importance DESC, last_accessed DESC
-                LIMIT ?
-                """,
-                (self.tenant_id, limit),
-            ).fetchall()
+            if query:
+                # Try query-relevant facts first.
+                like_pattern = f"%{query}%"
+                rows = conn.execute(
+                    """
+                    SELECT memory_id, content, memory_type, importance, created_at,
+                           last_accessed, access_count, metadata
+                    FROM memory_long_term
+                    WHERE tenant_id = ? AND content LIKE ?
+                    ORDER BY importance DESC, last_accessed DESC
+                    LIMIT ?
+                    """,
+                    (self.tenant_id, like_pattern, limit),
+                ).fetchall()
+                # Fallback: if LIKE returned fewer than ``limit`` rows,
+                # top up with the best facts regardless of query content.
+                # This preserves the original behaviour for cross-lingual or
+                # paraphrased queries where substring match misses.
+                if len(rows) < limit:
+                    already_ids = {r[0] for r in rows}
+                    remaining = limit - len(rows)
+                    fallback_rows = conn.execute(
+                        """
+                        SELECT memory_id, content, memory_type, importance, created_at,
+                               last_accessed, access_count, metadata
+                        FROM memory_long_term
+                        WHERE tenant_id = ?
+                        ORDER BY importance DESC, last_accessed DESC
+                        LIMIT ?
+                        """,
+                        (self.tenant_id, remaining + len(already_ids)),
+                    ).fetchall()
+                    for fr in fallback_rows:
+                        if fr[0] not in already_ids:
+                            rows.append(fr)
+                            if len(rows) >= limit:
+                                break
+            else:
+                rows = conn.execute(
+                    """
+                    SELECT memory_id, content, memory_type, importance, created_at,
+                           last_accessed, access_count, metadata
+                    FROM memory_long_term
+                    WHERE tenant_id = ?
+                    ORDER BY importance DESC, last_accessed DESC
+                    LIMIT ?
+                    """,
+                    (self.tenant_id, limit),
+                ).fetchall()
 
             if rows:
                 # Batch update: increment access_count and update last_accessed
@@ -622,6 +711,10 @@ class MemorySystem:
         embedding fall back to the keyword-overlap heuristic so historical data
         remains recallable after the upgrade. Without a provider the entire
         recall path is the original keyword-matching behaviour.
+
+        A safety cap (``_EPISODE_RECALL_SCAN_LIMIT``) is applied to the SQL
+        query so large tenants with thousands of episodes don't load the entire
+        table into memory just to rank ``limit`` results.
         """
         with self._connect() as conn:
             rows = conn.execute(
@@ -631,8 +724,9 @@ class MemorySystem:
                 FROM memory_episodic
                 WHERE tenant_id = ?
                 ORDER BY timestamp DESC
+                LIMIT ?
                 """,
-                (self.tenant_id,),
+                (self.tenant_id, _EPISODE_RECALL_SCAN_LIMIT),
             ).fetchall()
 
         # Compute query embedding once (vector path).
@@ -1077,7 +1171,7 @@ class ContextEngineer:
 - 保护用户隐私，不要泄露敏感信息
 """
 
-    SYSTEM_PROMPT_WITH_MEMORY = """你是 DoctorAgent 的 AI 努力，专门帮助用户管理他们加密保险库中的文档。
+    SYSTEM_PROMPT_WITH_MEMORY = """你是 DoctorAgent 的 AI 助手，专门帮助用户管理他们加密保险库中的文档。
 
 {memory_context}
 

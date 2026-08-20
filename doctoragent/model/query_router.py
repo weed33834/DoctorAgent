@@ -246,12 +246,13 @@ _TYPE_TO_STRATEGY: dict[QueryType, RetrievalStrategy] = {
 
 
 def _llm_response_text(response: Any) -> str:
-    """Normalize an LLM provider response to plain text."""
-    if response is None:
-        return ""
-    if isinstance(response, str):
-        return response
-    return getattr(response, "content", "") or ""
+    """Normalize an LLM provider response to plain text.
+
+    Delegates to the shared :func:`doctoragent.model.provider.normalize_llm_response`.
+    """
+    from doctoragent.model.provider import normalize_llm_response
+
+    return normalize_llm_response(response)
 
 
 # ---------------------------------------------------------------------------

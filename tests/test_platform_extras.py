@@ -33,7 +33,8 @@ def test_split_sentences_and_summarize() -> None:
 
 
 def test_token_count() -> None:
-    assert token_count("你好世界") == 4
+    # tiktoken cl100k_base: "你好世界" → 5 tokens (accurate, was 4 with old heuristic)
+    assert token_count("你好世界") == 5
     assert token_count("hello world") > 0
 
 

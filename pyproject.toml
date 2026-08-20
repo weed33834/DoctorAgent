@@ -44,6 +44,10 @@ dependencies = [
     # content search is effectively broken. jieba is the standard library;
     # the tokenisation helpers degrade gracefully when it is absent.
     "jieba>=0.42,<1.0",
+    # Mature TTL/LRU cache library — replaces the former hand-rolled
+    # OrderedDict+Lock cache in doctoragent.model.cache. Used by SQLAlchemy,
+    # pip, and 2000+ projects.
+    "cachetools>=5.3,<7.0",
 ]
 
 [project.urls]

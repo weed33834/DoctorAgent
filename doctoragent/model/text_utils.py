@@ -12,6 +12,10 @@ from __future__ import annotations
 import re
 from collections import Counter
 
+# Cached tiktoken encoding (loaded lazily on first ``token_count`` call).
+_tiktoken_encoding = None
+_tiktoken_loaded = False
+
 # CJK + ASCII word tokens
 _WORD_RE = re.compile(r"[\u4e00-\u9fff]|[a-zA-Z0-9]+")
 
@@ -116,22 +120,42 @@ def extract_keywords(
 ) -> list[str]:
     """Extract the most salient keywords from Chinese/English text.
 
-    Uses ``jieba`` for Chinese word segmentation when available (mature
-    tokenization instead of naive character splitting); falls back to
-    character/word tokenization otherwise. Tokens are scored by normalized
-    frequency after stop-word and punctuation removal.
+    Uses ``jieba.analyse.extract_tags`` (TF-IDF + TextRank) when available
+    — jieba is already a core dependency. Falls back to a simple TF scoring
+    heuristic if jieba is not installed.
     """
     if not text:
         return []
+    # Primary path: jieba.analyse (mature, battle-tested keyword extraction).
+    try:
+        import jieba.analyse  # type: ignore[import-not-found]
+
+        keywords = jieba.analyse.extract_tags(
+            text,
+            topK=limit,
+            withWeight=False,
+            allowPOS=(),  # no POS filtering — keep all candidate words
+        )
+        if keywords:
+            # Apply min_len filter (jieba doesn't have this parameter).
+            if min_len > 1:
+                keywords = [kw for kw in keywords if len(kw) >= min_len]
+            return keywords
+    except ImportError:  # pragma: no cover
+        pass
+    except Exception:  # noqa: BLE001 — jieba internal error, fall back
+        pass
+
+    # Fallback: simple TF scoring (original implementation).
     tokens: list[str] = []
-    try:  # 优先用成熟的中文分词库
+    try:
         import jieba  # type: ignore[import-not-found]
 
         for tok in jieba.cut(text):
             tok = tok.strip()
             if tok and not re.fullmatch(r"[\W_]+", tok):
                 tokens.append(tok)
-        if not tokens:  # 分词结果异常时回退
+        if not tokens:
             tokens = [m.group(0) for m in _WORD_RE.finditer(text)]
     except ImportError:  # pragma: no cover
         tokens = [m.group(0) for m in _WORD_RE.finditer(text)]
@@ -182,12 +206,29 @@ def summarize(text: str, max_sentences: int = 3, keywords: list[str] | None = No
 
 
 def token_count(text: str) -> int:
-    """Rough token estimate (CJK chars count 1, ASCII words ~1.3)."""
+    """Accurate token count using tiktoken ``cl100k_base``.
+
+    Replaces the former hand-rolled heuristic (CJK×1 + ASCII×1.3).
+    tiktoken is already a core dependency.  Falls back to the
+    ``len(text) // 4`` heuristic if tiktoken is unavailable.
+    """
     if not text:
         return 0
-    cjk = sum(1 for ch in text if "\u4e00" <= ch <= "\u9fff")
-    words = len(re.findall(r"[a-zA-Z0-9']+", text))
-    return cjk + int(words * 1.3)
+    global _tiktoken_encoding, _tiktoken_loaded
+    if not _tiktoken_loaded:
+        _tiktoken_loaded = True
+        try:
+            import tiktoken
+
+            _tiktoken_encoding = tiktoken.get_encoding("cl100k_base")
+        except Exception:  # noqa: BLE001
+            _tiktoken_encoding = None
+    if _tiktoken_encoding is not None:
+        try:
+            return len(_tiktoken_encoding.encode(text))
+        except Exception:  # noqa: BLE001
+            pass
+    return max(1, len(text) // 4)
 
 
 def sanitize_for_index(text: str) -> str:
