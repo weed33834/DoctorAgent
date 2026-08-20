@@ -30,14 +30,14 @@ logger = logging.getLogger(__name__)
 
 
 def _cosine(a: list[float], b: list[float]) -> float:
-    if not a or not b or len(a) != len(b):
-        return 0.0
-    dot = sum(x * y for x, y in zip(a, b, strict=False))
-    na = sum(x * x for x in a) ** 0.5
-    nb = sum(x * x for x in b) ** 0.5
-    if na == 0 or nb == 0:
-        return 0.0
-    return dot / (na * nb)
+    """Delegate to the shared :func:`cosine_similarity` in :mod:`doctoragent._utils`.
+
+    The shared helper uses numpy for vectorised computation and is also used
+    by HybridRetriever, AnnIndex, and TaskStore.
+    """
+    from doctoragent._utils import cosine_similarity
+
+    return cosine_similarity(a, b)
 
 
 def _norm_text(text: str) -> str:
