@@ -46,6 +46,7 @@ __all__ = [
     "extract_doc_id",
     "extract_json",
     "generate_id",
+    "count_tokens",
 ]
 
 
@@ -393,3 +394,43 @@ def generate_id(prefix: str) -> str:
     multimodal/store.py, interop/store.py — now centralised here.
     """
     return f"{prefix}-{_uuid.uuid4().hex[:12]}"
+
+
+# ---------------------------------------------------------------------------
+# Token counting — shared by agent.py (_estimate_tokens), rag.py
+# (_count_tokens), and text_utils.py (token_count). Previously each module
+# maintained its own tiktoken cache and fallback heuristic.
+# ---------------------------------------------------------------------------
+
+_tiktoken_encoding: Any = None
+_tiktoken_loaded: bool = False
+
+
+def count_tokens(text: str) -> int:
+    """Count tokens in *text* using tiktoken ``cl100k_base``.
+
+    Falls back to ``len(text) // 4`` when tiktoken is unavailable or the
+    encoding cannot be loaded. The encoding is cached after the first
+    successful load (both success and failure are cached to avoid retrying
+    a slow download on every call).
+
+    Previously duplicated as ``_estimate_tokens`` in agent.py,
+    ``_count_tokens`` in rag.py, and ``token_count`` in text_utils.py.
+    """
+    if not text:
+        return 0
+    global _tiktoken_encoding, _tiktoken_loaded
+    if not _tiktoken_loaded:
+        _tiktoken_loaded = True
+        try:
+            import tiktoken
+
+            _tiktoken_encoding = tiktoken.get_encoding("cl100k_base")
+        except Exception:  # noqa: BLE001 — ImportError or download failure
+            _tiktoken_encoding = None
+    if _tiktoken_encoding is not None:
+        try:
+            return len(_tiktoken_encoding.encode(text))
+        except Exception:  # noqa: BLE001
+            pass
+    return max(1, len(text) // 4)

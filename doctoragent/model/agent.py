@@ -61,34 +61,10 @@ logger = logging.getLogger(__name__)
 
 
 def _estimate_tokens(text: str) -> int:
-    """Estimate the token count of *text*.
+    """Delegate to the shared :func:`count_tokens` in :mod:`doctoragent._utils`."""
+    from doctoragent._utils import count_tokens
 
-    Uses tiktoken's ``cl100k_base`` encoding when available (mirroring
-    :mod:`doctoragent.model.rag`), falling back to the ``len(text) // 4``
-    heuristic. Kept local to avoid importing from ``rag`` (which is being
-    modified independently).
-    """
-    if not text:
-        return 0
-    # Cache BOTH success and failure so an offline / rate-limited tiktoken
-    # download is not retried on every call (which blocks for seconds).
-    # See issue #8.
-    enc = getattr(_estimate_tokens, "_enc", None)
-    if enc is None and not getattr(_estimate_tokens, "_enc_tried", False):
-        _estimate_tokens._enc_tried = True  # type: ignore[attr-defined]
-        try:
-            import tiktoken
-
-            _estimate_tokens._enc = tiktoken.get_encoding("cl100k_base")  # type: ignore[attr-defined]
-        except Exception:  # noqa: BLE001 - tiktoken unavailable / download failed
-            _estimate_tokens._enc = False  # type: ignore[attr-defined]
-        enc = getattr(_estimate_tokens, "_enc", None)
-    if enc:
-        try:
-            return len(enc.encode(text))
-        except Exception:  # noqa: BLE001
-            pass
-    return max(1, len(text) // 4)
+    return count_tokens(text)
 
 
 def _extract_json(text: str) -> Any:

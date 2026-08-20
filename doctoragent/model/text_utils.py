@@ -12,10 +12,6 @@ from __future__ import annotations
 import re
 from collections import Counter
 
-# Cached tiktoken encoding (loaded lazily on first ``token_count`` call).
-_tiktoken_encoding = None
-_tiktoken_loaded = False
-
 # CJK + ASCII word tokens
 _WORD_RE = re.compile(r"[\u4e00-\u9fff]|[a-zA-Z0-9]+")
 
@@ -206,29 +202,13 @@ def summarize(text: str, max_sentences: int = 3, keywords: list[str] | None = No
 
 
 def token_count(text: str) -> int:
-    """Accurate token count using tiktoken ``cl100k_base``.
+    """Delegate to the shared :func:`count_tokens` in :mod:`doctoragent._utils`.
 
-    Replaces the former hand-rolled heuristic (CJK×1 + ASCII×1.3).
-    tiktoken is already a core dependency.  Falls back to the
-    ``len(text) // 4`` heuristic if tiktoken is unavailable.
+    Previously had its own tiktoken cache; now uses the centralised one.
     """
-    if not text:
-        return 0
-    global _tiktoken_encoding, _tiktoken_loaded
-    if not _tiktoken_loaded:
-        _tiktoken_loaded = True
-        try:
-            import tiktoken
+    from doctoragent._utils import count_tokens
 
-            _tiktoken_encoding = tiktoken.get_encoding("cl100k_base")
-        except Exception:  # noqa: BLE001
-            _tiktoken_encoding = None
-    if _tiktoken_encoding is not None:
-        try:
-            return len(_tiktoken_encoding.encode(text))
-        except Exception:  # noqa: BLE001
-            pass
-    return max(1, len(text) // 4)
+    return count_tokens(text)
 
 
 def sanitize_for_index(text: str) -> str:

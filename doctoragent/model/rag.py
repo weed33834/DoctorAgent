@@ -84,33 +84,18 @@ logger = logging.getLogger(__name__)
 # Cached tiktoken encoding — loaded lazily on first use.  When tiktoken is
 # unavailable (or the encoding download fails) we fall back to the original
 # ``len(text) // 4`` heuristic.
+# Token counting is now centralised in :func:`doctoragent._utils.count_tokens`.
+# The local ``_count_tokens`` wrapper delegates to it so existing call sites
+# within this module continue to work.
 _tiktoken_encoding: Any | None = None
 _tiktoken_loaded = False
 
 
 def _count_tokens(text: str) -> int:
-    """Count tokens in *text* using tiktoken, falling back to ``len // 4``.
+    """Delegate to the shared :func:`count_tokens` in :mod:`doctoragent._utils`."""
+    from doctoragent._utils import count_tokens
 
-    Uses the ``cl100k_base`` encoding (GPT-4 / ChatGPT default).  The
-    encoding object is cached after the first successful load.  If tiktoken
-    is not installed or the encoding cannot be loaded, the function
-    transparently falls back to the original character-based heuristic.
-    """
-    global _tiktoken_encoding, _tiktoken_loaded
-    if not _tiktoken_loaded:
-        _tiktoken_loaded = True
-        try:
-            import tiktoken
-
-            _tiktoken_encoding = tiktoken.get_encoding("cl100k_base")
-        except Exception:  # noqa: BLE001 — ImportError or download failure
-            _tiktoken_encoding = None
-    if _tiktoken_encoding is not None:
-        try:
-            return len(_tiktoken_encoding.encode(text))
-        except Exception:  # noqa: BLE001
-            pass
-    return max(1, len(text) // 4)
+    return count_tokens(text)
 
 
 def _split_fact_candidates(text: str) -> list[str]:
