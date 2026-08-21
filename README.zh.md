@@ -115,7 +115,7 @@ LLM 医疗助手到处都是。绝大多数：
 
 ## 一段话说架构
 
-FastAPI 服务同时承载 API 和静态控制台（`doctoragent/api/static/console` 下的单页应用）。入站文档走：分类器 → AES-256-GCM 加密存储 → SQLite FTS5 索引 + 向量索引 → 检索管道（HyDE + RRF + 交叉编码重排）→ LLM 智能体（病史 → 用药 → 文献 → 文书的固定 DAG）。每一步都写入 HMAC 链式审计。调度器对超时任务自动提权。UI 包含 27 个模块：智能对话、临床工作台、PHI 工具、Vault、RAG、知识图谱、记忆、Prompt 模板、DAG、评估、自进化、强化学习、多智能体协作、配置、连接、租户、系统状态、审计、合规、运维、设置、钩子、可观测性、插件、A/B 实验，加上医生/管理两个视图切换。
+FastAPI 服务同时承载 API 和静态控制台。控制台是 **Vue 3 + Vite + Tailwind** 单页应用（源码在 `frontend/`，构建产物在 `doctoragent/api/static/console/dist`），覆盖 **38 个视图**：智能对话、临床工作台、PHI 工具、Vault、RAG、知识图谱、记忆、Prompt 模板、DAG、评估、自进化、强化学习、多智能体协作、知识库、数据管道、数据治理、多模态、互操作、灾难恢复、成本/定价、沙箱、安全扫描/红队、配置、连接、租户、系统状态、审计、合规、运维、设置、钩子、可观测性、插件、A/B 实验，加上视图切换。控制台是**唯一** UI，无桌面 GUI。入站文档走：分类器 → AES-256-GCM 加密存储 → SQLite FTS5 索引 + 向量索引 → 检索管道（HyDE + RRF + 交叉编码重排）→ LLM 智能体（病史 → 用药 → 文献 → 文书的固定 DAG）。每一步都写入 HMAC 链式审计。
 
 固定 DAG 的智能体设计对我们不可妥协——临床工作流一旦编译完成，LLM 不能自己绕开某个安全步骤。这点大多数"智能体框架"故意允许，而我们在临床管道里明确禁止。
 
@@ -129,6 +129,8 @@ FastAPI 服务同时承载 API 和静态控制台（`doctoragent/api/static/cons
 git clone https://github.com/weed33834/DoctorAgent.git
 cd DoctorAgent
 pip install -e ".[server]"
+# 构建 Web 控制台（Vue 3 + Vite）。仓库已含预构建 dist，仅改前端时需要：
+cd frontend && npm install && npm run build && cd ..
 bash start.sh
 ```
 

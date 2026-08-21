@@ -110,7 +110,7 @@ None of that is groundbreaking engineering. It's mostly boring discipline — FH
 
 ## Architecture in one paragraph
 
-A FastAPI server hosts both an API and a static console (the single-page web app under `doctoragent/api/static/console`). Inbound clinical documents go through a classifier → an AES-256-GCM encrypted store → a SQLite-backed FTS5 index + a vector index → a retrieval pipeline (HyDE + RRF + cross-encoder rerank) → an LLM agent with a fixed DAG of specialists (病史 → 用药 → 文献 → 文书). Every step writes to an HMAC-chained audit log. A scheduler retries timeouts with priority escalation. UI ships as 27 modules: chat, clinical workspace, PHI tools, vault, RAG, knowledge graph, memory, prompts, DAG, eval, self-evolution, RL, multi-agent collab, config, connections, tenants, system status, audit, compliance, ops, settings, hooks, observability, plugins, A/B experiments, plus two view toggles (clinician vs admin).
+A FastAPI server hosts both an API and a static console. The console is a **Vue 3 + Vite + Tailwind** single-page app (source in `frontend/`, built to `doctoragent/api/static/console/dist`), covering **38 views**: chat, clinical workspace, PHI tools, vault, RAG, knowledge graph, memory, prompts, DAG, eval, self-evolution, RL, multi-agent collab, knowledge base, data pipeline, data governance, multimodal, interop, disaster recovery, cost/pricing, sandbox, security scan/red-team, config, connections, tenants, system status, audit, compliance, ops, settings, hooks, observability, plugins, A/B experiments, plus view toggles. The console is the **only** UI — there is no desktop GUI. Inbound clinical documents go through a classifier → an AES-256-GCM encrypted store → a SQLite-backed FTS5 index + a vector index → a retrieval pipeline (HyDE + RRF + cross-encoder rerank) → an LLM agent with a fixed DAG of specialists (病史 → 用药 → 文献 → 文书). Every step writes to an HMAC-chained audit log.
 
 The fixed-DAG agent design is non-negotiable for us — once a clinical workflow is compiled, the LLM cannot reroute itself around a safety step. This is what most "agent frameworks" deliberately allow and what we explicitly prevent in the clinical pipeline.
 
@@ -124,6 +124,9 @@ You need Python 3.10+ and about 200MB of disk.
 git clone https://github.com/weed33834/DoctorAgent.git
 cd DoctorAgent
 pip install -e ".[server]"
+# Build the web console (Vue 3 + Vite). A prebuilt dist is committed, so
+# this is only needed when you change the frontend:
+cd frontend && npm install && npm run build && cd ..
 bash start.sh
 ```
 
