@@ -52,7 +52,7 @@ class ConversationStore:
                 """
                 CREATE TABLE IF NOT EXISTS conv_conversations (
                     id TEXT PRIMARY KEY, title TEXT, created_at TEXT, updated_at TEXT,
-                    meta TEXT
+                    meta TEXT, tenant_id TEXT NOT NULL DEFAULT 'default'
                 );
                 CREATE TABLE IF NOT EXISTS conv_messages (
                     id TEXT PRIMARY KEY, conversation_id TEXT, role TEXT,
@@ -66,13 +66,31 @@ class ConversationStore:
                 CREATE INDEX IF NOT EXISTS idx_conv_msgs_conv ON conv_messages(conversation_id);
                 """
             )
+            # Migration: databases created before tenant isolation lack the
+            # column. ALTER TABLE is idempotent-guarded via a pragma probe.
+            # (Must run BEFORE the tenant index below references the column.)
+            cols = {
+                r["name"]
+                for r in conn.execute("PRAGMA table_info(conv_conversations)").fetchall()
+            }
+            if "tenant_id" not in cols:
+                conn.execute(
+                    "ALTER TABLE conv_conversations "
+                    "ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default'"
+                )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_conv_conv_tenant "
+                "ON conv_conversations(tenant_id, updated_at)"
+            )
             conn.commit()
 
     # ── share links ──────────────────────────────────────────────────
 
-    def share(self, conversation_id: str, ttl_hours: int = 168) -> dict[str, Any] | None:
+    def share(
+        self, conversation_id: str, ttl_hours: int = 168, tenant_id: str = "default"
+    ) -> dict[str, Any] | None:
         """Generate a share token for a conversation (default 7-day TTL)."""
-        if self.get(conversation_id) is None:
+        if self.get_for_tenant(conversation_id, tenant_id) is None:
             return None
         token = uuid.uuid4().hex[:24]
         expires = datetime.now(timezone.utc).timestamp() + ttl_hours * 3600
@@ -119,9 +137,9 @@ class ConversationStore:
         text = " ".join(text.split())
         return text[:24] + ("…" if len(text) > 24 else "")
 
-    def summarize(self, conversation_id: str) -> str | None:
+    def summarize(self, conversation_id: str, tenant_id: str = "default") -> str | None:
         """Heuristic summary from the conversation messages (head + tail)."""
-        conv = self.get(conversation_id)
+        conv = self.get_for_tenant(conversation_id, tenant_id)
         if not conv:
             return None
         msgs = conv.get("messages", [])
@@ -133,7 +151,12 @@ class ConversationStore:
 
     # ── conversations ────────────────────────────────────────────────
 
-    def create(self, title: str = "新对话", meta: dict[str, Any] | None = None) -> dict[str, Any]:
+    def create(
+        self,
+        title: str = "新对话",
+        meta: dict[str, Any] | None = None,
+        tenant_id: str = "default",
+    ) -> dict[str, Any]:
         now = _now()
         row = {
             "id": _id("conv"),
@@ -141,21 +164,27 @@ class ConversationStore:
             "created_at": now,
             "updated_at": now,
             "meta": meta or {},
+            "tenant_id": tenant_id,
         }
         with self._connect() as conn:
             conn.execute(
-                "INSERT INTO conv_conversations (id,title,created_at,updated_at,meta) VALUES (?,?,?,?,?)",
-                (row["id"], row["title"], now, now, _dumps(row["meta"])),
+                "INSERT INTO conv_conversations (id,title,created_at,updated_at,meta,tenant_id) "
+                "VALUES (?,?,?,?,?,?)",
+                (row["id"], row["title"], now, now, _dumps(row["meta"]), tenant_id),
             )
             conn.commit()
         return row
 
-    def list(self, query: str = "", limit: int = 50) -> list[dict[str, Any]]:
-        sql = "SELECT * FROM conv_conversations"
-        params: list[Any] = []
+    def list(
+        self, query: str = "", limit: int = 50, tenant_id: str = "default"
+    ) -> list[dict[str, Any]]:
+        sql = "SELECT * FROM conv_conversations WHERE tenant_id=?"
+        params: list[Any] = [tenant_id]
         if query:
-            sql += " WHERE title LIKE ? OR id IN (SELECT conversation_id FROM conv_messages WHERE content LIKE ?)"
-            params += [f"%{query}%", f"%{query}%"]
+            sql += " AND (title LIKE ? OR id IN "
+            sql += "(SELECT m.conversation_id FROM conv_messages m JOIN conv_conversations c "
+            sql += "ON m.conversation_id=c.id WHERE c.tenant_id=? AND m.content LIKE ?))"
+            params += [f"%{query}%", tenant_id, f"%{query}%"]
         sql += " ORDER BY updated_at DESC LIMIT ?"
         params.append(limit)
         with self._connect() as conn:
@@ -169,6 +198,8 @@ class ConversationStore:
         return out
 
     def get(self, conversation_id: str) -> dict[str, Any] | None:
+        """Fetch a conversation regardless of tenant (ownership is enforced
+        by callers via :meth:`get_for_tenant`)."""
         with self._connect() as conn:
             row = conn.execute(
                 "SELECT * FROM conv_conversations WHERE id=?", (conversation_id,)
@@ -185,31 +216,51 @@ class ConversationStore:
         d["messages"] = [dict(m) for m in msgs]
         return d
 
-    def rename(self, conversation_id: str, title: str) -> bool:
+    def get_for_tenant(self, conversation_id: str, tenant_id: str) -> dict[str, Any] | None:
+        """Tenant-scoped fetch: returns ``None`` when the conversation belongs
+        to another tenant (indistinguishable from a missing record)."""
+        conv = self.get(conversation_id)
+        if conv is None or conv.get("tenant_id", "default") != tenant_id:
+            return None
+        return conv
+
+    def rename(self, conversation_id: str, title: str, tenant_id: str = "default") -> bool:
         with self._connect() as conn:
             cur = conn.execute(
-                "UPDATE conv_conversations SET title=?, updated_at=? WHERE id=?",
-                (title, _now(), conversation_id),
+                "UPDATE conv_conversations SET title=?, updated_at=? "
+                "WHERE id=? AND tenant_id=?",
+                (title, _now(), conversation_id, tenant_id),
             )
             conn.commit()
         return cur.rowcount > 0
 
-    def delete(self, conversation_id: str) -> bool:
+    def delete(self, conversation_id: str, tenant_id: str = "default") -> bool:
         with self._connect() as conn:
+            owned = conn.execute(
+                "SELECT 1 FROM conv_conversations WHERE id=? AND tenant_id=?",
+                (conversation_id, tenant_id),
+            ).fetchone()
+            if not owned:
+                return False
             c1 = conn.execute(
                 "DELETE FROM conv_messages WHERE conversation_id=?", (conversation_id,)
             )
-            c2 = conn.execute("DELETE FROM conv_conversations WHERE id=?", (conversation_id,))
+            c2 = conn.execute(
+                "DELETE FROM conv_conversations WHERE id=? AND tenant_id=?",
+                (conversation_id, tenant_id),
+            )
             conn.commit()
         return c2.rowcount > 0 or c1.rowcount > 0
 
-    def fork(self, conversation_id: str, new_title: str = "") -> dict[str, Any] | None:
+    def fork(
+        self, conversation_id: str, new_title: str = "", tenant_id: str = "default"
+    ) -> dict[str, Any] | None:
         """Branch a conversation (copy its messages into a new one)."""
-        src = self.get(conversation_id)
+        src = self.get_for_tenant(conversation_id, tenant_id)
         if src is None:
             return None
         title = new_title or (src.get("title", "新对话") + " (分叉)")
-        conv = self.create(title)
+        conv = self.create(title, tenant_id=tenant_id)
         with self._connect() as conn:
             for m in src.get("messages", []):
                 conn.execute(
@@ -227,8 +278,14 @@ class ConversationStore:
 
     # ── messages & feedback ──────────────────────────────────────────
 
-    def add_message(self, conversation_id: str, role: str, content: str) -> dict[str, Any] | None:
-        if not self.get(conversation_id):
+    def add_message(
+        self,
+        conversation_id: str,
+        role: str,
+        content: str,
+        tenant_id: str = "default",
+    ) -> dict[str, Any] | None:
+        if not self.get_for_tenant(conversation_id, tenant_id):
             return None
         row = {
             "id": _id("msg"),

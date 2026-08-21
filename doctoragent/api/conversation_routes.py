@@ -1,4 +1,4 @@
-"""Conversation management API (server-side persistence + feedback + fork).
+﻿"""Conversation management API (server-side persistence + feedback + fork).
 
 Reads :class:`~doctoragent.conversations.ConversationStore` off
 ``request.app.state.conversation_store``.
@@ -55,6 +55,17 @@ def _store(request: Request) -> Any:
     return s
 
 
+def _tenant(request: Request) -> str:
+    """Resolve the caller's tenant scope.
+
+    OIDC users carry ``tenant_id`` on their identity; every other auth path
+    (static service-account token, local) maps to the ``default`` tenant.
+    """
+    user = getattr(getattr(request, "state", None), "user", None)
+    tid = getattr(user, "tenant_id", None)
+    return str(tid) if tid else "default"
+
+
 def get_router() -> APIRouter:
     router = APIRouter(prefix="/api/v1/conversations", tags=["Conversations"])
 
@@ -69,9 +80,10 @@ def get_router() -> APIRouter:
         first = payload.get("first_message") or ""
         if not title and first:
             title = store.auto_title(first)
-        conv = store.create(title or "新对话", payload.get("meta"))
+        tenant = _tenant(request)
+        conv = store.create(title or "新对话", payload.get("meta"), tenant_id=tenant)
         if first:
-            store.add_message(conv["id"], "user", first)
+            store.add_message(conv["id"], "user", first, tenant_id=tenant)
         return store.get(conv["id"]) or conv
 
     @router.get("", summary="List / search conversations")
@@ -81,14 +93,14 @@ def get_router() -> APIRouter:
         limit: int = Query(50, ge=1, le=200),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
-        items = _store(request).list(q or "", limit=limit)
+        items = _store(request).list(q or "", limit=limit, tenant_id=_tenant(request))
         return {"total": len(items), "items": items}
 
     @router.get("/{cid}", summary="Get a conversation with messages")
     async def get_conversation(
         cid: str, request: Request, _auth: Any = Depends(_auth_dependency)
     ) -> dict[str, Any]:
-        conv = _store(request).get(cid)
+        conv = _store(request).get_for_tenant(cid, _tenant(request))
         if conv is None:
             raise HTTPException(status_code=404, detail="conversation not found")
         return conv
@@ -101,7 +113,10 @@ def get_router() -> APIRouter:
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
         msg = _store(request).add_message(
-            cid, payload.get("role", "user"), payload.get("content", "")
+            cid,
+            payload.get("role", "user"),
+            payload.get("content", ""),
+            tenant_id=_tenant(request),
         )
         if msg is None:
             raise HTTPException(status_code=404, detail="conversation not found")
@@ -114,7 +129,7 @@ def get_router() -> APIRouter:
         payload: dict[str, Any] = Body(...),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
-        ok = _store(request).rename(cid, payload.get("title", ""))
+        ok = _store(request).rename(cid, payload.get("title", ""), tenant_id=_tenant(request))
         if not ok:
             raise HTTPException(status_code=404, detail="conversation not found")
         return {"ok": True}
@@ -126,7 +141,7 @@ def get_router() -> APIRouter:
         payload: dict[str, Any] = Body(default={}),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
-        conv = _store(request).fork(cid, payload.get("title", ""))
+        conv = _store(request).fork(cid, payload.get("title", ""), tenant_id=_tenant(request))
         if conv is None:
             raise HTTPException(status_code=404, detail="conversation not found")
         return conv
@@ -150,7 +165,7 @@ def get_router() -> APIRouter:
     async def delete_conversation(
         cid: str, request: Request, _auth: Any = Depends(_auth_dependency)
     ) -> dict[str, Any]:
-        ok = _store(request).delete(cid)
+        ok = _store(request).delete(cid, tenant_id=_tenant(request))
         if not ok:
             raise HTTPException(status_code=404, detail="conversation not found")
         return {"ok": True}
@@ -168,7 +183,9 @@ def get_router() -> APIRouter:
         payload: dict[str, Any] = Body(default={}),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
-        share = _store(request).share(cid, ttl_hours=int(payload.get("ttl_hours", 168)))
+        share = _store(request).share(
+            cid, ttl_hours=int(payload.get("ttl_hours", 168)), tenant_id=_tenant(request)
+        )
         if share is None:
             raise HTTPException(status_code=404, detail="conversation not found")
         share["url"] = f"/#/shared/{share['token']}"
@@ -195,10 +212,11 @@ def get_router() -> APIRouter:
         cid: str, request: Request, _auth: Any = Depends(_auth_dependency)
     ) -> dict[str, Any]:
         store = _store(request)
-        conv = store.get(cid)
+        tenant = _tenant(request)
+        conv = store.get_for_tenant(cid, tenant)
         if conv is None:
             raise HTTPException(status_code=404, detail="conversation not found")
-        summary = store.summarize(cid)
+        summary = store.summarize(cid, tenant_id=tenant)
         # 若配置了 LLM，尝试用模型精炼摘要
         llm = getattr(request.app.state, "llm_provider", None)
         if llm is not None and hasattr(llm, "chat_completion"):
