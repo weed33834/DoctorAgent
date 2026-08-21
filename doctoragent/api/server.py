@@ -422,6 +422,10 @@ if _FASTAPI_AVAILABLE:
         """
         oidc_user = await _authenticate_oidc(request, credentials)
         if oidc_user is not None:
+            try:
+                request.state.auth_method = "oidc"
+            except AttributeError:
+                pass
             return oidc_user
         expected = _resolve_token()
         if expected is not None:
@@ -431,6 +435,10 @@ if _FASTAPI_AVAILABLE:
                     detail="Invalid or missing authentication token",
                 )  # type: ignore[misc]
             _verify_credentials(credentials, expected)
+            try:
+                request.state.auth_method = "static_token"
+            except AttributeError:
+                pass
             return credentials
         # 未配置 token：fail-closed，仅允许本地请求
         if not _is_local_request(request):
@@ -438,6 +446,10 @@ if _FASTAPI_AVAILABLE:
                 status_code=401,
                 detail="DOCTORAGENT_API_TOKEN not set; remote access denied",
             )  # type: ignore[misc]
+        try:
+            request.state.auth_method = "local"
+        except AttributeError:
+            pass
         return credentials
 
     async def _sensitive_auth_dependency(
@@ -453,6 +465,10 @@ if _FASTAPI_AVAILABLE:
         """
         oidc_user = await _authenticate_oidc(request, credentials)
         if oidc_user is not None:
+            try:
+                request.state.auth_method = "oidc"
+            except AttributeError:
+                pass
             return oidc_user
         expected = _resolve_token()
         if expected is None:
@@ -466,6 +482,10 @@ if _FASTAPI_AVAILABLE:
                 detail="Invalid or missing authentication token",
             )  # type: ignore[misc]
         _verify_credentials(credentials, expected)
+        try:
+            request.state.auth_method = "static_token"
+        except AttributeError:
+            pass
         return credentials
 
 else:
@@ -475,6 +495,23 @@ else:
         return None
 
     async def _sensitive_auth_dependency() -> None:  # type: ignore[misc]
+        return None
+
+
+# Admin-role dependency used by management endpoints (tenant creation,
+# /admin/roles, ...). ``_auth_dependency``/``_sensitive_auth_dependency`` run
+# first and populate ``request.state.user`` (OIDC) or
+# ``request.state.auth_method`` (static-token service account); the RBAC
+# dependency then enforces the role. When the auth package did not import,
+# this degrades to a no-op so routes stay mountable.
+try:
+    from doctoragent.api.auth import Role as _RoleRBAC
+    from doctoragent.api.auth import require_role as _require_role_rbac
+
+    _admin_rbac: Any = _require_role_rbac(_RoleRBAC.ADMIN)
+except ImportError:  # pragma: no cover — auth package is part of the core tree
+
+    async def _admin_rbac() -> None:  # type: ignore[misc]
         return None
 
 
@@ -2557,9 +2594,10 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
     )
     async def tenants_create(
         body: CreateTenantRequest,
-        _auth: None = Depends(_sensitive_auth_dependency),  # type: ignore[name-defined]
+        _auth: None = Depends(_sensitive_auth_dependency),  # type: ignore[name-defined]  # noqa: B008
+        _rbac: None = Depends(_admin_rbac),  # type: ignore[name-defined]  # noqa: B008
     ) -> dict[str, Any]:
-        """Create a new tenant."""
+        """Create a new tenant (admin service account / OIDC admin only)."""
 
         from doctoragent.security.tenant import TenantManager
 
@@ -2963,34 +3001,33 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
     # ── RBAC demo endpoint (GET /admin/roles) ───────────────────────────
     # Requires the ADMIN role via :func:`doctoragent.api.auth.require_role`.
     # ``_auth_dependency`` runs first and (in OIDC mode) populates
-    # ``request.state.user``; ``require_role`` then enforces the role.
-    # Registered only when the auth package imported cleanly.
-    if _require_role is not None and _Role is not None:
-        _admin_roles_dep = _require_role(_Role.ADMIN)
+    # ``request.state.user``; ``require_role`` then enforces the role. In
+    # static bearer-token mode the token acts as the admin service account.
+    _admin_roles_dep = _admin_rbac
 
-        @router.get(
-            "/admin/roles",
-            tags=["System"],
-            summary="List RBAC roles (admin-only)",
-            description=(
-                "Returns the roles recognised by the DoctorAgent RBAC authorizer. "
-                "Requires the `admin` role (single-sign-on OIDC mode). "
-                "In static bearer-token mode this endpoint returns 403 because "
-                "no role information is associated with a static token."
-            ),
-            responses=_error_responses(401, 403),
-        )
-        async def admin_roles(
-            _auth: Any = Depends(_auth_dependency),  # type: ignore[name-defined]  # noqa: B008
-            user: Any = Depends(_admin_roles_dep),  # type: ignore[name-defined]  # noqa: B008
-        ) -> dict[str, Any]:
-            """List the roles defined by the RBAC authorizer."""
-            roles = [r.value for r in _Role]  # type: ignore[union-attr]
-            return {
-                "roles": roles,
-                "current_user": getattr(user, "sub", None),
-                "current_roles": list(getattr(user, "roles", []) or []),
-            }
+    @router.get(
+        "/admin/roles",
+        tags=["System"],
+        summary="List RBAC roles (admin-only)",
+        description=(
+            "Returns the roles recognised by the DoctorAgent RBAC authorizer. "
+            "Requires the `admin` role (single-sign-on OIDC mode). In static "
+            "bearer-token mode the API token is treated as the admin service "
+            "account and is allowed through."
+        ),
+        responses=_error_responses(401, 403),
+    )
+    async def admin_roles(
+        _auth: Any = Depends(_auth_dependency),  # type: ignore[name-defined]  # noqa: B008
+        user: Any = Depends(_admin_roles_dep),  # type: ignore[name-defined]  # noqa: B008
+    ) -> dict[str, Any]:
+        """List the roles defined by the RBAC authorizer."""
+        roles = [r.value for r in _Role] if _Role is not None else []
+        return {
+            "roles": roles,
+            "current_user": getattr(user, "sub", None),
+            "current_roles": list(getattr(user, "roles", []) or []),
+        }
 
     # =====================================================================
     # Mount the versioned router (documented) + legacy root (hidden)
