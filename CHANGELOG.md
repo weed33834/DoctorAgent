@@ -5,6 +5,26 @@
 
 ---
 
+## [0.3.8] - 2026-08-22
+
+### 安全修复：审计 HMAC 密钥改由主密钥派生
+
+此前审计链的 HMAC 密钥是随机 32 字节，**明文存放在日志同目录的 `.audit.key`**——拿到磁盘即可重签整条"防篡改"链，声明对最需要防的攻击者无效。
+
+- **新增 `derive_audit_key(master_key)`**（`security/keytree.py`）：HKDF-SHA256，`info=b"doctoragent-audit-hmac-v1"` 保证与 vault/file 密钥分离。
+- **`AuditLogger` 密钥解析顺序**：显式 `hmac_key` → 主密钥 HKDF 派生 → legacy `.audit.key`。派生模式下不再生成密钥文件。
+- **`__main__` 两处构造点接线**（serve 与 CLI），带回迁保护：
+  - 已存在 `.audit.key` → 继续使用并提示（避免换钥导致历史记录验证失败）；
+  - 主密钥获取失败 → 回退 legacy 并告警，绝不阻塞启动。
+- 威胁模型边界如实记录：防的是"仅拿到磁盘"的攻击者；持有主密钥口令的 root 仍可重签（该威胁需远程 append-only 副本，见 roadmap）。
+
+### 测试
+
+- 新增 `tests/test_audit_key_derivation.py`（10 用例）：派生确定性/唯一性/密钥分离、解析顺序、派生钥下链验证与篡改检测、同主密钥重启续链。
+- 回归：audit_log + master_key + main + audit_verify + cli = **81 passed, 7 skipped**。
+
+---
+
 ## [0.3.7] - 2026-08-22
 
 ### 安全修复：RBAC 真正接线到高危管理端点

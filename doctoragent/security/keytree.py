@@ -8,6 +8,26 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 # Key lengths (bytes) for derived keys.
 VAULT_KEY_LEN = 32
 FILE_KEY_LEN = 32
+AUDIT_KEY_LEN = 32
+
+
+def derive_audit_key(master_key: bytes) -> bytes:
+    """Derive the audit-log HMAC key from the Master Key via HKDF-SHA256.
+
+    Deriving instead of storing a standalone key file next to the audit log
+    means an attacker who captures the disk can no longer re-sign a tampered
+    chain unless they also hold the master key (which lives behind
+    Argon2id/DPAPI/TPM — see ``security/master_key.py``). Key separation is
+    provided by the HKDF ``info`` label, so the audit key never equals the
+    vault or file keys even though they share the same master secret.
+    """
+    hkdf = HKDF(
+        algorithm=hashes.SHA256(),
+        length=AUDIT_KEY_LEN,
+        salt=None,
+        info=b"doctoragent-audit-hmac-v1",
+    )
+    return hkdf.derive(master_key)
 
 
 def derive_vault_key(master_key: bytes, info: bytes = b"vault-key-v1") -> bytes:
