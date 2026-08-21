@@ -1,6 +1,6 @@
 [project]
 name = "doctoragent"
-version = "0.3.10"
+version = "0.3.11"
 description = "Clinical AI agent for doctors: CDS Hooks 2.0, FHIR R4 / SMART-on-FHIR, SNOMED CT / LOINC / ICD-10-CM terminology, deterministic safety rules, 18 built-in specialty doctor roles, built-in medical knowledge base, conversation-driven operations, RAG knowledge base, multi-agent + A2A + MCP, sandboxed code execution, voice, multi-tenant audit with HMAC, towards HIPAA / 等保三级 hardening (certification is a roadmap goal, not yet certified)"
 authors = [{ name = "DoctorAgent Team" }]
 readme = "README.md"
