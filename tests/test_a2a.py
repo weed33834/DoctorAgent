@@ -12,7 +12,6 @@ from doctoragent.a2a import A2AClient, A2AServer, TaskStatus
 from doctoragent.a2a.models import AgentCard
 from doctoragent.a2a.server import _extract_text
 
-
 # ── models ─────────────────────────────────────────────────────────────
 
 
@@ -198,7 +197,7 @@ class TestA2AClient:
 # ── FastAPI create_app integration ──────────────────────────────────────
 
 
-def test_create_app_a2a_endpoints_real() -> None:
+def test_create_app_a2a_endpoints_real(monkeypatch: pytest.MonkeyPatch) -> None:
     """The A2A endpoints are reachable on the production create_app app."""
     try:
         from unittest.mock import MagicMock
@@ -210,6 +209,10 @@ def test_create_app_a2a_endpoints_real() -> None:
     except ImportError:  # pragma: no cover — FastAPI optional
         pytest.skip("FastAPI not installed")
 
+    # A2A defaults to off (secure-by-default); opt in explicitly and set the
+    # API token because /a2a/rpc and /a2a/tasks are sensitive endpoints.
+    monkeypatch.setenv("DOCTORAGENT_A2A__ENABLED", "true")
+    monkeypatch.setenv("DOCTORAGENT_API_TOKEN", "test-token")
     config = AegisConfig()
     agent = MagicMock()
 
@@ -218,7 +221,7 @@ def test_create_app_a2a_endpoints_real() -> None:
 
     agent.run = run
     app = create_app(config, agent)
-    client = TestClient(app)
+    client = TestClient(app, headers={"Authorization": "Bearer test-token"})
 
     card = client.get("/.well-known/agent.json")
     assert card.status_code == 200
@@ -235,3 +238,53 @@ def test_create_app_a2a_endpoints_real() -> None:
     )
     assert resp.status_code == 200
     assert resp.json()["result"]["id"]
+
+
+def test_create_app_a2a_disabled_by_default() -> None:
+    """A2A is secure-by-default: no Agent Card without explicit opt-in."""
+    try:
+        import os
+        from unittest.mock import MagicMock
+
+        from fastapi.testclient import TestClient
+
+        from doctoragent.api.server import create_app
+        from doctoragent.config import AegisConfig
+    except ImportError:  # pragma: no cover — FastAPI optional
+        pytest.skip("FastAPI not installed")
+
+    os.environ.pop("DOCTORAGENT_A2A__ENABLED", None)
+    config = AegisConfig()
+    assert config.a2a.enabled is False
+    app = create_app(config, MagicMock())
+    client = TestClient(app)
+    card = client.get("/.well-known/agent.json")
+    assert card.status_code == 404
+
+
+def test_create_app_a2a_rpc_requires_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """/a2a/rpc and /a2a/tasks are fail-closed sensitive endpoints."""
+    try:
+        from unittest.mock import MagicMock
+
+        from fastapi.testclient import TestClient
+
+        from doctoragent.api.server import create_app
+        from doctoragent.config import AegisConfig
+    except ImportError:  # pragma: no cover — FastAPI optional
+        pytest.skip("FastAPI not installed")
+
+    monkeypatch.setenv("DOCTORAGENT_A2A__ENABLED", "true")
+    monkeypatch.delenv("DOCTORAGENT_API_TOKEN", raising=False)
+    config = AegisConfig()
+    app = create_app(config, MagicMock())
+    client = TestClient(app)
+    rpc = client.post(
+        "/a2a/rpc",
+        json={"jsonrpc": "2.0", "method": "ping", "params": {}, "id": 1},
+    )
+    assert rpc.status_code == 403
+    tasks = client.get("/a2a/tasks")
+    assert tasks.status_code == 403

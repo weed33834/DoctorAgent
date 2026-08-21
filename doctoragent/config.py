@@ -259,7 +259,9 @@ class A2AConfig(BaseSettings):
     """
 
     # Expose this agent over A2A: serves /.well-known/agent.json + /a2a/rpc.
-    enabled: bool = True
+    # Defaults to off: an unconfigured deployment must not silently accept
+    # remote task submissions; opt in explicitly.
+    enabled: bool = False
     agent_name: str = "DoctorAgent"
     agent_description: str = (
         "Clinical decision-support agent: deterministic safety rules + "

@@ -5,6 +5,16 @@
 
 ---
 
+## [0.3.5] - 2026-08-22
+
+### 安全修复
+
+- **A2A 默认关闭（secure-by-default）**：`A2AConfig.enabled` 由 `true` 改为 `false`。此前默认开启的 `/a2a/rpc` 允许远程任何人对智能体提交任务（task/send）并列举任务内容，绕过整套 fail-closed 认证。需要显式设置 `DOCTORAGENT_A2A__ENABLED=true` 才对外暴露。
+- **`/a2a/rpc`、`/a2a/tasks` 挂载敏感端点鉴权**：即使显式启用 A2A，任务提交与列举也要求 API token / OIDC 身份。Agent Card（`/.well-known/agent.json`）按 A2A 规范保持公开发现。
+- `.env.example` 同步默认值并注明安全语义。
+
+---
+
 ## [0.3.4] - 2026-08-22
 
 ### 安全修复
