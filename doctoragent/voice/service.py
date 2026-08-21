@@ -22,6 +22,8 @@ from urllib.parse import urljoin
 
 import httpx
 
+from doctoragent._utils import NoCloseClient
+
 logger = logging.getLogger(__name__)
 
 
@@ -49,7 +51,7 @@ class VoiceService:
     def _make_client(self) -> Any:
         """Return the injected client (no-op ctx) or a fresh short-lived one."""
         if self._http_client is not None:
-            return _NoCloseClient(self._http_client)
+            return NoCloseClient(self._http_client)
         return httpx.AsyncClient(timeout=60.0)
 
     # ── capability ──────────────────────────────────────────────────
@@ -131,19 +133,6 @@ class VoiceService:
         if not resp.content:
             raise VoiceError("Synthesis returned empty audio")
         return resp.content
-
-
-class _NoCloseClient:
-    """Context-manager adapter so an injected httpx client is not closed."""
-
-    def __init__(self, client: httpx.AsyncClient) -> None:
-        self._client = client
-
-    async def __aenter__(self) -> httpx.AsyncClient:
-        return self._client
-
-    async def __aexit__(self, *args: Any) -> None:
-        return None
 
 
 class VoiceError(Exception):

@@ -432,44 +432,6 @@ _REQUIRED_FIELDS = frozenset(
 )
 
 
-def _remove_comments(text: str) -> str:
-    """Remove C/JS style comments without touching quotes.
-
-    Adapter layer: json5 handles comments natively during parsing, so this
-    function is retained for backward compatibility and returns *text*
-    unchanged.  The actual comment stripping happens inside
-    :func:`json5.loads`.
-    """
-    return text
-
-
-def _remove_trailing_commas(text: str) -> str:
-    """Remove trailing commas before closing braces/brackets.
-
-    Adapter layer: json5 handles trailing commas natively during parsing, so
-    this function is retained for backward compatibility and returns *text*
-    unchanged.
-    """
-    return text
-
-
-def _looks_single_quoted(text: str) -> bool:
-    """Heuristic: text uses single quotes as JSON delimiters."""
-    stripped = text.strip()
-    return stripped.startswith("{") and "'" in stripped and '"' not in stripped
-
-
-def _repair_json(text: str) -> str:
-    """Apply safe repairs to common model JSON mistakes.
-
-    Adapter layer: json5 handles comments, trailing commas, and single-quoted
-    strings natively during parsing, so this function is retained for backward
-    compatibility and returns *text* unchanged.  The actual repair happens
-    inside :func:`json5.loads`.
-    """
-    return text
-
-
 def _try_load_json(text: str) -> dict[str, Any] | None:
     """Try parsing JSON, tolerating comments, trailing commas, and single quotes.
 

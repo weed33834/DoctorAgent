@@ -28,11 +28,18 @@ from __future__ import annotations
 import asyncio
 import concurrent.futures
 import json as _json
+import os
 import re as _re
 import sqlite3
 import uuid as _uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+try:  # Optional POSIX advisory locking.
+    import fcntl as _fcntl
+except ImportError:  # pragma: no cover - Windows
+    _fcntl = None
 
 __all__ = [
     "async_to_sync",
@@ -47,6 +54,10 @@ __all__ = [
     "extract_json",
     "generate_id",
     "count_tokens",
+    "utcnow_iso",
+    "NoCloseClient",
+    "atomic_write_text",
+    "atomic_write_json",
 ]
 
 
@@ -84,6 +95,7 @@ def open_sqlite(
     db_path: str | Path,
     *,
     row_factory: Any = None,
+    foreign_keys: bool = False,
 ) -> sqlite3.Connection:
     """Open a SQLite connection configured for concurrent multi-thread use.
 
@@ -95,6 +107,7 @@ def open_sqlite(
     * ``PRAGMA journal_mode=WAL`` — write-ahead logging for concurrent
       readers + a single writer.
     * ``PRAGMA busy_timeout=5000`` — SQLite-level busy timeout (ms).
+    * ``PRAGMA foreign_keys=ON`` when *foreign_keys* is set.
 
     The caller owns the returned connection and is responsible for closing
     it (typically via a ``with`` block or ``try/finally``).
@@ -102,6 +115,8 @@ def open_sqlite(
     conn = sqlite3.connect(db_path, timeout=30, check_same_thread=False)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout=5000")
+    if foreign_keys:
+        conn.execute("PRAGMA foreign_keys=ON")
     if row_factory is not None:
         conn.row_factory = row_factory
     return conn
@@ -394,6 +409,81 @@ def generate_id(prefix: str) -> str:
     multimodal/store.py, interop/store.py — now centralised here.
     """
     return f"{prefix}-{_uuid.uuid4().hex[:12]}"
+
+
+def utcnow_iso() -> str:
+    """Return the current UTC time as an ISO-8601 string.
+
+    Centralises the ``datetime.now(timezone.utc).isoformat()`` idiom that was
+    previously copy-pasted as ``_now()`` in many store modules.
+    """
+    return datetime.now(timezone.utc).isoformat()
+
+
+class NoCloseClient:
+    """Context-manager adapter so an injected ``httpx`` client is not closed.
+
+    Context-managing an injected client would close it after the first call;
+    this wrapper only delegates the request calls and leaves lifecycle
+    ownership to the caller. Previously duplicated as ``_NoCloseClient`` in
+    ``doctoragent.a2a.client`` and ``doctoragent.voice.service``.
+    """
+
+    def __init__(self, client: Any) -> None:
+        self._client = client
+
+    async def __aenter__(self) -> Any:
+        return self._client
+
+    async def __aexit__(self, *args: Any) -> None:
+        return None
+
+
+def atomic_write_text(path: str | Path, content: str) -> None:
+    """Atomically write *content* to *path* with mode ``0o600``.
+
+    Uses ``fcntl.flock`` (when available) for cross-process mutual exclusion:
+    writes to a ``.tmp`` sibling first, then ``os.replace``, so readers never
+    observe a half-written file. On platforms without ``fcntl`` it degrades to
+    the same tmp+replace without the lock.
+
+    Previously duplicated as ``_atomic_write``/``_atomic_write_json``/``_save``
+    across ``doctoragent.sync.*``.
+    """
+    lock_fd: int | None = None
+    if _fcntl is not None:
+        try:
+            lock_fd = os.open(str(path), os.O_RDWR | os.O_CREAT, 0o600)
+            _fcntl.flock(lock_fd, _fcntl.LOCK_EX)
+        except OSError:
+            lock_fd = None
+    try:
+        tmp = Path(path).with_suffix(Path(path).suffix + ".tmp")
+        tmp.write_text(content, encoding="utf-8")
+        try:
+            os.chmod(str(tmp), 0o600)
+        except OSError:
+            pass
+        tmp.replace(Path(path))
+        try:
+            os.chmod(str(path), 0o600)
+        except OSError:
+            pass
+    finally:
+        if lock_fd is not None:
+            try:
+                _fcntl.flock(lock_fd, _fcntl.LOCK_UN)
+            finally:
+                os.close(lock_fd)
+
+
+def atomic_write_json(path: str | Path, payload: Any, *, indent: int = 2) -> None:
+    """Atomically write *payload* as JSON to *path* with mode ``0o600``.
+
+    Thin wrapper over :func:`atomic_write_text` that serialises with
+    ``ensure_ascii=False`` and 2-space indentation.
+    """
+    atomic_write_text(path, _json.dumps(payload, ensure_ascii=False, indent=indent))
 
 
 # ---------------------------------------------------------------------------

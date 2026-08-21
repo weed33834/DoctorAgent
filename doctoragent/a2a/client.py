@@ -17,6 +17,7 @@ from typing import Any
 
 import httpx
 
+from doctoragent._utils import NoCloseClient
 from doctoragent.a2a.models import A2AArtifact, A2ATask, AgentCard, TaskStatus
 
 # JSON-RPC 2.0 error codes we surface as client errors
@@ -174,33 +175,15 @@ class A2AClient:
             )
         return data
 
-    def _make_client(self) -> httpx.AsyncClient | _NoCloseClient:
+    def _make_client(self) -> httpx.AsyncClient | NoCloseClient:
         """Return the injected client (no-op context manager) or a new one."""
         if self._http_client is not None:
-            return _NoCloseClient(self._http_client)
+            return NoCloseClient(self._http_client)
         return httpx.AsyncClient(timeout=self.timeout, headers=self.headers)
 
     def clear_cache(self) -> None:
         """Drop the Agent Card cache (e.g. after a remote agent updates)."""
         self._agent_cache.clear()
-
-
-class _NoCloseClient:
-    """Adapter so ``async with self._make_client()`` works with a shared client.
-
-    Context-managing an injected httpx client would close it after the first
-    call; this wrapper only delegates the request calls and leaves lifecycle
-    to the owner.
-    """
-
-    def __init__(self, client: httpx.AsyncClient) -> None:
-        self._client = client
-
-    async def __aenter__(self) -> httpx.AsyncClient:
-        return self._client
-
-    async def __aexit__(self, *args: Any) -> None:
-        return None
 
 
 def _parse_task(result: dict[str, Any]) -> A2ATask:

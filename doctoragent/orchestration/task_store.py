@@ -15,6 +15,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from doctoragent._utils import cosine_similarity as _cosine_similarity
+from doctoragent._utils import cosine_similarity_matrix as _cosine_similarity_matrix
 from doctoragent._utils import tokenize_for_fts as _tokenize_for_fts
 from doctoragent.api.schemas import ClassificationResult, SearchResult, TaskStatus, TaskSummary
 from doctoragent.compat import UTC
@@ -1124,7 +1125,10 @@ class TaskStore:
         if not query:
             return []
         query_vector = provider.embed([query])[0]
-        scored: list[tuple[float, sqlite3.Row]] = []
+        # Batch cosine via a single matrix-vector product instead of a
+        # Python loop over every stored vector.
+        vectors: list[list[float]] = []
+        saved: list[sqlite3.Row] = []
         with self._connect(row_factory=sqlite3.Row) as conn:
             rows = conn.execute(
                 "SELECT vault_path, category, summary, vector, vector_blob "
@@ -1135,17 +1139,20 @@ class TaskStore:
             vector = self._read_vector(row)
             if vector is None:
                 continue
-            score = self._cosine_similarity(query_vector, vector)
-            scored.append((score, row))
-        scored.sort(key=lambda item: item[0], reverse=True)
+            vectors.append(vector)
+            saved.append(row)
+        if not vectors:
+            return []
+        scores = _cosine_similarity_matrix(query_vector, vectors)
+        order = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
         return [
             SearchResult(
-                vault_path=Path(row["vault_path"]),
-                category=row["category"],
-                summary=row["summary"],
-                score=score,
+                vault_path=Path(saved[i]["vault_path"]),
+                category=saved[i]["category"],
+                summary=saved[i]["summary"],
+                score=float(scores[i]),
             )
-            for score, row in scored[:top_k]
+            for i in order
         ]
 
     @staticmethod

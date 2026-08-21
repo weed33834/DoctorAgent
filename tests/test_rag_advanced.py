@@ -308,10 +308,10 @@ class TestAnnIndex:
         idx = build_ann_index([[1, 0], [0, 1]], ["a", "b"], mode="numpy")
         assert isinstance(idx, NumpyAnnIndex)
 
-    def test_build_ann_index_lsh_mode(self) -> None:
-        """build_ann_index with lsh mode returns LshAnnIndex."""
+    def test_build_ann_index_lsh_mode_deprecated(self) -> None:
+        """build_ann_index with lsh mode now falls back to the exact index."""
         idx = build_ann_index([[1, 0, 0], [0, 1, 0]], ["a", "b"], mode="lsh")
-        assert isinstance(idx, LshAnnIndex)
+        assert isinstance(idx, NumpyAnnIndex)
 
     def test_build_ann_index_brute_returns_none(self) -> None:
         """build_ann_index with brute mode returns None."""

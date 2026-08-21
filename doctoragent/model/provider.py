@@ -29,6 +29,34 @@ logger = logging.getLogger(__name__)
 # Platforms that do NOT support the OpenAI /v1/models health endpoint.
 _NO_HEALTH_ENDPOINT_PLATFORMS = frozenset({"anthropic"})
 
+
+def _normalize_tool_calls(raw_tool_calls: list[Any]) -> list[dict[str, Any]]:
+    """Normalise OpenAI-style ``tool_calls`` into ``{id, name, arguments}``.
+
+    OpenAI sends ``arguments`` as a JSON string; this coerces it (and any
+    other malformed shape) to a ``dict``. Previously duplicated inline in
+    both the async and sync response paths.
+    """
+    tool_calls: list[dict[str, Any]] = []
+    for tc in raw_tool_calls:
+        func = tc.get("function", {}) or {}
+        args = func.get("arguments", {})
+        if isinstance(args, str):
+            try:
+                args = json.loads(args)
+            except (json.JSONDecodeError, ValueError):
+                args = {}
+        if not isinstance(args, dict):
+            args = {}
+        tool_calls.append(
+            {
+                "id": tc.get("id", ""),
+                "name": func.get("name", ""),
+                "arguments": args,
+            }
+        )
+    return tool_calls
+
 # Platform detection: port → platform type mapping
 _PLATFORM_PORT_MAP: dict[int, str] = {
     11434: "ollama",
@@ -201,25 +229,7 @@ class OpenAICompatibleProvider(ModelProvider):
             content = message.get("reasoning_content") or ""
 
         raw_tool_calls = message.get("tool_calls") or []
-        tool_calls: list[dict[str, Any]] = []
-        for tc in raw_tool_calls:
-            func = tc.get("function", {}) or {}
-            args = func.get("arguments", {})
-            # OpenAI sends arguments as a JSON string; normalise to a dict.
-            if isinstance(args, str):
-                try:
-                    args = json.loads(args)
-                except (json.JSONDecodeError, ValueError):
-                    args = {}
-            if not isinstance(args, dict):
-                args = {}
-            tool_calls.append(
-                {
-                    "id": tc.get("id", ""),
-                    "name": func.get("name", ""),
-                    "arguments": args,
-                }
-            )
+        tool_calls = _normalize_tool_calls(raw_tool_calls)
 
         return ChatCompletionResponse(
             content=cast(str, content),
@@ -320,24 +330,7 @@ class OpenAICompatibleProvider(ModelProvider):
             if content is None:
                 content = message.get("reasoning_content") or ""
             raw_tool_calls = message.get("tool_calls") or []
-            tool_calls: list[dict[str, Any]] = []
-            for tc in raw_tool_calls:
-                func = tc.get("function", {}) or {}
-                args = func.get("arguments", {})
-                if isinstance(args, str):
-                    try:
-                        args = json.loads(args)
-                    except (json.JSONDecodeError, ValueError):
-                        args = {}
-                if not isinstance(args, dict):
-                    args = {}
-                tool_calls.append(
-                    {
-                        "id": tc.get("id", ""),
-                        "name": func.get("name", ""),
-                        "arguments": args,
-                    }
-                )
+            tool_calls = _normalize_tool_calls(raw_tool_calls)
             return ChatCompletionResponse(
                 content=cast(str, content),
                 tool_calls=tool_calls,

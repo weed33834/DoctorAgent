@@ -7,7 +7,6 @@ Reads services off ``request.app.state`` (``multimodal_service``,
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
@@ -15,7 +14,9 @@ from fastapi.security import HTTPBearer
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    from doctoragent._utils import utcnow_iso
+
+    return utcnow_iso()
 
 
 from doctoragent.api.auth._guards import (  # noqa: E402

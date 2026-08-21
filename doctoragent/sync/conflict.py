@@ -30,6 +30,7 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePath
 from typing import Any, ClassVar
 
+from doctoragent._utils import atomic_write_json
 from doctoragent.sync.protocol import FileIndex
 
 # ---------------------------------------------------------------------------
@@ -1263,32 +1264,7 @@ except ImportError:  # pragma: no cover – non-POSIX platform
 
 def _atomic_write_json(path: Path, payload: Any) -> None:
     """Atomically write *payload* as JSON to *path* with mode 0o600."""
-    lock_fd: int | None = None
-    if _fcntl is not None:
-        try:
-            lock_fd = os.open(str(path), os.O_RDWR | os.O_CREAT, 0o600)
-            _fcntl.flock(lock_fd, _fcntl.LOCK_EX)
-        except OSError:
-            lock_fd = None
-    try:
-        content = json.dumps(payload, ensure_ascii=False, indent=2)
-        tmp = path.with_suffix(path.suffix + ".tmp")
-        tmp.write_text(content, encoding="utf-8")
-        try:
-            os.chmod(str(tmp), 0o600)
-        except OSError:
-            pass
-        tmp.replace(path)
-        try:
-            os.chmod(str(path), 0o600)
-        except OSError:
-            pass
-    finally:
-        if lock_fd is not None:
-            try:
-                _fcntl.flock(lock_fd, _fcntl.LOCK_UN)
-            finally:
-                os.close(lock_fd)
+    atomic_write_json(path, payload)
 
 
 class ConflictHistory:

@@ -8,11 +8,9 @@ import pytest
 
 from doctoragent.__main__ import (
     _build_config,
-    _create_tray_app,
     _master_key_storage_path,
     main,
     run_headless,
-    run_with_tray,
 )
 
 
@@ -44,8 +42,8 @@ def test_build_config_applies_overrides(tmp_path: Path) -> None:
     assert config.paths.index == tmp_path / "Index"
 
 
-def test_main_daemon_no_tray_returns_zero() -> None:
-    """main(['daemon', '--no-tray']) starts headless mode and returns 0."""
+def test_main_daemon_headless_returns_zero() -> None:
+    """main(['daemon']) runs headless (web-only UI) and returns 0."""
     with (
         patch("doctoragent.__main__._run_headless") as mock_run,
         patch("doctoragent.__main__.AegisAgent") as mock_agent_cls,
@@ -53,26 +51,11 @@ def test_main_daemon_no_tray_returns_zero() -> None:
     ):
         mock_agent = MagicMock()
         mock_agent_cls.return_value = mock_agent
-        result = main(["daemon", "--no-tray"])
+        result = main(["daemon"])
 
     assert result == 0
     mock_run.assert_called_once_with(mock_agent)
 
-
-def test_main_daemon_falls_back_to_headless_without_qt() -> None:
-    """main(['daemon']) falls back to headless mode when Qt is unavailable."""
-    with patch("doctoragent.__main__._create_tray_app", side_effect=ImportError("no Qt")):
-        with (
-            patch("doctoragent.__main__._run_headless") as mock_run,
-            patch("doctoragent.__main__.AegisAgent") as mock_agent_cls,
-            patch("doctoragent.__main__.AuditLogger"),
-        ):
-            mock_agent = MagicMock()
-            mock_agent_cls.return_value = mock_agent
-            result = main(["daemon"])
-
-    assert result == 0
-    mock_run.assert_called_once_with(mock_agent)
 
 
 def test_run_headless_starts_monitoring() -> None:
@@ -97,29 +80,6 @@ def test_run_headless_starts_monitoring() -> None:
     agent.stop_monitoring.assert_called_once()
     mock_loop.call_soon.assert_called_once_with(mock_loop.stop)
 
-
-def test_main_daemon_no_tray_does_not_import_qt() -> None:
-    """main with daemon --no-tray should not require Qt."""
-    # Simulate Qt being unavailable for the headless path.
-    module_path = "doctoragent.presentation.tray"
-    real_module = sys.modules.get(module_path)
-    sys.modules[module_path] = None  # type: ignore[assignment]
-    try:
-        with (
-            patch("doctoragent.__main__._run_headless") as mock_run,
-            patch("doctoragent.__main__.AegisAgent") as mock_agent_cls,
-            patch("doctoragent.__main__.AuditLogger"),
-        ):
-            mock_agent = MagicMock()
-            mock_agent_cls.return_value = mock_agent
-            result = main(["daemon", "--no-tray"])
-        assert result == 0
-        mock_run.assert_called_once_with(mock_agent)
-    finally:
-        if real_module is not None:
-            sys.modules[module_path] = real_module
-        else:
-            sys.modules.pop(module_path, None)
 
 
 def test_master_key_storage_path_derived_from_connections() -> None:
@@ -158,7 +118,7 @@ def test_main_daemon_with_windows_hello_passes_salt_to_provider() -> None:
     ):
         mock_agent = MagicMock()
         mock_agent_cls.return_value = mock_agent
-        result = main(["daemon", "--no-tray"])
+        result = main(["daemon"])
 
     assert result == 0
     mock_get_salt.assert_called_once_with(_master_key_storage_path(config))
@@ -194,6 +154,6 @@ def test_main_daemon_with_windows_hello_propagates_verification_failure() -> Non
         patch("doctoragent.__main__.AegisAgent") as mock_agent_cls,
     ):
         with pytest.raises(WindowsHelloError, match="cancelled"):
-            main(["daemon", "--no-tray"])
+            main(["daemon"])
 
     mock_agent_cls.assert_not_called()

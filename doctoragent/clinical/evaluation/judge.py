@@ -282,7 +282,6 @@ class LLMJudge:
     # ------------------------------------------------------------------
     # Parsing
     # ------------------------------------------------------------------
-    _JSON_OBJ_RE = re.compile(r"\{[\s\S]*\}")
 
     def _parse_judge_response(self, raw: str) -> JudgeVerdict:
         """Extract a :class:`JudgeVerdict` from the judge's JSON-ish reply.
@@ -294,14 +293,14 @@ class LLMJudge:
             return JudgeVerdict(
                 score=0.0, correct=False, reasoning="empty judge response", fallback=True
             )
-        m = self._JSON_OBJ_RE.search(raw)
-        payload = m.group(0) if m else raw
-        try:
-            data = json.loads(payload)
-        except json.JSONDecodeError:
-            # Try to repair trailing commas / single quotes.
+        from doctoragent._utils import extract_json
+
+        # Robust centralised extractor (fenced blocks + bare spans) first.
+        data = extract_json(raw)
+        if data is None:
+            # Last-resort leniency: strip single quotes and trailing commas.
             try:
-                repaired = payload.replace("'", '"')
+                repaired = raw.replace("'", '"')
                 repaired = re.sub(r",\s*}", "}", repaired)
                 repaired = re.sub(r",\s*]", "]", repaired)
                 data = json.loads(repaired)
@@ -313,6 +312,14 @@ class LLMJudge:
                     reasoning="judge response not parseable",
                     fallback=True,
                 )
+        if not isinstance(data, dict):
+            logger.warning("judge returned non-object JSON: %r", raw[:200])
+            return JudgeVerdict(
+                score=0.0,
+                correct=False,
+                reasoning="judge response not parseable",
+                fallback=True,
+            )
         score = float(data.get("score", 0.0))
         score = max(0.0, min(1.0, score))
         correct = bool(data.get("correct", score >= 0.6))

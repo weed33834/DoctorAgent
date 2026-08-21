@@ -26,6 +26,10 @@ import time
 from pathlib import Path
 from typing import Any
 
+from cachetools import TTLCache as _CTTLCache
+
+from doctoragent._utils import open_sqlite
+
 logger = logging.getLogger(__name__)
 
 
@@ -62,7 +66,10 @@ class SemanticCache:
         self.max_entries = max_entries
         self.embedding_provider = embedding_provider
         self._lock = threading.Lock()
-        self._entries: dict[str, dict[str, Any]] = {}  # key -> {embed, resp, ts, hits}
+        # TTL expiry + LRU eviction are handled by cachetools (already a core
+        # dependency). Entry value: {embedding, response, ts, hits}. Replaces
+        # the former hand-rolled dict + manual TTL sweep + manual LRU eviction.
+        self._cache: _CTTLCache = _CTTLCache(maxsize=max_entries, ttl=ttl_seconds)
         self._sensitive_prefixes = sensitive_prefixes
         self._persist = persist_path
         if self._persist:
@@ -73,10 +80,7 @@ class SemanticCache:
     # ── persistence ─────────────────────────────────────────────────
 
     def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(str(self._persist))
-        conn.execute("PRAGMA busy_timeout=5000")
-        conn.row_factory = sqlite3.Row
-        return conn
+        return open_sqlite(self._persist, row_factory=sqlite3.Row)
 
     def _init_db(self) -> None:
         with self._connect() as conn:
@@ -97,14 +101,15 @@ class SemanticCache:
         try:
             with self._connect() as conn:
                 rows = conn.execute("SELECT * FROM semantic_cache").fetchall()
-            for r in rows:
-                emb = json.loads(r["embedding"]) if r["embedding"] else None
-                self._entries[r["key"]] = {
-                    "embedding": emb,
-                    "response": r["response"],
-                    "ts": r["created_at"],
-                    "hits": r["hits"],
-                }
+            with self._lock:
+                for r in rows:
+                    emb = json.loads(r["embedding"]) if r["embedding"] else None
+                    self._cache[r["key"]] = {
+                        "embedding": emb,
+                        "response": r["response"],
+                        "ts": r["created_at"],
+                        "hits": r["hits"],
+                    }
         except Exception:  # noqa: BLE001
             logger.warning("semantic cache load failed", exc_info=True)
 
@@ -114,7 +119,9 @@ class SemanticCache:
         try:
             with self._connect() as conn:
                 conn.execute("DELETE FROM semantic_cache")
-                for key, e in self._entries.items():
+                with self._lock:
+                    items = list(self._cache.items())
+                for key, e in items:
                     emb = None
                     try:
                         if e["embedding"]:
@@ -145,34 +152,25 @@ class SemanticCache:
         if self._sensitive(query):
             return None
         q_emb = self._embed(query)
-        now = time.time()
-        best: tuple[float, str] = (self.threshold, "")
+        # TTL expiry is enforced by cachetools, so no manual sweep is needed.
+        best: tuple[float, str, str] = (self.threshold, "", "")
         with self._lock:
-            for key, e in list(self._entries.items()):
-                if now - e["ts"] > self.ttl_seconds:
-                    del self._entries[key]
-                    continue
+            for key, e in list(self._cache.items()):
                 sim = (
                     _cosine(q_emb, e["embedding"])
                     if q_emb
                     else (1.0 if _norm_text(query) == key else 0.0)
                 )
                 if sim >= best[0]:
-                    best = (sim, e["response"])
-        if not best[1]:
+                    best = (sim, key, e["response"])
+        if not best[2]:
             return None
         with self._lock:
-            hit_key = self._find_hit_key(best[1])
-            if hit_key and hit_key in self._entries:
-                self._entries[hit_key]["hits"] += 1
+            entry = self._cache.get(best[1])
+            if entry is not None:
+                entry["hits"] += 1
         logger.debug("semantic cache hit (sim=%.3f)", best[0])
-        return best[1]
-
-    def _find_hit_key(self, response: str) -> str | None:
-        for key, e in self._entries.items():
-            if e["response"] == response:
-                return key
-        return None
+        return best[2]
 
     def put(self, query: str, response: str) -> None:
         """Store a query→response pair for future semantic hits."""
@@ -181,16 +179,13 @@ class SemanticCache:
         q_emb = self._embed(query)
         key = _norm_text(query) or hashlib.sha256(query.encode()).hexdigest()[:16]
         with self._lock:
-            self._entries[key] = {
+            self._cache[key] = {
                 "embedding": q_emb,
                 "response": response,
                 "ts": time.time(),
                 "hits": 0,
             }
-            # LRU-style eviction when over capacity.
-            if len(self._entries) > self.max_entries:
-                oldest = min(self._entries, key=lambda k: self._entries[k]["ts"])
-                del self._entries[oldest]
+        # LRU eviction over capacity is handled by cachetools.
         self._flush()
 
     def _sensitive(self, query: str) -> bool:
@@ -202,7 +197,7 @@ class SemanticCache:
     def stats(self) -> dict[str, Any]:
         with self._lock:
             return {
-                "entries": len(self._entries),
+                "entries": len(self._cache),
                 "threshold": self.threshold,
                 "ttl_seconds": self.ttl_seconds,
                 "max_entries": self.max_entries,
@@ -211,5 +206,5 @@ class SemanticCache:
 
     def clear(self) -> None:
         with self._lock:
-            self._entries.clear()
+            self._cache.clear()
         self._flush()

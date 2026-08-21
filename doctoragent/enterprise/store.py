@@ -12,10 +12,10 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from doctoragent._utils import open_sqlite
 from doctoragent.enterprise.models import (
     AccountStatus,
     Announcement,
@@ -37,17 +37,9 @@ logger = logging.getLogger(__name__)
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    from doctoragent._utils import utcnow_iso
 
-
-def open_sqlite(path: Path) -> sqlite3.Connection:
-    """Open a SQLite connection with sane defaults (row factory off, WAL)."""
-    conn = sqlite3.connect(str(path))
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=5000")
-    conn.execute("PRAGMA foreign_keys=ON")
-    return conn
+    return utcnow_iso()
 
 
 class EnterpriseStore:
@@ -59,7 +51,7 @@ class EnterpriseStore:
         self._init_db()
 
     def _connect(self) -> sqlite3.Connection:
-        return open_sqlite(self.db_path)
+        return open_sqlite(self.db_path, row_factory=sqlite3.Row, foreign_keys=True)
 
     # ── schema ──────────────────────────────────────────────────────
 

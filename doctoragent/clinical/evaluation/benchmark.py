@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import math
 import re
 import time
 from collections.abc import Sequence
@@ -29,6 +28,7 @@ from enum import Enum
 from statistics import mean
 from typing import Any
 
+import numpy
 from pydantic import BaseModel, Field
 
 from doctoragent._utils import async_to_sync
@@ -396,13 +396,7 @@ def _brier(confidences: list[float], corrects: list[bool]) -> float:
 def _percentile(values: list[float], p: float) -> float:
     if not values:
         return 0.0
-    s = sorted(values)
-    k = (len(s) - 1) * p
-    f = math.floor(k)
-    c = math.ceil(k)
-    if f == c:
-        return s[int(k)]
-    return s[f] + (s[c] - s[f]) * (k - f)
+    return float(numpy.percentile(values, p * 100))
 
 
 # ---------------------------------------------------------------------------

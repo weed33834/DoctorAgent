@@ -10,7 +10,6 @@ one is provided.
 from __future__ import annotations
 
 import secrets
-import uuid
 from typing import Any
 
 from doctoragent.enterprise.models import (
@@ -41,7 +40,9 @@ from doctoragent.enterprise.store import EnterpriseStore, _now
 
 
 def _id(prefix: str) -> str:
-    return f"{prefix}-{uuid.uuid4().hex[:12]}"
+    from doctoragent._utils import generate_id
+
+    return generate_id(prefix)
 
 
 class EnterpriseService:

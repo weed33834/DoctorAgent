@@ -17,6 +17,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from doctoragent._utils import atomic_write_json
 from doctoragent.sync.auth import DeviceAuth
 from doctoragent.sync.conflict import (
     Conflict,
@@ -121,18 +122,7 @@ def _is_within(base: Path, target: Path) -> bool:
 
 def _atomic_write_json_file(path: Path, payload: Any) -> None:
     """Atomically write *payload* as JSON to *path* with mode 0o600."""
-    content = json.dumps(payload, ensure_ascii=False, indent=2)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(content, encoding="utf-8")
-    try:
-        os.chmod(str(tmp), 0o600)
-    except OSError:
-        pass
-    tmp.replace(path)
-    try:
-        os.chmod(str(path), 0o600)
-    except OSError:
-        pass
+    atomic_write_json(path, payload)
 
 
 # ── Offline operation queue ──────────────────────────────────────────────────

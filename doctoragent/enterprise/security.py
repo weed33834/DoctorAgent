@@ -22,19 +22,58 @@ from typing import Any
 PBKDF2_ITERATIONS = 200_000
 
 
+def _argon2_hasher():
+    """Return an :class:`argon2.PasswordHasher` or ``None`` if unavailable.
+
+    Argon2id is the memory-hard, GPU/ASIC-resistant KDF; it is preferred for
+    new hashes. When the ``argon2-cffi`` dependency is absent we fall back to
+    the legacy PBKDF2 path so minimal installs keep working.
+    """
+    try:
+        from argon2 import PasswordHasher  # type: ignore[import-not-found]
+
+        return PasswordHasher()
+    except ImportError:  # pragma: no cover
+        return None
+
+
 # ── password hashing ──────────────────────────────────────────────────
 
 
 def hash_password(password: str) -> str:
-    """Hash a password with PBKDF2-HMAC-SHA256; returns ``salt$hash`` hex."""
+    """Hash a password with Argon2id (preferred) or PBKDF2-HMAC-SHA256.
+
+    New hashes are encoded with the self-describing ``$argon2id$`` format when
+    ``argon2-cffi`` is installed; otherwise the legacy ``salt$hash`` hex format
+    is produced. :func:`verify_password` accepts both.
+    """
+    hasher = _argon2_hasher()
+    if hasher is not None:
+        return hasher.hash(password)
     salt = secrets.token_bytes(16)
     digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, PBKDF2_ITERATIONS)
     return f"{salt.hex()}${digest.hex()}"
 
 
 def verify_password(password: str, stored: str) -> bool:
-    """Verify a password against a ``salt$hash`` produced by :func:`hash_password`."""
-    if not stored or "$" not in stored:
+    """Verify a password against a stored hash.
+
+    Accepts both the modern ``$argon2id$...`` format and the legacy
+    ``salt$hash`` (PBKDF2-HMAC-SHA256) format so existing accounts keep
+    working after the KDF upgrade.
+    """
+    if not stored:
+        return False
+    if stored.startswith("$argon2"):
+        hasher = _argon2_hasher()
+        if hasher is None:  # pragma: no cover
+            return False
+        try:
+            return hasher.verify(stored, password)
+        except Exception:  # noqa: BLE001 — argon2 raises on any mismatch
+            return False
+    # Legacy PBKDF2 ``salt$hash`` format.
+    if "$" not in stored:
         return False
     salt_hex, digest_hex = stored.split("$", 1)
     try:

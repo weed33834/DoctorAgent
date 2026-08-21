@@ -29,8 +29,6 @@ Design
 
 from __future__ import annotations
 
-import json
-import re
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -73,12 +71,12 @@ class _SpecialistResult(BaseModel):
         """
         if not isinstance(text, str) or not text.strip():
             return None
-        candidate = _extract_json_block(text)
-        if candidate is None:
-            return None
-        try:
-            data = json.loads(candidate)
-        except (json.JSONDecodeError, ValueError):
+        # Robust centralised extractor (fenced blocks + bare spans) —
+        # replaces the former local regex ``_extract_json_block``.
+        from doctoragent._utils import extract_json
+
+        data = extract_json(text)
+        if data is None:
             return None
         if not isinstance(data, dict):
             return None
@@ -86,24 +84,6 @@ class _SpecialistResult(BaseModel):
             return cls.model_validate(data)  # type: ignore[return-value]
         except ValidationError:
             return None
-
-
-# Fenced-JSON extractor shared by all ``from_text`` classmethods. Tries
-# ```` ```json {...} ``` ```` first, then ```` ``` {...} ``` ````, then a
-# bare ``{...}`` substring.
-_FENCE_RE = re.compile(r"```(?:json)?\s*(\{.*?\}|\[.*?\])\s```", re.DOTALL)
-_BARE_RE = re.compile(r"(\{.*\}|\[.*\])", re.DOTALL)
-
-
-def _extract_json_block(text: str) -> str | None:
-    """Return the first JSON object/array substring in *text*."""
-    m = _FENCE_RE.search(text)
-    if m:
-        return m.group(1)
-    m = _BARE_RE.search(text)
-    if m:
-        return m.group(1)
-    return None
 
 
 # --------------------------------------------------------------------------- #

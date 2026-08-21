@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import sqlite3
 import threading
 import uuid
@@ -21,7 +20,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, ClassVar
 
-from doctoragent._utils import open_sqlite
+from doctoragent._utils import atomic_write_text, open_sqlite
 from doctoragent.compat import UTC
 
 logger = logging.getLogger(__name__)
@@ -45,36 +44,8 @@ def _expires_iso(ttl_hours: int) -> str:
 
 
 def _atomic_write(path: Path, content: str) -> None:
-    """Atomically write a text file with mode 0o600.
-
-    Uses ``fcntl.flock`` for cross-process mutual exclusion: write to a ``.tmp``
-    file first, then ``replace``, so readers never observe a half-written file.
-    """
-    lock_fd: int | None = None
-    if _fcntl is not None:
-        try:
-            lock_fd = os.open(str(path), os.O_RDWR | os.O_CREAT, 0o600)
-            _fcntl.flock(lock_fd, _fcntl.LOCK_EX)
-        except OSError:
-            lock_fd = None
-    try:
-        tmp = path.with_suffix(path.suffix + ".tmp")
-        tmp.write_text(content, encoding="utf-8")
-        try:
-            os.chmod(str(tmp), 0o600)
-        except OSError:
-            pass
-        tmp.replace(path)
-        try:
-            os.chmod(str(path), 0o600)
-        except OSError:
-            pass
-    finally:
-        if lock_fd is not None:
-            try:
-                _fcntl.flock(lock_fd, _fcntl.LOCK_UN)
-            finally:
-                os.close(lock_fd)
+    """Atomically write a text file with mode 0o600."""
+    atomic_write_text(path, content)
 
 
 # ── Data structures ──────────────────────────────────────────────────────────

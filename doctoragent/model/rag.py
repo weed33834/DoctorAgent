@@ -2047,6 +2047,13 @@ class NumpyAnnIndex(AnnIndex):
 class LshAnnIndex(AnnIndex):
     """Random-projection Locality-Sensitive Hashing (cosine similarity).
 
+    .. deprecated::
+        Superseded by the exact vectorised :class:`NumpyAnnIndex`, which has no
+        recall loss and is the recommended default. This hand-rolled
+        approximate path is retained for backward compatibility but is no
+        longer selected by :func:`build_ann_index` (the ``"lsh"`` mode now
+        falls back to the exact index). Prefer ``"numpy"`` / ``"auto"``.
+
     Generates ``num_hashes`` random hyperplanes; each vector is hashed to a
     bit-signature. Vectors sharing the same (or a nearby) signature land in the
     same bucket, so a query only scans a small candidate set instead of the
@@ -2174,8 +2181,10 @@ def build_ann_index(
       * ``"numpy"`` / ``"auto"`` -> :class:`NumpyAnnIndex` (exact, vectorised).
         This is the recommended default: it is exact (no recall loss) yet uses
         a single matrix-vector product instead of a Python loop.
-      * ``"lsh"`` -> :class:`LshAnnIndex` (random-projection, approximate).
-        Opt-in for very large corpora where sub-linear scan matters.
+      * ``"lsh"`` -> **deprecated**. The hand-rolled random-projection
+        :class:`LshAnnIndex` is approximate and lower-quality than the exact
+        vectorised index; it now falls back to :class:`NumpyAnnIndex` with a
+        deprecation warning. Use ``"numpy"`` / ``"auto"`` instead.
       * ``"brute"`` -> ``None`` (signal the caller to use its in-retriever loop).
 
     The *threshold* argument is retained for API symmetry; the decision of
@@ -2190,10 +2199,13 @@ def build_ann_index(
     if mode == "brute":
         return None
     if mode == "lsh":
-        idx = LshAnnIndex()
-        idx.build(vectors, ids)
-        return idx
-    # "numpy" or "auto" -> exact vectorised index.
+        # Deprecated path: the hand-rolled LSH is superseded by the exact
+        # vectorised index. Keep ``"lsh"`` accepted for config compatibility
+        # but route it to the exact index (no recall loss) with a warning.
+        logger.warning(
+            "ann_mode='lsh' is deprecated; using exact NumpyAnnIndex instead"
+        )
+    # "numpy", "auto" (or deprecated "lsh") -> exact vectorised index.
     idx = NumpyAnnIndex()
     idx.build(vectors, ids)
     return idx
@@ -2336,17 +2348,11 @@ class HybridRetriever:
     def _load_persisted_index(self, expected_size: int) -> AnnIndex | None:
         """Load a persisted index whose size matches *expected_size*."""
         base = self._ann_index_path
-        mode = self.config.ann_mode
-        candidates: list[AnnIndex | None] = []
-        if mode in ("lsh",):
-            candidates.append(LshAnnIndex.load(base))
-        else:
-            candidates.append(NumpyAnnIndex.load(base))
-            candidates.append(LshAnnIndex.load(base))
-        for idx in candidates:
-            if idx is not None and idx.size == expected_size:
-                logger.debug("Loaded persisted ANN index (size=%d)", expected_size)
-                return idx
+        # LSH is deprecated/superseded by the exact NumpyAnnIndex.
+        idx = NumpyAnnIndex.load(base)
+        if idx is not None and idx.size == expected_size:
+            logger.debug("Loaded persisted ANN index (size=%d)", expected_size)
+            return idx
         return None
 
     def invalidate_index(self) -> None:
@@ -2434,15 +2440,21 @@ class HybridRetriever:
             return self._materialise_index_hits(hits, rows, top_k)
 
         # Brute-force path (small corpus, or recursive filter narrowed the set).
-        scored: list[tuple[float, list[Any]]] = []
+        # Batch the vectors and compute cosine once with a single matrix-vector
+        # product instead of n Python-loop cosine calls.
+        vectors: list[list[float]] = []
+        meta: list[list[Any]] = []
         for row in rows:
             vector = self._read_vector(row[6])
             if vector is None:
                 continue
-            score = self._cosine_similarity(query_embedding, vector)
-            scored.append((score, list(row[:6])))
-
-        scored.sort(key=lambda x: x[0], reverse=True)
+            vectors.append(vector)
+            meta.append(list(row[:6]))
+        if not vectors:
+            return []
+        scores = _cosine_similarity_matrix(query_embedding, vectors)
+        order = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
+        scored = [(float(scores[i]), meta[i]) for i in order]
 
         return [
             {

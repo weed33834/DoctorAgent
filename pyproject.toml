@@ -56,7 +56,6 @@ Repository = "https://github.com/weed33834/DoctorAgent"
 Changelog = "https://gitcode.com/badhope/doctoragent/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
-gui = ["pyqt6>=6.8,<7.0"]
 server = [
     "fastapi>=0.115,<1.0",
     # starlette is a transitive dep of fastapi but we import it directly
@@ -201,7 +200,6 @@ ignore = ["E501", "B027", "B008"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 markers = [
-    "gui: GUI-related tests requiring a display",
     "integration: Tests that hit real external services",
     "slow: Tests that take a long time to run",
     "security: Security-sensitive tests",
@@ -214,11 +212,10 @@ filterwarnings = [
 # Coverage gate: ``--cov=doctoragent --cov-report=term-missing --cov-fail-under=60``
 # is appended in CI (`.github/workflows/ci.yml`). We deliberately keep the
 # threshold at 60% so:
-#   * the GUI layer (PyQt, ~12% coverage without a display) doesn't gate CI
 #   * the sync engine (network-dependent, ~24%) doesn't gate CI
 #   * regressions in the well-tested core (clinical, security, agent) DO trip
 # Local runs without coverage stay fast: ``pytest`` alone still works.
-addopts = "-m 'not integration and not gui and not slow' --assert=plain"
+addopts = "-m 'not integration and not slow' --assert=plain"
 
 [tool.coverage.run]
 source = ["doctoragent"]
@@ -233,8 +230,6 @@ omit = [
     # Windows-only modules — never importable on Linux CI.
     "doctoragent/security/win_helpers.py",
     "doctoragent/security/windows_hello.py",
-    # PyQt GUI — requires a display; covered by `gui`-marked tests.
-    "doctoragent/presentation/*",
     # Offline disaster-recovery tool — only runs against a real vault.
     "doctoragent/tools/offline_decryptor.py",
 ]

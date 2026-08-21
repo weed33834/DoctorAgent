@@ -19,9 +19,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from doctoragent._utils import open_sqlite
+
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    from doctoragent._utils import utcnow_iso
+
+    return utcnow_iso()
 
 
 def _id(prefix: str) -> str:
@@ -40,11 +44,7 @@ class ConversationStore:
         self._init_db()
 
     def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(str(self.db_path))
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=5000")
-        return conn
+        return open_sqlite(self.db_path, row_factory=sqlite3.Row)
 
     def _init_db(self) -> None:
         with self._connect() as conn:
