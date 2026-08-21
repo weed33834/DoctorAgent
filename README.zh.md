@@ -205,16 +205,18 @@ DoctorAgent 在核心临床能力之外，已落地一整套**可上线、可信
 
 | 标准 | 状态 | 备注 |
 |---|---|---|
-| HIPAA Safe Harbor（去标识化） | 已实现 | 19 类标识符全覆盖（含身份证号）。 |
+| HIPAA Safe Harbor（去标识化） | **部分实现** | 19 类标识符的正则/启发式脱敏（含身份证号）。**注意**：姓名识别基于称谓与姓氏表，漏检率未达 Safe Harbor 的法律标准；生产用途建议叠加 NER（spaCy/Stanza）并做人工抽检。 |
 | CDS Hooks 2.0 | 已实现 | `/cds-services` 端点按规范暴露。 |
 | FHIR R4 + SMART-on-FHIR | 已实现 | 资源处理器在 `doctoragent/api/fhir/`。 |
 | SNOMED CT / LOINC / ICD-10-CM | 已实现 | 术语绑定 + 查询辅助。 |
+| 审计链防篡改 | 部分实现 | HMAC-SHA256 链式签名；密钥默认由主密钥 HKDF 派生（v0.3.8 起）。边界：持有主密钥口令的 root 仍可重签，需远程 append-only 副本方可对抗。 |
+| RBAC 角色控制 | 部分（v0.3.7 起） | ADMIN 角色已接线租户创建/密钥轮换等管理端点；OIDC 用户按角色判定，静态 token 为服务账号语义。其余端点仍为单一 token 全权。 |
 | 等保三级 | Roadmap | 2026 Q2 目标。可按需提供自评清单。 |
 | HIPAA 第三方认证 | 未启动 | 需要有 PHI 的生产客户赞助。 |
 | FDA 510(k) / NMPA / CE | Roadmap | 需要有书面工作流的临床试点。 |
 | IRB 预批（美国） | 不适用 | 我们不出可直接用于人体研究的临床工作流。 |
 
-四处"Roadmap"明明白白写出来，因为装作已经做好了只会浪费你的规划周期。
+"Roadmap"和"部分实现"都明明白白写出来，因为装作已经做好了只会浪费你的规划周期。
 
 ---
 
@@ -243,7 +245,7 @@ DoctorAgent 在核心临床能力之外，已落地一整套**可上线、可信
 自带 CDS Hooks 2.0 端点（`/cds-services`）、FHIR R4 资源处理器和 SMART-on-FHIR 认证。把 EHR 的 CDS Hooks 客户端指向本服务属于集成实施工作，协议侧已就绪。
 
 **患者数据怎么保护？**
-PHI 脱敏（HIPAA Safe Harbor，19 类标识符含身份证号，4 种策略：redact/mask/pseudonymize/hash）、AES-256-GCM 加密存储、HMAC-SHA256 签名审计链、RBAC + API Token + 租户隔离。设计目标就是敏感数据可以不出你的基础设施。
+PHI 脱敏（基于 HIPAA Safe Harbor 类别的正则启发式实现，19 类标识符含身份证号，4 种策略：redact/mask/pseudonymize/hash；法律合规性见上方合规现状表）、AES-256-GCM 加密存储、HMAC-SHA256 签名审计链、RBAC + API Token + 租户隔离。设计目标就是敏感数据可以不出你的基础设施。
 
 **有认证吗？**
 还没有。FDA 510(k)、HIPAA 第三方认证、等保三级都在 roadmap 里，见[合规现状](#合规现状当前)。支持试点部署，不宣称已获监管批准。

@@ -196,16 +196,18 @@ The last clause is the only one we enforce. Everything else is a community norm.
 
 | Standard | Status | Notes |
 |---|---|---|
-| HIPAA Safe Harbor (de-identification) | Implemented | PHI de-identification covers the 18 identifier categories. |
+| HIPAA Safe Harbor (de-identification) | **Partial** | Regex/heuristic de-identification covering 19 identifier categories (incl. Chinese national ID). Name detection is prefix/surname-table based and does NOT meet Safe Harbor's legal recall bar; for production, layer NER (spaCy/Stanza) plus human spot-checks on top. |
 | CDS Hooks 2.0 | Implemented | Endpoints exposed at `/cds-services` per spec. |
 | FHIR R4 + SMART-on-FHIR | Implemented | Resource handlers in `doctoragent/api/fhir/`. |
 | SNOMED CT / LOINC / ICD-10-CM | Implemented | Terminology bindings + lookup helpers. |
+| Audit-chain tamper evidence | Partial | HMAC-SHA256 chained signatures; the key is HKDF-derived from the master key since v0.3.8. Boundary: a root attacker holding the master-key password can still re-sign — fighting that requires a remote append-only copy (roadmap). |
+| RBAC role enforcement | Partial (since v0.3.7) | The ADMIN role gates tenant creation / key rotation / enterprise management endpoints; OIDC users get per-user role checks, the static API token acts as a service account. Remaining endpoints are still single-token all-access. |
 | 等保三级 | Roadmap | Q2 2026 target. Self-assessment checklist available on request. |
 | HIPAA attestation (third-party) | Not started | Requires production customer with PHI to sponsor. |
 | FDA 510(k) / NMPA / CE | Roadmap | Requires a clinical pilot with documented workflow. |
 | IRB pre-approval (US) | Not applicable | We don't ship clinical workflows ready for human-subjects research. |
 
-The four "Roadmap" rows are explicit because pretending they're already done wastes your planning cycle.
+The "Roadmap" and "Partial" rows are explicit because pretending they're already done wastes your planning cycle.
 
 ---
 
@@ -234,7 +236,7 @@ Anything exposing an OpenAI-compatible API: Ollama (local), OpenAI, or your own 
 DoctorAgent ships CDS Hooks 2.0 endpoints (`/cds-services`) and FHIR R4 resource handlers, plus SMART-on-FHIR authentication. The EHR-side glue (e.g. pointing your EHR's CDS Hooks client at this server) is implementation work, but the protocol side is done.
 
 **How is patient data protected?**
-PHI de-identification (HIPAA Safe Harbor, 18 identifier categories, 4 strategies: redact/mask/pseudonymize/hash), AES-256-GCM encryption at rest, HMAC-SHA256 signed audit chain, RBAC + API token + tenant isolation. The vault and audit chain are designed so that nothing sensitive needs to leave your infrastructure.
+PHI de-identification (regex/heuristic pipeline modeled on HIPAA Safe Harbor categories — 19 identifier categories, 4 strategies: redact/mask/pseudonymize/hash; legal compliance status in the table above), AES-256-GCM encryption at rest, HMAC-SHA256 signed audit chain, RBAC + API token + tenant isolation. The vault and audit chain are designed so that nothing sensitive needs to leave your infrastructure.
 
 **Is it certified?**
 Not yet. FDA 510(k), HIPAA third-party attestation, and 等保三级 are roadmap items, written down honestly in the [compliance table](#compliance-status-current). Pilot deployments are supported, production regulatory approval is not claimed.
