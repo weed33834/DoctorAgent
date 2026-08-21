@@ -5,6 +5,19 @@
 
 ---
 
+## [0.3.12] - 2026-08-22
+
+### 文档：日文 README 全面改稿 + 开源拼装指南
+
+- **`README.ja.md` 重写**：旧版描述已删除的 PyQt6 GUI 等过时内容，与当前实现严重脱节。新版对齐 v0.3.12 实际功能，并如实收录合规现状表（Safe Harbor 部分实现、审计链边界等）。
+- **新增 `docs/INTEGRATIONS.md`**——外部组件拼装指南：
+  - **`.env` 即插**（零代码）：Ollama/vLLM/LM Studio/llama.cpp/LocalAI（LLM）、Speaches/whisper-asr-webservice/openedai-speech（语音）、HAPI FHIR、OTel Collector/Jaeger/Tempo、Langfuse 自托管、Prometheus+Grafana
+  - **微型胶水**（≤50 行）：TEI/Ollama/Infinity 远程 embedding 适配器（~30 行）、SearXNG 字段映射（~1 行）
+  - **结构性改造**：Chroma 向量库接线、gVisor/E2B 容器沙箱、Postgres RLS、PHI 姓名 NER
+  - 附智能体能力完整性对照表（2026 标准）——核心闭环真实可用，短板集中在生产加固而非能力缺失
+
+---
+
 ## [0.3.11] - 2026-08-22
 
 ### 前端：控制台瘦身——侧边栏只呈现真实可用的功能
