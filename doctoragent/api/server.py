@@ -3432,7 +3432,10 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
         ),
         responses=_error_responses(400, 401, 500),
     )
-    async def mcp_connect(payload: dict[str, Any]) -> dict[str, Any]:
+    async def mcp_connect(
+        payload: dict[str, Any],
+        _auth: None = Depends(_sensitive_auth_dependency),  # type: ignore[name-defined]  # noqa: B008
+    ) -> dict[str, Any]:
         """Connect to an external MCP server and import its tools."""
         registry = getattr(app.state, "mcp_tool_registry", None)
         if registry is None:
@@ -3472,7 +3475,9 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
         summary="List connected external MCP servers",
         responses=_error_responses(401, 500),
     )
-    async def mcp_clients_list() -> dict[str, Any]:
+    async def mcp_clients_list(
+        _auth: None = Depends(_sensitive_auth_dependency),  # type: ignore[name-defined]  # noqa: B008
+    ) -> dict[str, Any]:
         """List the external MCP servers currently connected and their tools."""
         registry = getattr(app.state, "mcp_tool_registry", None)
         clients = getattr(app.state, "mcp_clients", {})
