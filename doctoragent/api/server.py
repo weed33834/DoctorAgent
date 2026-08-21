@@ -2995,8 +2995,12 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
     # =====================================================================
     # Mount the versioned router (documented) + legacy root (hidden)
     # =====================================================================
-    app.include_router(router, prefix=API_V1_PREFIX)
-    app.include_router(router, include_in_schema=False)
+    # NOTE: the actual include_router calls for `router` live at the END of
+    # create_app, AFTER every @router.* registration below. FastAPI's
+    # include_router copies routes at call time, so including the router
+    # here — before the late MCP-client registrations (/mcp/tools, POST
+    # /mcp, /mcp/connect, /mcp/clients) — silently dropped those routes:
+    # they were advertised in docs but unreachable at runtime.
 
     # ── Advanced routes (KG, CRAG, security, DLP, etc.) ──
     try:
@@ -3354,7 +3358,7 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
     )
     async def mcp_invoke(
         request: Request,  # type: ignore[name-defined]
-        _auth: None = Depends(_auth_dependency),  # type: ignore[name-defined]
+        _auth: None = Depends(_sensitive_auth_dependency),  # type: ignore[name-defined]  # noqa: B008
     ) -> dict[str, Any]:
         """Dispatch an MCP JSON-RPC request against the agent's tools."""
         registry = getattr(app.state, "mcp_tool_registry", None)
@@ -3652,6 +3656,15 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
             from starlette.responses import RedirectResponse  # type: ignore[name-defined]
 
             return RedirectResponse(url="/console/")
+
+    # =====================================================================
+    # Mount the versioned router (documented) + legacy root (hidden)
+    # =====================================================================
+    # MUST run after every @router.* registration above: include_router
+    # copies routes at call time, and the MCP-client routes are defined
+    # near the end of create_app. Including earlier silently dropped them.
+    app.include_router(router, prefix=API_V1_PREFIX)
+    app.include_router(router, include_in_schema=False)
 
     return app
 

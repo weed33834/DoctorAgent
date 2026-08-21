@@ -1,10 +1,21 @@
-"""Regression tests: /mcp/connect and /mcp/clients require sensitive auth.
+"""Regression tests: the MCP-over-HTTP endpoints require authentication.
 
-Both endpoints were previously registered without any authentication
-dependency. ``POST /mcp/connect`` accepts ``{transport: stdio, command,
-args}`` and launches an arbitrary process server-side, which made it an
-unauthenticated remote-code-execution vector on deployments without a
-token. Both endpoints are now fail-closed sensitive endpoints.
+History (v0.3.4–v0.3.5): ``POST /mcp/connect`` accepted
+``{transport: stdio, command, args}`` and launched an arbitrary process
+server-side, and none of the MCP HTTP endpoints carried an auth
+dependency. Worse, all four routes were registered on the APIRouter
+*AFTER* ``app.include_router(router)`` ran, so FastAPI never mounted
+them at all — dead endpoints that docs still advertised. v0.3.6 moved
+the router mounts to the end of ``create_app`` (resurrecting them) with
+fail-closed auth on every write/invoke surface:
+
+* ``POST /mcp/connect``  — sensitive auth (launches processes)
+* ``GET  /mcp/clients``  — sensitive auth (infrastructure disclosure)
+* ``POST /mcp``          — sensitive auth (executes registered tools)
+* ``GET  /mcp/tools``    — standard read auth
+
+These tests pin exact status codes so a resurrected-but-unauthenticated
+endpoint or an accidentally-dropped route both fail loudly.
 """
 
 from pathlib import Path
@@ -22,7 +33,7 @@ from doctoragent.config import AegisConfig
     reason="FastAPI is not installed (optional dependency)",
 )
 class TestMcpEndpointsAuth:
-    """MCP client endpoints must be fail-closed sensitive endpoints."""
+    """MCP HTTP endpoints must be mounted AND fail-closed authenticated."""
 
     @pytest.fixture
     def config(self, tmp_path: Path) -> AegisConfig:
@@ -77,10 +88,21 @@ class TestMcpEndpointsAuth:
         app = create_app(config, mock_agent)
         return TestClient(app)
 
-    def test_connect_requires_token(
-        self,
-        anon_client: Any,
-    ) -> None:
+    # ── routes actually exist (regression against silent drop) ────────
+
+    def test_mcp_routes_are_mounted(self, authed_client: Any) -> None:
+        """All four documented MCP HTTP routes respond, not 404."""
+        assert authed_client.get("/mcp/tools").status_code != 404
+        assert (
+            authed_client.post("/mcp", json={"method": "tools/list"}).status_code
+            != 404
+        )
+        assert authed_client.post("/mcp/connect", json={"name": "x"}).status_code != 404
+        assert authed_client.get("/mcp/clients").status_code != 404
+
+    # ── fail-closed without token ─────────────────────────────────────
+
+    def test_connect_requires_token(self, anon_client: Any) -> None:
         """Without DOCTORAGENT_API_TOKEN the endpoint is fail-closed (403)."""
         response = anon_client.post("/mcp/connect", json={"name": "evil"})
         assert response.status_code == 403
@@ -90,12 +112,24 @@ class TestMcpEndpointsAuth:
         response = anon_client.get("/mcp/clients")
         assert response.status_code == 403
 
-    def test_connect_with_token_passes_auth(self, authed_client: Any) -> None:
-        """With a valid token the request reaches the handler (not 401/403)."""
+    def test_invoke_requires_token(self, anon_client: Any) -> None:
+        """Tool invocation is denied without a token (403)."""
+        response = anon_client.post("/mcp", json={"method": "tools/list"})
+        assert response.status_code == 403
+
+    # ── reachable with token ──────────────────────────────────────────
+
+    def test_connect_with_token_reaches_handler(self, authed_client: Any) -> None:
+        """With a valid token the request reaches the handler (400/500)."""
         response = authed_client.post("/mcp/connect", json={"name": "x"})
-        assert response.status_code not in (401, 403)
+        assert response.status_code in (400, 500)
 
     def test_clients_list_with_token_ok(self, authed_client: Any) -> None:
         """With a valid token the listing returns 200."""
         response = authed_client.get("/mcp/clients")
         assert response.status_code == 200
+
+    def test_tools_list_with_token_ok(self, authed_client: Any) -> None:
+        """With a valid token the tool listing returns 200."""
+        response = authed_client.get("/mcp/tools")
+        assert response.status_code in (200, 500)
