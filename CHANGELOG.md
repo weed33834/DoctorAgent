@@ -5,6 +5,23 @@
 
 ---
 
+## [0.3.10] - 2026-08-22
+
+### 安全修复：会话存储租户隔离（此前为零）
+
+`conversations.py` 是全仓库唯一完全没有 tenant 概念的数据层——所有租户的临床对话在同一命名空间，任何调用方都能读取/分叉/分享/删除其他租户的对话。
+
+- **存储层**：`conv_conversations` 增加 `tenant_id` 列（默认 `default`，含老库自动迁移 + 索引）；create/list/get_for_tenant/rename/delete/fork/share/add_message/summarize 全部按租户过滤，跨租户操作返回与"不存在"一致的结果（不泄露存在性）。
+- **API 层**：`/api/v1/conversations/*` 全部端点从认证身份解析租户（OIDC 用户取 `user.tenant_id`，静态 token/本地映射 `default`）并透传；分享链接保持凭 token 公开可访问（产品设计如此）。
+- 兼容性：老库自动加列迁移，存量会话落入 `default` 租户继续可见。
+
+### 测试
+
+- 新增 `tests/test_conversation_tenants.py`（10 用例）：跨租户读/改/删/叉/分享阻断、列表与搜索过滤、legacy 库迁移。
+- 回归 conversations 相关 **28 passed, 3 skipped**。
+
+---
+
 ## [0.3.9] - 2026-08-22
 
 ### 文档：合规声明与实际实现对齐
