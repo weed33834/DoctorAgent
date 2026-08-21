@@ -3258,7 +3258,10 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
         ),
         include_in_schema=True,
     )
-    async def a2a_rpc(request: Request) -> dict[str, Any]:  # type: ignore[name-defined]
+    async def a2a_rpc(
+        request: Request,  # type: ignore[name-defined]
+        _auth: None = Depends(_sensitive_auth_dependency),  # type: ignore[name-defined]  # noqa: B008
+    ) -> dict[str, Any]:  # type: ignore[name-defined]
         """Dispatch an A2A JSON-RPC 2.0 request to the A2A server."""
         server = getattr(app.state, "a2a_server", None)
         if server is None:
@@ -3289,7 +3292,9 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
         summary="List A2A tasks (in-process store)",
         include_in_schema=True,
     )
-    async def a2a_tasks() -> dict[str, Any]:
+    async def a2a_tasks(
+        _auth: None = Depends(_sensitive_auth_dependency),  # type: ignore[name-defined]  # noqa: B008
+    ) -> dict[str, Any]:
         """List tasks currently tracked by the in-process A2A server."""
         server = getattr(app.state, "a2a_server", None)
         if server is None:
