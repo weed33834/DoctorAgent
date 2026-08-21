@@ -5,6 +5,27 @@
 
 ---
 
+## [0.3.6] - 2026-08-22
+
+### 修复：4 个 MCP HTTP 端点从未被挂载（死路由）
+
+- **根因**：`/mcp/tools`、`POST /mcp`、`/mcp/connect`、`/mcp/clients` 注册在 `router` 上，但 `app.include_router(router)` 在它们之前执行——FastAPI 的 `include_router` 在调用时复制路由，之后追加的路由永远不会挂载。这 4 个文档宣称存在的端点在运行时是 **404 死路由**。
+- **修复**：把两处 `include_router(router, ...)` 移到 `create_app` 末尾（所有 `@router.*` 注册完成之后），端点真正可用。
+- **配套加固（复活前补齐鉴权）**：
+  - `POST /mcp` 升级为敏感端点鉴权——它可执行任意已注册工具；
+  - `/mcp/connect`、`/mcp/clients` 沿用 v0.3.4 引入的敏感端点鉴权；
+  - `GET /mcp/tools` 保持读端点鉴权。
+- **测试强化**：`tests/test_mcp_connect_auth.py` 重写为精确状态码断言（不再接受 404 假绿），新增"四条路由已挂载"回归与 `POST /mcp` 无 token 403 用例。
+
+### 验证
+
+- `pytest tests/test_mcp_connect_auth.py tests/test_route_auth_scan.py`：10 passed
+- `pytest tests/test_api_server.py`：64 passed
+- `pytest tests/test_advanced_routes.py tests/test_a2a.py tests/test_audit_verify_endpoint.py`：52 passed
+- ruff check：All checks passed
+
+---
+
 ## [0.3.5] - 2026-08-22
 
 ### 安全修复
