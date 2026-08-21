@@ -443,10 +443,23 @@ def require_role(*roles: Role) -> Callable[..., Any]:
 
         user = getattr(getattr(request, "state", None), "user", None)
         if user is None:
-            raise HTTPException(
-                status_code=403,
-                detail="Authentication required: no authenticated user on request",
-            )
+            # Service-account semantics: a single static API token cannot
+            # carry per-user roles, so a request authenticated *with* the
+            # configured DOCTORAGENT_API_TOKEN is treated as holding every
+            # role. Requests that merely came from localhost (or that carry
+            # no authentication at all) are still denied — fail-closed.
+            auth_method = getattr(request.state, "auth_method", None)
+            if auth_method != "static_token":
+                raise HTTPException(
+                    status_code=403,
+                    detail=(
+                        "Forbidden: requires one of roles "
+                        f"{sorted(allowed)} — authenticate via OIDC for "
+                        "role-based access, or with DOCTORAGENT_API_TOKEN "
+                        "as the service account"
+                    ),
+                )
+            return None
         user_roles = getattr(user, "roles", None) or []
         user_role_set = {str(r).strip().lower() for r in user_roles}
         if not (user_role_set & allowed):

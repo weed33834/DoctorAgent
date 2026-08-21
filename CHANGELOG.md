@@ -5,6 +5,32 @@
 
 ---
 
+## [0.3.7] - 2026-08-22
+
+### 安全修复：RBAC 真正接线到高危管理端点
+
+此前 `require_role` 全仓库只有 1 处使用（/admin/roles），所有管理端点仅靠单一静态 token——拿到 token 即等同 ADMIN 却无审计归因。本版本：
+
+- **auth 依赖标记 `request.state.auth_method`**（`oidc` / `static_token` / `local`），server、advanced_routes、enterprise 三处路由统一。
+- **`require_role` 语义明确化**：
+  - OIDC 用户 → 按用户角色判定（原有行为）；
+  - 静态 API token → **服务账号**语义，视为持有全部角色（单共享 token 无法承载个体角色，诚实记录的权衡）；
+  - 本地匿名 / 无认证 → 一律 403 fail-closed。
+- **ADMIN 角色接线**到 5 个最高危端点：
+  - `POST /api/v1/tenants`（创建租户）
+  - `POST /api/v1/keys/rotate`（主密钥紧急轮换）
+  - `PUT /api/v1/enterprise/settings`
+  - `PUT /api/v1/enterprise/maintenance`
+  - `POST /api/v1/enterprise/apikeys`
+- `/admin/roles` 描述同步更新（静态 token 模式下作为服务账号放行）。
+
+### 测试
+
+- 新增 `tests/test_rbac_wiring.py`：12 个用例覆盖三路由的匿名拒绝、服务账号放行与 require_role 单元语义。
+- 回归：test_api_server(64) + test_enterprise + test_auth_rbac + test_route_auth_scan = **120 passed**；test_advanced_routes **34 passed**。
+
+---
+
 ## [0.3.6] - 2026-08-22
 
 ### 修复：4 个 MCP HTTP 端点从未被挂载（死路由）

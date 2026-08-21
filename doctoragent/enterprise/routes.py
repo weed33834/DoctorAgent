@@ -31,6 +31,7 @@ from doctoragent.api.auth._guards import (
 from doctoragent.api.auth._guards import (
     verify_bearer as _verify_bearer,
 )
+from doctoragent.api.auth.rbac import Role, require_role
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -47,17 +48,30 @@ async def _auth_dependency(
     if _oidc_is_configured():
         from doctoragent.api.server import _authenticate_oidc
 
-        return await _authenticate_oidc(request, credentials)
+        user = await _authenticate_oidc(request, credentials)
+        try:
+            request.state.auth_method = "oidc"
+        except AttributeError:
+            pass
+        return user
     expected = _resolve_token()
     if expected is not None:
         provided = getattr(credentials, "credentials", None)
         if not _verify_bearer(provided, expected):
             raise HTTPException(status_code=401, detail="Invalid or missing authentication token")
+        try:
+            request.state.auth_method = "static_token"
+        except AttributeError:
+            pass
         return provided
     if not _is_local_request(request):
         raise HTTPException(
             status_code=401, detail="DOCTORAGENT_API_TOKEN not set; remote access denied"
         )
+    try:
+        request.state.auth_method = "local"
+    except AttributeError:
+        pass
     return None
 
 
@@ -338,6 +352,7 @@ def get_router() -> APIRouter:
         request: Request,
         payload: dict[str, Any] = Body(...),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
+        _rbac: Any = Depends(require_role(Role.ADMIN)),
     ) -> dict[str, Any]:
         _svc(request).set_settings(payload)
         return {"ok": True}
@@ -374,6 +389,7 @@ def get_router() -> APIRouter:
         request: Request,
         payload: dict[str, Any] = Body(...),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
+        _rbac: Any = Depends(require_role(Role.ADMIN)),
     ) -> dict[str, Any]:
         return (
             _svc(request)
@@ -401,6 +417,7 @@ def get_router() -> APIRouter:
         request: Request,
         payload: dict[str, Any] = Body(...),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
+        _rbac: Any = Depends(require_role(Role.ADMIN)),
     ) -> dict[str, Any]:
         return _svc(request).create_api_key(
             payload.get("org_id", "default"),

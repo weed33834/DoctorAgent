@@ -115,6 +115,10 @@ from doctoragent.api.auth._guards import (  # noqa: E402
 from doctoragent.api.auth._guards import (  # noqa: E402
     verify_bearer as _verify_bearer,
 )
+from doctoragent.api.auth.rbac import (  # noqa: E402
+    Role,
+    require_role,
+)
 
 
 async def _auth_dependency(
@@ -132,7 +136,12 @@ async def _auth_dependency(
     if _oidc_is_configured():
         from doctoragent.api.server import _authenticate_oidc
 
-        return await _authenticate_oidc(request, credentials)
+        user = await _authenticate_oidc(request, credentials)
+        try:
+            request.state.auth_method = "oidc"
+        except AttributeError:
+            pass
+        return user
     expected = _resolve_token()
     if expected is not None:
         provided = getattr(credentials, "credentials", None)
@@ -140,11 +149,19 @@ async def _auth_dependency(
             raise HTTPException(  # type: ignore[misc]
                 status_code=401, detail="Invalid or missing authentication token"
             )
+        try:
+            request.state.auth_method = "static_token"
+        except AttributeError:
+            pass
         return provided
     if not _is_local_request(request):
         raise HTTPException(  # type: ignore[misc]
             status_code=401, detail="DOCTORAGENT_API_TOKEN not set; remote access denied"
         )
+    try:
+        request.state.auth_method = "local"
+    except AttributeError:
+        pass
     return None
 
 
@@ -163,7 +180,12 @@ async def _sensitive_auth_dependency(
     if _oidc_is_configured():
         from doctoragent.api.server import _authenticate_oidc
 
-        return await _authenticate_oidc(request, credentials)
+        user = await _authenticate_oidc(request, credentials)
+        try:
+            request.state.auth_method = "oidc"
+        except AttributeError:
+            pass
+        return user
     expected = _resolve_token()
     if expected is None:
         raise HTTPException(  # type: ignore[misc]
@@ -175,6 +197,10 @@ async def _sensitive_auth_dependency(
         raise HTTPException(  # type: ignore[misc]
             status_code=401, detail="Invalid or missing authentication token"
         )
+    try:
+        request.state.auth_method = "static_token"
+    except AttributeError:
+        pass
     return provided
 
 
@@ -1970,8 +1996,9 @@ if _FASTAPI_AVAILABLE:
         body: KeyRotateRequest,
         request: Request,  # type: ignore[name-defined]
         _auth: Any = Depends(_sensitive_auth_dependency),  # type: ignore[name-defined]  # noqa: B008
+        _rbac: Any = Depends(require_role(Role.ADMIN)),  # type: ignore[name-defined]  # noqa: B008
     ) -> dict[str, Any]:
-        """Trigger a master-key rotation."""
+        """Trigger a master-key rotation (admin only)."""
         agent = _get_agent(request)
         rotator = getattr(agent, "key_rotator", None) if agent is not None else None
         if rotator is None:
