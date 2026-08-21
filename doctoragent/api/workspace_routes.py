@@ -233,12 +233,20 @@ def get_router() -> APIRouter:
             "pdf": "application/pdf",
             "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         }[fmt]
+        # Non-ASCII titles (e.g. Chinese) break a raw `filename=` in the
+        # Content-Disposition header (latin-1). Use RFC 5987 filename* with
+        # percent-encoding plus an ASCII fallback name.
+        from urllib.parse import quote
+
+        fname = f"doctoragent-{_safe_title(title)}.{fmt}"
+        disposition = (
+            f"attachment; filename=export.{fmt}; "
+            f"filename*=UTF-8''{quote(fname)}"
+        )
         return Response(
             content=content,
             media_type=media,
-            headers={
-                "Content-Disposition": f'attachment; filename="doctoragent-{_safe_title(title)}.{fmt}"'
-            },
+            headers={"Content-Disposition": disposition},
         )
 
     return router

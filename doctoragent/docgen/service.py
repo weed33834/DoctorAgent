@@ -16,23 +16,8 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-# reportlab / python-docx are optional; import lazily and degrade gracefully.
-try:
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.styles import ParagraphStyle
-    from reportlab.lib.units import mm
-    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
-
-    _REPORTLAB_OK = True
-except Exception:  # pragma: no cover
-    _REPORTLAB_OK = False
-
-try:
-    from docx import Document
-
-    _DOCX_OK = True
-except Exception:  # pragma: no cover
-    _DOCX_OK = False
+# reportlab / python-docx are imported lazily inside markdown_to_pdf / _docx
+# and degrade gracefully when absent; the `server` extra ships both.
 
 _SUPPORTED = ("md", "pdf", "docx")
 
@@ -62,8 +47,16 @@ def messages_to_markdown(messages: Iterable[dict[str, Any]]) -> str:
 
 def markdown_to_pdf(md: str, out: Path) -> Path:
     """Render a Markdown document to PDF via reportlab (simple heading/para)."""
-    if not _REPORTLAB_OK:
-        raise DocExportError("PDF export requires reportlab (pip install reportlab)")
+    # Re-check importability at call time so installing reportlab later (or a
+    # stale import-time flag) does not block export. reportlab is a runtime
+    # dependency of the `server` extra, so it is normally always available.
+    try:
+        from reportlab.lib.pagesizes import A4  # noqa: PLC0415
+        from reportlab.lib.styles import ParagraphStyle  # noqa: PLC0415
+        from reportlab.lib.units import mm  # noqa: PLC0415
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer  # noqa: PLC0415
+    except ImportError:
+        raise DocExportError("PDF export requires reportlab (pip install reportlab)") from None
     styles = {
         "h1": ParagraphStyle(
             "h1", fontName="Helvetica-Bold", fontSize=20, leading=26, spaceAfter=10
@@ -103,8 +96,10 @@ def markdown_to_pdf(md: str, out: Path) -> Path:
 
 def markdown_to_docx(md: str, out: Path) -> Path:
     """Render a Markdown document to .docx via python-docx."""
-    if not _DOCX_OK:
-        raise DocExportError("DOCX export requires python-docx (pip install python-docx)")
+    try:
+        from docx import Document  # noqa: PLC0415
+    except ImportError:
+        raise DocExportError("DOCX export requires python-docx (pip install python-docx)") from None
     doc = Document()
     for raw in md.splitlines():
         line = raw.strip()
