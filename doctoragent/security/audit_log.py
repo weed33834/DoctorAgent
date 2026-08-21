@@ -369,10 +369,25 @@ class AuditLogger:
         hmac_key: bytes | None = None,
         redact_paths: bool = False,
         alert_manager: AlertManager | None = None,
+        master_key: bytes | None = None,
     ) -> None:
         self.log_path = config.paths.logs / "audit.log.ndjson"
         self.log_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        self._hmac_key = hmac_key if hmac_key is not None else self._load_or_create_key()
+        # Key resolution order:
+        #   1. explicit ``hmac_key`` (tests / callers with their own KMS)
+        #   2. HKDF-derived from the master key (preferred: key material is
+        #      not stored next to the log, so a disk-level attacker cannot
+        #      re-sign a tampered chain without the master key)
+        #   3. legacy ``<logs>/.audit.key`` file (backward compatibility;
+        #      weaker — see derive_audit_key)
+        if hmac_key is not None:
+            self._hmac_key = hmac_key
+        elif master_key is not None:
+            from doctoragent.security.keytree import derive_audit_key
+
+            self._hmac_key = derive_audit_key(master_key)
+        else:
+            self._hmac_key = self._load_or_create_key()
         self._alert_callbacks: list[AlertCallback] = []
         self._decrypt_failures: dict[str, int] = {}
         self._first_cloud_connection = True

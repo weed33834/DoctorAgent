@@ -30,6 +30,38 @@ def _master_key_storage_path(config: AegisConfig) -> Path:
     return config.paths.connections.parent / "master_key.bin"
 
 
+def _build_audit_logger(config: AegisConfig, provider: MasterKeyProvider | None) -> AuditLogger:
+    """Build the audit logger with a master-key-derived HMAC key when possible.
+
+    Prefer HKDF(master_key) over the legacy ``<logs>/.audit.key`` file so the
+    audit chain cannot be re-signed by anyone who only has disk access. Two
+    guardrails:
+
+    * an existing ``.audit.key`` keeps being used (switching keys mid-chain
+      would make every historical record fail verification);
+    * any failure to obtain the master key falls back to legacy behaviour
+      with a warning instead of blocking startup.
+    """
+    legacy_key_path = config.paths.logs / ".audit.key"
+    if provider is not None and not legacy_key_path.exists():
+        try:
+            from doctoragent.security.keytree import derive_audit_key
+
+            return AuditLogger(config, hmac_key=derive_audit_key(provider.get_key()))
+        except Exception as exc:  # noqa: BLE001 — audit must never block startup
+            logger.warning(
+                "Audit key derivation from master key failed (%s); "
+                "falling back to legacy .audit.key",
+                exc,
+            )
+    elif provider is not None and legacy_key_path.exists():
+        logger.info(
+            "Legacy .audit.key found; continuing to use it for chain "
+            "continuity. Delete it to migrate to master-key-derived audit keys."
+        )
+    return AuditLogger(config)
+
+
 def _configure_logging(debug: bool) -> None:
     from doctoragent.observability import configure_logging
 
@@ -50,7 +82,7 @@ def _create_agent(config: AegisConfig) -> AegisAgent | None:
             )
         agent = AegisAgent(
             config,
-            audit_logger=AuditLogger(config),
+            audit_logger=_build_audit_logger(config, master_key_provider),
             master_key_provider=master_key_provider,
         )
         # Rebuild in-memory state for tasks left incomplete by a previous run
@@ -712,7 +744,6 @@ def daemon(no_tray, **kwargs):
         wizard.exec()
         logger.info("First-run wizard completed.")
 
-    audit_logger = AuditLogger(config)
     master_key_provider: MasterKeyProvider | None = None
     try:
         if config.security.windows_hello_enabled:
@@ -729,6 +760,7 @@ def daemon(no_tray, **kwargs):
             raise
         logger.warning("Cannot initialize master key: %s", exc)
         return 1
+    audit_logger = _build_audit_logger(config, master_key_provider)
     agent = AegisAgent(config, audit_logger=audit_logger, master_key_provider=master_key_provider)
     # Resume tasks interrupted by a prior crash/SIGKILL (parity with serve path).
     try:
