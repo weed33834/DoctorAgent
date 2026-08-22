@@ -32,6 +32,12 @@ class SecurityConfig(BaseSettings):
     windows_hello_enabled: bool = False  # Require Windows Hello before unlocking
     enable_semantic_search: bool = False
     semantic_model: str = "all-MiniLM-L6-v2"
+    # Embedding backend: "local" (sentence-transformers) or "openai" (any
+    # OpenAI-compatible /v1/embeddings endpoint — TEI, Ollama, Infinity, …).
+    semantic_backend: str = "local"
+    semantic_embedding_base_url: str = ""  # e.g. http://127.0.0.1:8080/v1
+    semantic_embedding_model: str = ""  # e.g. BAAI/bge-m3 (required for openai)
+    semantic_embedding_api_key: str = ""  # optional; sent as Bearer when set
     cloud_fallback_enabled: bool = False
     # Paths whose audit-log entries should be basename-redacted. When non-empty
     # the AuditLogger redacts the ``_PATH_FIELDS`` (e.g. vault_path) to their

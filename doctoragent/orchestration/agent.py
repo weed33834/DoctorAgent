@@ -314,7 +314,17 @@ class AegisAgent:
             return injected
         if not self.config.security.enable_semantic_search:
             return None
+        backend = getattr(self.config.security, "semantic_backend", "local")
         try:
+            if backend == "openai":
+                from doctoragent.model.embedding import OpenAICompatibleEmbeddingProvider
+
+                sec = self.config.security
+                return OpenAICompatibleEmbeddingProvider(
+                    base_url=sec.semantic_embedding_base_url,
+                    model=sec.semantic_embedding_model,
+                    api_key=sec.semantic_embedding_api_key,
+                )
             return SentenceTransformersProvider(self.config.security.semantic_model)
         except Exception:
             logger.warning(

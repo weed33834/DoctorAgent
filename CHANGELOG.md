@@ -5,6 +5,24 @@
 
 ---
 
+## [0.3.13] - 2026-08-22
+
+### 集成：远程 Embedding 适配器（OpenAI 兼容 /v1/embeddings）
+
+语义检索此前只能用进程内 sentence-transformers。新增 `OpenAICompatibleEmbeddingProvider`，可直连任意 OpenAI 兼容 embedding 服务：
+
+- **支持后端**：[TEI](https://github.com/huggingface/text-embeddings-inference)、Ollama `/v1/embeddings`、[Infinity](https://github.com/michaelfeil/infinity) 及任何同协议网关；医学多语场景建议 `BAAI/bge-m3`
+- **配置**：`DOCTORAGENT_SECURITY__SEMANTIC_BACKEND=openai` + `SEMANTIC_EMBEDDING_BASE_URL/MODEL/API_KEY`（API key 可选，设置时走 Bearer）
+- **实现**：httpx 同步客户端、批处理、按 index 排序防御、批数与向量数不一致时报错而非静默错位
+- **接线**：`orchestration/agent.py::_create_embedding_provider` 按 backend 分发，失败仍回退 FTS
+
+### 测试
+
+- 新增 `tests/test_embedding_remote.py`（8 用例）：批处理保序、鉴权头、空输入零请求、HTTP 500/畸形载荷报错、必填校验 — **16 passed**（含既有 embedding 测试）
+- 回归 test_agent: **39 passed**
+
+---
+
 ## [0.3.12] - 2026-08-22
 
 ### 文档：日文 README 全面改稿 + 开源拼装指南
