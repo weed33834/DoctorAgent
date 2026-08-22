@@ -751,6 +751,15 @@ class TaskStore:
                 # tokenizer indexes Chinese word-by-word; the raw text is
                 # retained in vault_chunks (above) for display/generation.
                 if self._fts5_enabled:
+                    # FTS5 has no unique key on chunk_id: OR REPLACE
+                    # would append a ghost row. Remove old row first.
+                    try:
+                        conn.execute(
+                            "DELETE FROM vault_chunks_fts WHERE chunk_id = ?",
+                            (chunk_id,),
+                        )
+                    except sqlite3.Error:
+                        pass
                     try:
                         conn.execute(
                             """
@@ -905,6 +914,15 @@ class TaskStore:
                         ),
                     )
                     if self._fts5_enabled:
+                        # FTS5 has no unique key on chunk_id: OR REPLACE
+                        # would append a ghost row. Remove old row first.
+                        try:
+                            conn.execute(
+                                "DELETE FROM vault_chunks_fts WHERE chunk_id = ?",
+                                (chunk_id,),
+                            )
+                        except sqlite3.Error:
+                            pass
                         try:
                             conn.execute(
                                 """
@@ -918,7 +936,7 @@ class TaskStore:
                                     str(vault_path),
                                     classification.category,
                                     classification.summary,
-                                    text,
+                                    _tokenize_for_fts(text),
                                     self._tenant_id,
                                 ),
                             )

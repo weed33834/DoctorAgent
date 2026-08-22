@@ -5,6 +5,25 @@
 
 ---
 
+## [0.3.27] - 2026-08-22
+
+### 修复：FTS 幽灵行 + 更新路径分词缺失（中文检索双 bug）
+
+深挖 `update_chunk_index` 暴露出两个叠加的检索正确性缺陷：
+
+1. **更新路径 FTS 写入未分词**：`index_content_chunks` 用 `_tokenize_for_fts(text)` 写 FTS，而增量更新路径写入原文——FTS5 unicode61 把整段中文当单 token，经该路径更新的 chunk 对任何分词查询不可见。
+2. **幽灵行（更深层）**：`vault_chunks_fts` 的 `chunk_id` 是 UNINDEXED 普通列，`INSERT OR REPLACE` 只对 rowid 冲突生效——同一 chunk 重写时旧行残留、新行追加，JOIN 出多行且可能命中旧值。此缺陷同样影响重复全量摄入路径。
+
+- 修复：两条路径均在重插前按 `chunk_id` 显式删除旧 FTS 行（含防御性异常吞咽），插入统一走分词。
+- 新增回归测试 2 例：更新后 BM25 可见性 + FTS 存储值与分词器逐字对齐。
+
+### 验证
+
+- 新增测试 **2 passed**；rag/task_store/wiring 回归 **93 passed**
+- AgentSeed 全包扫描保持 0 命中
+
+---
+
 ## [0.3.26] - 2026-08-22
 
 ### 质量回检：全量回归归绿 + 测试污染修复 + 空壳清查
