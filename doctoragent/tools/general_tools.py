@@ -5,8 +5,10 @@ math calculation. These are the "table stakes" tools of a general assistant that
 the clinical/domain tools do not provide.
 
 * ``web_search`` — live search (pluggable backend; defaults to DuckDuckGo HTML,
-  override with ``DOCTORAGENT_SEARCH_URL`` returning JSON ``{results:[{title,
-  url, snippet}]}``).
+  override with ``DOCTORAGENT_SEARCH_URL``. Accepts either the native JSON
+  shape ``{results:[{title, url, snippet}]}`` or a SearXNG instance with
+  ``format=json`` enabled — SearXNG's ``content`` field is normalized to
+  ``snippet`` automatically).
 * ``web_fetch`` — fetch a URL and extract readable text.
 * ``current_time`` — current date/time + timezone.
 * ``calculate`` — safe arithmetic evaluation (no eval of arbitrary code).
@@ -156,10 +158,24 @@ class WebSearchTool(_GTool):
         backend = os.environ.get("DOCTORAGENT_SEARCH_URL", "").strip()
         if backend:
             async with httpx.AsyncClient(timeout=20) as c:
-                r = await c.get(backend, params={"q": query})
+                r = await c.get(backend, params={"q": query, "format": "json"})
                 r.raise_for_status()
                 data = r.json()
-                return (data.get("results") or [])[:limit]
+                results = data.get("results") or []
+                # SearXNG names the excerpt field "content"; normalize it to
+                # the internal "snippet" shape so any self-hosted meta search
+                # engine works without a proxy.
+                normalized: list[dict[str, str]] = []
+                for item in results:
+                    if not isinstance(item, dict):
+                        continue
+                    row = {
+                        "title": str(item.get("title", "")),
+                        "url": str(item.get("url", item.get("href", ""))),
+                        "snippet": str(item.get("snippet", item.get("content", "")))[:200],
+                    }
+                    normalized.append(row)
+                return normalized[:limit]
         # 优先用成熟的 duckduckgo_search 库
         try:
             from duckduckgo_search import DDGS  # type: ignore[import-not-found]
