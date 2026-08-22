@@ -81,10 +81,10 @@ def get_router() -> APIRouter:
         if not title and first:
             title = store.auto_title(first)
         tenant = _tenant(request)
-        conv = store.create(title or "新对话", payload.get("meta"), tenant_id=tenant)
+        conv = await store.create(title or "新对话", payload.get("meta"), tenant_id=tenant)
         if first:
-            store.add_message(conv["id"], "user", first, tenant_id=tenant)
-        return store.get(conv["id"]) or conv
+            await store.add_message(conv["id"], "user", first, tenant_id=tenant)
+        return await store.get(conv["id"]) or conv
 
     @router.get("", summary="List / search conversations")
     async def list_conversations(
@@ -93,14 +93,14 @@ def get_router() -> APIRouter:
         limit: int = Query(50, ge=1, le=200),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
-        items = _store(request).list(q or "", limit=limit, tenant_id=_tenant(request))
+        items = await _store(request).list_conversations(q or "", limit=limit, tenant_id=_tenant(request))
         return {"total": len(items), "items": items}
 
     @router.get("/{cid}", summary="Get a conversation with messages")
     async def get_conversation(
         cid: str, request: Request, _auth: Any = Depends(_auth_dependency)
     ) -> dict[str, Any]:
-        conv = _store(request).get_for_tenant(cid, _tenant(request))
+        conv = await _store(request).get_for_tenant(cid, _tenant(request))
         if conv is None:
             raise HTTPException(status_code=404, detail="conversation not found")
         return conv
@@ -112,7 +112,7 @@ def get_router() -> APIRouter:
         payload: dict[str, Any] = Body(...),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
-        msg = _store(request).add_message(
+        msg = await _store(request).add_message(
             cid,
             payload.get("role", "user"),
             payload.get("content", ""),
@@ -129,7 +129,7 @@ def get_router() -> APIRouter:
         payload: dict[str, Any] = Body(...),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
-        ok = _store(request).rename(cid, payload.get("title", ""), tenant_id=_tenant(request))
+        ok = await _store(request).rename(cid, payload.get("title", ""), tenant_id=_tenant(request))
         if not ok:
             raise HTTPException(status_code=404, detail="conversation not found")
         return {"ok": True}
@@ -141,7 +141,7 @@ def get_router() -> APIRouter:
         payload: dict[str, Any] = Body(default={}),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
-        conv = _store(request).fork(cid, payload.get("title", ""), tenant_id=_tenant(request))
+        conv = await _store(request).fork(cid, payload.get("title", ""), tenant_id=_tenant(request))
         if conv is None:
             raise HTTPException(status_code=404, detail="conversation not found")
         return conv
@@ -156,7 +156,7 @@ def get_router() -> APIRouter:
         rating = int(payload.get("rating", 0))
         if rating not in (-1, 0, 1):
             raise HTTPException(status_code=400, detail="rating must be -1, 0 or 1")
-        ok = _store(request).feedback(mid, rating, payload.get("comment", ""))
+        ok = await _store(request).feedback(mid, rating, payload.get("comment", ""))
         if not ok:
             raise HTTPException(status_code=404, detail="message not found")
         return {"ok": True}
@@ -165,7 +165,7 @@ def get_router() -> APIRouter:
     async def delete_conversation(
         cid: str, request: Request, _auth: Any = Depends(_auth_dependency)
     ) -> dict[str, Any]:
-        ok = _store(request).delete(cid, tenant_id=_tenant(request))
+        ok = await _store(request).delete(cid, tenant_id=_tenant(request))
         if not ok:
             raise HTTPException(status_code=404, detail="conversation not found")
         return {"ok": True}
@@ -174,7 +174,7 @@ def get_router() -> APIRouter:
     async def conversation_stats(
         request: Request, _auth: Any = Depends(_auth_dependency)
     ) -> dict[str, Any]:
-        return _store(request).stats()
+        return await _store(request).stats()
 
     @router.post("/{cid}/share", summary="Create a share link for a conversation")
     async def share_conversation(
@@ -183,7 +183,7 @@ def get_router() -> APIRouter:
         payload: dict[str, Any] = Body(default={}),  # type: ignore[name-defined]  # noqa: B008
         _auth: Any = Depends(_auth_dependency),
     ) -> dict[str, Any]:
-        share = _store(request).share(
+        share = await _store(request).share(
             cid, ttl_hours=int(payload.get("ttl_hours", 168)), tenant_id=_tenant(request)
         )
         if share is None:
@@ -195,14 +195,14 @@ def get_router() -> APIRouter:
     async def revoke_share(
         token: str, request: Request, _auth: Any = Depends(_auth_dependency)
     ) -> dict[str, Any]:
-        ok = _store(request).revoke_share(token)
+        ok = await _store(request).revoke_share(token)
         if not ok:
             raise HTTPException(status_code=404, detail="share token not found")
         return {"ok": True}
 
     @router.get("/shared/{token}", summary="View a shared conversation (public, no auth)")
     async def shared_conversation(token: str, request: Request) -> dict[str, Any]:
-        conv = _store(request).get_shared(token)
+        conv = await _store(request).get_shared(token)
         if conv is None:
             raise HTTPException(status_code=404, detail="share link invalid or expired")
         return conv
@@ -213,10 +213,10 @@ def get_router() -> APIRouter:
     ) -> dict[str, Any]:
         store = _store(request)
         tenant = _tenant(request)
-        conv = store.get_for_tenant(cid, tenant)
+        conv = await store.get_for_tenant(cid, tenant)
         if conv is None:
             raise HTTPException(status_code=404, detail="conversation not found")
-        summary = store.summarize(cid, tenant_id=tenant)
+        summary = await store.summarize(cid, tenant_id=tenant)
         # 若配置了 LLM，尝试用模型精炼摘要
         llm = getattr(request.app.state, "llm_provider", None)
         if llm is not None and hasattr(llm, "chat_completion"):

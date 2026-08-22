@@ -1304,12 +1304,25 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
     except Exception:  # noqa: BLE001
         app.state.task_center = None
     # Server-side conversation store (persist/search/fork/feedback).
+    # Dual-run (P2): when DOCTORAGENT_DATABASE_URL is configured the async
+    # SQLAlchemy repository serves requests; otherwise the legacy raw-sqlite3
+    # path is wrapped in the same facade so routes stay backend-agnostic.
     try:
-        from doctoragent.conversations import ConversationStore
+        from doctoragent.api.conversation_facade import ConversationFacade
 
-        app.state.conversation_store = ConversationStore(
-            Path(config.paths.index) / "conversations.db"
-        )
+        if (getattr(config, "database_url", "") or "").strip():
+            from doctoragent.db.engine import resolve_database_url
+            from doctoragent.db.repositories import AsyncConversationRepository
+
+            app.state.conversation_store = ConversationFacade(
+                repo=AsyncConversationRepository(resolve_database_url(config))
+            )
+        else:
+            from doctoragent.conversations import ConversationStore
+
+            app.state.conversation_store = ConversationFacade(
+                legacy=ConversationStore(Path(config.paths.index) / "conversations.db")
+            )
     except Exception:  # noqa: BLE001
         app.state.conversation_store = None
     # Background sync tasks created by POST /sync/trigger are tracked here so
