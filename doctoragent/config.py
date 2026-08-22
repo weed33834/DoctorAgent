@@ -330,6 +330,11 @@ class AegisConfig(BaseSettings):
     # of truth. Requires the ``chromadb`` package when set to "chroma".
     rag_vector_backend: str = "sqlite"
     rag_vector_backend_path: str = ""  # empty → <index>/vectorstore
+    # ── Database backend (P1 of docs/POSTGRES_MIGRATION.md) ───────
+    # Empty → legacy per-module SQLite files (default, unchanged).
+    # A SQLAlchemy URL ("postgresql+asyncpg://…" or "sqlite+aiosqlite://…")
+    # routes the doctoragent.db abstraction layer to that database.
+    database_url: str = ""
     model: ModelConfig = Field(default_factory=ModelConfig)
     security: SecurityConfig = Field(default_factory=SecurityConfig)
     paths: PathConfig = Field(default_factory=PathConfig)
