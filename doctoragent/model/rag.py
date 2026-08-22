@@ -2253,19 +2253,20 @@ class HybridRetriever:
         self._ann_index: AnnIndex | None = None
         self._ann_signature: int = -1  # number of vectors the index was built for
         self._ann_index_lock = threading.Lock()
-        # P2 scalability hook: when an alternative vector store backend is
-        # requested we surface a warning so operators know the retriever is
-        # still using the SQLite dense path; full wiring is a follow-up.
-        # The actual store is *not* constructed here to keep behaviour
-        # identical for existing callers (no new dependencies at runtime).
-        if self.config.vector_backend.lower() != "sqlite":
-            logger.warning(
-                "RagConfig.vector_backend=%r requested but HybridRetriever "
-                "still uses the inline SQLite dense path; integrate "
-                "doctoragent.model.vectorstore.create_vector_store to switch "
-                "backends. path=%r",
-                self.config.vector_backend,
-                self.config.vector_backend_path,
+        # External vector backend (e.g. Chroma). When configured it serves
+        # dense queries; SQLite stays the metadata/text source of truth and
+        # the fallback when the backend is empty or errors. Construction is
+        # lazy-ish (factory caches per (backend, path)) and degrades to None
+        # with a one-time warning so startup never depends on the extra.
+        self._external_store = None
+        if self.config.vector_backend.lower() not in ("", "sqlite"):
+            from doctoragent.model.vectorstore.factory import get_shared_vector_store
+
+            path = self.config.vector_backend_path or str(
+                Path(str(self.db_path)) / "vectorstore"
+            )
+            self._external_store = get_shared_vector_store(
+                self.config.vector_backend, path
             )
 
     def _connect(self) -> sqlite3.Connection:
@@ -2424,6 +2425,27 @@ class HybridRetriever:
             query_embedding = self.embedding_provider.embed([query])[0]
         except Exception:
             return []
+
+        # External backend fast path (e.g. Chroma): ANN hits come from the
+        # store; chunk metadata/text still come from SQLite (source of
+        # truth). Foreign-tenant hits disappear naturally in the row-lookup.
+        if self._external_store is not None:
+            try:
+                if self._external_store.count() > 0:
+                    hits = [
+                        (vsr.record.id, vsr.score)
+                        for vsr in self._external_store.search(
+                            query_embedding, top_k * 2
+                        )
+                    ]
+                    rows = self._load_chunk_rows(None)
+                    materialised = self._materialise_index_hits(hits, rows, top_k)
+                    if materialised:
+                        return materialised
+                    # Empty/foreign-only hits → fall through to inline path
+                    # so a stale/partial external index never blanks results.
+            except Exception:  # noqa: BLE001 — degrade to inline on backend errors
+                logger.warning("External vector search failed; using inline path", exc_info=True)
 
         # Recursive retrieval: narrow the chunk search to documents whose
         # summary embedding matches the query first.

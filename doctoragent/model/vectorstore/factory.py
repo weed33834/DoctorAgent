@@ -7,9 +7,51 @@ callers ask for ``"sqlite"`` or ``"chroma"`` and get back a
 
 from __future__ import annotations
 
+import logging
+import threading
 from typing import Any
 
 from doctoragent.model.vectorstore.base import VectorStoreBackend
+
+logger = logging.getLogger(__name__)
+
+# Shared-instance cache so every consumer (TaskStore ingestion, HybridRetriever
+# queries) talks to ONE backend object per (backend, path) pair. Chroma's
+# PersistentClient is process-safe but opening several instances on the same
+# path wastes handles; sharing also makes dual-write/query see a consistent
+# view.
+_SHARED_LOCK = threading.Lock()
+_SHARED: dict[tuple[str, str], VectorStoreBackend] = {}
+_WARNED_ONCE: set[tuple[str, str]] = set()
+
+
+def get_shared_vector_store(backend: str, path: str) -> VectorStoreBackend | None:
+    """Return a process-wide cached backend instance, or ``None`` on failure.
+
+    Failure modes (unknown name, native dependency missing such as chromadb,
+    unwritable path) are logged once per (backend, path) and yield ``None``
+    so callers can degrade to the inline SQLite dense path instead of
+    crashing startup.
+    """
+    key = (backend.lower(), str(path))
+    with _SHARED_LOCK:
+        if key in _SHARED:
+            return _SHARED[key]
+        try:
+            instance = create_vector_store(backend, path=path)
+        except Exception as exc:  # noqa: BLE001 — degrade, never crash startup
+            if key not in _WARNED_ONCE:
+                _WARNED_ONCE.add(key)
+                logger.warning(
+                    "Vector backend %r at %r unavailable (%s); "
+                    "falling back to inline SQLite dense search",
+                    backend,
+                    path,
+                    exc,
+                )
+            return None
+        _SHARED[key] = instance
+        return instance
 
 
 def create_vector_store(backend: str = "sqlite", **kwargs: Any) -> VectorStoreBackend:

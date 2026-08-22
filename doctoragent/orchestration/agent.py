@@ -17,6 +17,7 @@ from doctoragent.execution.vault import VaultManager
 from doctoragent.model.classifier import Classifier
 from doctoragent.model.embedding import LocalEmbeddingProvider, SentenceTransformersProvider
 from doctoragent.model.rag import BM25Search  # 延迟初始化，避免重复 import
+from doctoragent.model.vectorstore.factory import get_shared_vector_store
 from doctoragent.orchestration.pipeline import ProcessingPipeline
 from doctoragent.orchestration.state_machine import TaskState
 from doctoragent.orchestration.task_store import TaskStore
@@ -30,6 +31,23 @@ from doctoragent.security.master_key import (
 from doctoragent.security.resources import BackpressureGuard
 
 logger = logging.getLogger(__name__)
+
+
+def resolve_external_vector_store(config: AegisConfig) -> Any:
+    """Build the shared external vector backend when configured.
+
+    Returns ``None`` for the default SQLite backend or when the requested
+    backend cannot be constructed (missing extra, bad path) — callers then
+    keep the legacy inline dense path.
+    """
+    backend = (getattr(config, "rag_vector_backend", "sqlite") or "sqlite").lower()
+    if backend in ("", "sqlite"):
+        return None
+
+    path = getattr(config, "rag_vector_backend_path", "") or str(
+        Path(config.paths.index) / "vectorstore"
+    )
+    return get_shared_vector_store(backend, path)
 
 
 class AegisAgent:
@@ -50,7 +68,10 @@ class AegisAgent:
     ) -> None:
         self.config = config
         self.connection_manager = connection_manager or ConnectionManager(config.paths.connections)
-        self.task_store = task_store or TaskStore(config.paths.index / "tasks.db")
+        self.task_store = task_store or TaskStore(
+            config.paths.index / "tasks.db",
+            vector_store=resolve_external_vector_store(config),
+        )
         # allow_cloud_fallback=True so that connections explicitly flagged
         # is_cloud_authorized=True are used when no trusted local connection
         # is available. The is_cloud_authorized flag is the user's explicit
