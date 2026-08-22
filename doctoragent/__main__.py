@@ -293,22 +293,33 @@ def export(output_dir, category, query, **kwargs):
             click.echo(f"No vault files match query: {query}")
             return 0
 
-    from doctoragent.security.keytree import derive_vault_key
+    # NOTE: the pipeline encrypts with the RAW master key as vault_key
+    # (see orchestration/agent.py: ProcessingPipeline(vault_key=get_key())),
+    # so reads must match. Using keytree.derive_vault_key here produced a
+    # different key → InvalidTag on every export. Re-encrypt migration to
+    # the proper HKDF hierarchy is tracked in POSTGRES_MIGRATION P3b+.
+    from doctoragent.security.keytree import derive_vault_key  # noqa: F401
 
-    vault_key = derive_vault_key(agent.master_key_provider.get_key())
+    vault_key = agent.master_key_provider.get_key()
     output_dir.mkdir(parents=True, exist_ok=True)
     vault_manager = VaultManager(config.paths.vault, vault_key, agent.audit_logger)
     exported = 0
+    store = agent.task_store
     for item in items:
         vault_path = Path(item["vault_path"])
         if not vault_path.exists():
+            continue
+        crypto = store.get_task_crypto(str(item["task_id"]))
+        salt = (crypto or {}).get("salt")
+        if not salt:
+            click.echo(f"  Failed:   {vault_path.name} (no key material stored)", err=True)
             continue
         dest = output_dir / vault_path.name
         if dest.exists():
             suffix = os.urandom(8).hex()
             dest = output_dir / f"{dest.stem}_{suffix}{dest.suffix}"
         try:
-            vault_manager.decrypt(vault_path, item["salt"], dest)
+            vault_manager.decrypt(vault_path, salt, dest)
             exported += 1
             click.echo(f"  Exported: {dest}")
         except (OSError, ValueError, RuntimeError) as exc:
@@ -882,11 +893,11 @@ def _create_tray_app(config: AegisConfig, audit_logger: Any = None, agent: Any =
     provider = getattr(agent, "master_key_provider", None) if agent is not None else None
     if provider is not None:
         try:
-            from doctoragent.security.keytree import derive_vault_key
-
             master_key = provider.get_key()
             if master_key:
-                vault_key = derive_vault_key(master_key)
+                # Match the pipeline write path (raw master key as vault_key);
+                # see the export-command note about keytree deviation.
+                vault_key = master_key
         except Exception as e:  # noqa: BLE001 - tray should still launch without decryption
             logger.warning("Failed to derive vault_key for tray: %s", e)
     return TrayApplication(config=config, audit_logger=audit_logger, vault_key=vault_key)

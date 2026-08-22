@@ -109,6 +109,75 @@ class TaskStore:
                 )
                 """
             )
+            # ── 旧代 schema 自动迁移（v0.2 任务队列 → v0.3 任务状态机）──
+            # 旧表以 id/task_type/params/status/progress 命名；当前代码
+            # 需要 task_id/state。检测到该形态时重建并尽力回填，旧数据
+            # 保留在 tasks_legacy_v1 以便人工核查。
+            legacy_cols = {
+                row[1] for row in conn.execute("PRAGMA table_info(tasks)").fetchall()
+            }
+            if legacy_cols and "task_id" not in legacy_cols:
+                conn.execute("DROP TABLE IF EXISTS tasks_legacy_v1")
+                conn.execute("ALTER TABLE tasks RENAME TO tasks_legacy_v1")
+                conn.execute(
+                    """
+                    CREATE TABLE tasks (
+                        task_id TEXT PRIMARY KEY,
+                        state TEXT NOT NULL,
+                        source_path TEXT,
+                        classification TEXT,
+                        vault_path TEXT,
+                        salt BLOB,
+                        nonce BLOB,
+                        message TEXT DEFAULT '',
+                        created_at TEXT DEFAULT '',
+                        updated_at TEXT DEFAULT '',
+                        tenant_id TEXT NOT NULL DEFAULT 'default',
+                        parent_task_id TEXT
+                    )
+                    """
+                )
+                # Python-side copy: legacy ids may not be valid UUIDs, so
+                # synthesize a deterministic UUID5 for those rows.
+                legacy_rows = conn.execute(
+                    "SELECT id, COALESCE(status,''), COALESCE(error,'') "
+                    "FROM tasks_legacy_v1"
+                ).fetchall()
+                import uuid as _uuid
+
+                for lid, status_val, err in legacy_rows:
+                    try:
+                        new_tid = str(_uuid.UUID(lid))
+                    except (ValueError, AttributeError):
+                        new_tid = str(
+                            _uuid.uuid5(
+                                _uuid.NAMESPACE_URL, f"doctoragent-legacy:{lid}"
+                            )
+                        )
+                    created_v = (
+                        "1970-01-01T00:00:00+00:00"
+                        if "created_at" not in legacy_cols
+                        else None
+                    )
+                    if created_v is None:
+                        continue
+                    conn.execute(
+                        "INSERT OR IGNORE INTO tasks "
+                        "(task_id, state, message, created_at, updated_at, tenant_id) "
+                        "VALUES (?, ?, ?, ?, ?, 'default')",
+                        (
+                            new_tid,
+                            (status_val or "PENDING").upper(),
+                            err or "",
+                            created_v,
+                            created_v,
+                        ),
+                    )
+                logger.warning(
+                    "tasks 表为旧代 schema（id/status），已自动迁移至 "
+                    "task_id/state 并保留原始数据于 tasks_legacy_v1"
+                )
+
             columns = {row[1] for row in conn.execute("PRAGMA table_info(tasks)").fetchall()}
             if "created_at" not in columns:
                 conn.execute("ALTER TABLE tasks ADD COLUMN created_at TEXT DEFAULT ''")
@@ -1750,6 +1819,17 @@ class TaskStore:
                 }
             )
         return results
+
+    def get_task_crypto(self, task_id: str) -> dict[str, Any] | None:
+        """Return the per-task key material (``salt``/``nonce``) if present."""
+        with self._connect(row_factory=sqlite3.Row) as conn:
+            row = conn.execute(
+                "SELECT salt, nonce FROM tasks WHERE task_id = ? AND tenant_id = ?",
+                (task_id, self._tenant_id),
+            ).fetchone()
+        if row is None:
+            return None
+        return {"salt": row["salt"], "nonce": row["nonce"]}
 
 
 # ---------------------------------------------------------------------------
