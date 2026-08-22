@@ -5,6 +5,25 @@
 
 ---
 
+## [0.3.19] - 2026-08-22
+
+### 集成：PHI 姓名 NER 增强（可选 spaCy 层）
+
+合规审计确认的短板：纯正则姓名检测达不到 Safe Harbor 召回标准。新增可选 NER 层：
+
+- **启用方式**：`DOCTORAGENT_SECURITY__DEID_SPACY_MODEL=zh_core_web_sm`（或构造器 `spacy_model` 键，优先级更高）；留空 = 关闭（默认，行为不变）
+- **机制**：spaCy `PERSON`/`PER` 实体并入 PATIENT_NAME 候选集，交由既有重叠去重仲裁；无前缀裸姓名（正则盲区）由此可被捕获
+- **降级语义**：模型缺失/损坏 → 一次性告警后进程级关闭 NER，检测永不抛错；管线运行异常同样吞掉并回退正则
+- **依赖**：spaCy 与模型需自行安装（`pip install spacy && python -m spacy download zh_core_web_sm`），核心包零新增依赖
+- README 合规表同步更新措辞
+
+### 测试
+
+- 新增 `tests/test_deid_ner.py`（8 用例，注入 fake spaCy 免模型下载）：合并捕获裸姓名、中文 PER 标签、与正则重叠去重、缺模型/坏管线降级、env 与构造器配置 — **8 passed**
+- 回归既有脱敏测试 **13 passed**
+
+---
+
 ## [0.3.18] - 2026-08-22
 
 ### 集成：外部向量后端完整接线（Chroma 双写 + 查询委托）
