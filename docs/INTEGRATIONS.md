@@ -61,7 +61,7 @@
 | ~~Chroma 向量库未接线~~ | ✅ **已完成**（v0.3.18）：摄入双写 + 查询委托 + 删除同步 + 跨租户过滤，见 `tests/test_vector_backend_wiring.py` | — |
 | ~~容器级代码沙箱~~ | ✅ **已完成**（v0.3.20）：Docker/Podman 后端，断网+资源上限+只读根 fs；`DOCTORAGENT_SANDBOX_CONTAINER=1` 启用 | 生产集群可换 gVisor(runsc) runtime 或 E2B |
 | PHI 姓名 NER | ✅ **已完成**（v0.3.19）：可选 spaCy 层 `DEID_SPACY_MODEL` | 中文推荐 zh_core_web_sm；生产仍需人工抽检 |
-| 数据库 RLS | 📋 已立项：完整迁移设计见 `docs/POSTGRES_MIGRATION.md` | Postgres 15 + pgvector + RLS，五阶段实施 |
+| 数据库 RLS / pgvector | 🔄 迁移进行中：P1 抽象层 ✅（v0.3.22）、P2 会话 ORM 试点 ✅（v0.3.23）、P3a 真机 RLS 实证 + pgvector 冒烟 ✅、P3b pgvector 后端接入检索链 ✅（v0.3.25）；剩余 task_store/memory 铺开与全端点渗透套件 | 设计见 `docs/POSTGRES_MIGRATION.md`；环境见 `deploy/docker-compose.postgres.yml` |
 
 ---
 

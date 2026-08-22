@@ -24,7 +24,9 @@ Covered here — things mocks can never prove:
 from __future__ import annotations
 
 import os
+import uuid
 from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -54,6 +56,8 @@ from doctoragent.db.engine import (  # noqa: E402
     dialect_of,
 )
 from doctoragent.db.repositories import AsyncConversationRepository  # noqa: E402
+from doctoragent.model.rag import HybridRetriever, RagConfig  # noqa: E402
+from doctoragent.orchestration.task_store import TaskStore  # noqa: E402
 
 
 @pytest.fixture
@@ -365,3 +369,154 @@ class TestPgvectorSmoke:
                 )
             ).scalar_one()
         assert top == "x"
+
+
+# ---------------------------------------------------------------------------
+# PgVectorStore backend (P3b) + HybridRetriever end-to-end on real Postgres
+# ---------------------------------------------------------------------------
+
+PG_DSN = PG_URL.replace("+asyncpg", "")  # psycopg speaks plain postgresql://
+
+
+@pytest.fixture
+def pg_store() -> Any:
+    pytest.importorskip("psycopg")
+    from doctoragent.model.vectorstore.pgvector_store import (
+        _TABLE,
+        PgVectorStore,
+    )
+
+    store = PgVectorStore(dsn=PG_DSN)
+    with store._conn.cursor() as cur:
+        cur.execute(f"DELETE FROM {_TABLE}")
+    yield store
+    store.close()
+
+
+class TestPgVectorStoreLive:
+    def test_upsert_count_and_metadata_roundtrip(self, pg_store: Any) -> None:
+        pg_store.add(
+            [
+                {
+                    "id": "c1",
+                    "vector": [1.0, 0.0],
+                    "metadata": {"tenant_id": "hospital_a", "category": "clinical"},
+                    "document": "warfarin protocol",
+                }
+            ]
+        )
+        assert pg_store.count() == 1
+        # Upsert same id → no duplicate, updated payload wins.
+        pg_store.add(
+            [
+                {
+                    "id": "c1",
+                    "vector": [0.99, 0.01],
+                    "metadata": {"tenant_id": "hospital_a", "category": "updated"},
+                    "document": "warfarin protocol v2",
+                }
+            ]
+        )
+        assert pg_store.count() == 1
+        hits = pg_store.search([1.0, 0.0], top_k=5)
+        assert hits[0].record.id == "c1"
+        assert hits[0].record.metadata["category"] == "updated"
+        assert hits[0].record.document == "warfarin protocol v2"
+        # tenant_id was lifted into its own column.
+        assert hits[0].record.metadata.get("tenant_id") is None
+
+    def test_cosine_ordering_and_scores(self, pg_store: Any) -> None:
+        pg_store.add(
+            [
+                {"id": "x", "vector": [1.0, 0.0], "metadata": {}, "document": ""},
+                {"id": "y", "vector": [0.0, 1.0], "metadata": {}, "document": ""},
+            ]
+        )
+        hits = pg_store.search([0.95, 0.05], top_k=2)
+        assert [h.record.id for h in hits] == ["x", "y"]
+        assert hits[0].score > 0.99
+        assert hits[0].score >= hits[1].score
+
+    def test_delete(self, pg_store: Any) -> None:
+        pg_store.add([{"id": "d1", "vector": [1.0], "metadata": {}, "document": ""}])
+        assert pg_store.count() == 1
+        pg_store.delete(["d1"])
+        assert pg_store.count() == 0
+
+    def test_zero_topk_returns_empty(self, pg_store: Any) -> None:
+        assert pg_store.search([1.0, 0.0], top_k=0) == []
+
+
+class TestHybridRetrieverOnPgvector:
+    @pytest.mark.asyncio
+    async def test_ingest_dualwrite_then_retrieve_via_pg_ann(
+        self, tmp_path: Path, pg_store: Any
+    ) -> None:
+        """Full P3b loop: TaskStore dual-writes into pgvector; HybridRetriever
+        serves dense hits from it and materialises text from SQLite."""
+
+        from doctoragent.api.schemas import ClassificationResult, SensitivityLevel
+
+        cls = ClassificationResult(
+            sensitivity=SensitivityLevel.MEDIUM,
+            category="clinical",
+            summary="s",
+            disguise_name="n",
+            disguise_extension="md",
+        )
+
+        class Embedder:
+            model_name = "kw"
+
+            def embed(self, texts):  # type: ignore[no-untyped-def]
+                out = []
+                for t in texts:
+                    low = t.lower()
+                    if "warfarin" in low:
+                        out.append([1.0, 0.0])
+                    elif "aspirin" in low:
+                        out.append([0.0, 1.0])
+                    else:
+                        out.append([0.7071, 0.7071])
+                return out
+
+        embedder = Embedder()
+        db_path = tmp_path / "tasks.db"
+        ts = TaskStore(db_path, tenant_id="hospital_a", vector_store=pg_store)
+        task_id = uuid.uuid4()
+        ts.create(task_id, Path("v.md"))
+        ts.index_content_chunks(
+            task_id,
+            Path("v.md"),
+            cls,
+            [
+                {"text": "warfarin anticoagulation protocol"},
+                {"text": "aspirin antiplatelet protocol"},
+            ],
+            provider=embedder,
+        )
+        assert pg_store.count() == 2  # dual-write reached Postgres
+
+        retriever = HybridRetriever(
+            db_path,
+            embedding_provider=embedder,
+            tenant_id="hospital_a",
+            config=RagConfig(vector_backend="pgvector", vector_backend_path=PG_DSN),
+        )
+        results = retriever.retrieve("warfarin dosing")
+        assert results, "pgvector-backed retrieval returned nothing"
+        assert "warfarin" in results[0]["text"]
+
+        # Foreign-tenant ANN hit must be filtered by SQLite row lookup.
+        pg_store.add(
+            [
+                {
+                    "id": "foreign_chunk",
+                    "vector": [1.0, 0.0],
+                    "metadata": {"tenant_id": "hospital_b"},
+                    "document": "other hospital secret",
+                }
+            ]
+        )
+        ids = [r["chunk_id"] for r in retriever.retrieve("warfarin dosing")]
+        assert "foreign_chunk" not in ids

@@ -5,6 +5,24 @@
 
 ---
 
+## [0.3.25] - 2026-08-22
+
+### 集成：pgvector 后端接入检索链（P3b 第一刀）
+
+`vectorstore` 家族新增 `PgVectorStore`——Postgres+pgvector 实现同步 `VectorStoreBackend` 接口（psycopg 3 autocommit），经 v0.3.18 的工厂/双写/查询委托机制**零改造**接入检索链：
+
+- **语义对齐**：`<=>` 余弦距离转 `1-distance` 分数；upsert 语义；`tenant_id` 从 metadata 提升为独立列；embedding 列不带 typmod（任意维度免迁移，ANN 索引待部署钉死维度后再建）
+- **租户隔离**：与 Chroma 同约定——后端不做过滤，检索层按 SQLite 行回查丢弃外租户命中（真机测试覆盖）
+- **接线即用**：`RagConfig(vector_backend="pgvector", vector_backend_path=<DSN>)` → 工厂共享实例 → TaskStore 双写 + HybridRetriever 查询全链路
+- `[database]` extra 补 `psycopg[binary]`
+
+### 真机验证（PG16+pgvector 容器，env 门控）
+
+- 后端语义 4 用例 + **HybridRetriever 端到端 1 用例**（双写→pgvector ANN→SQLite 物化→跨租户过滤）— pg_integration 合计 **14 passed**
+- 回归 db_layer: **17 passed**
+
+---
+
 ## [0.3.24] - 2026-08-22
 
 ### 集成：真机 PostgreSQL 集成测试——RLS 端到端实证 + pgvector 冒烟（P3a）
