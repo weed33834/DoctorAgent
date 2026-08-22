@@ -103,7 +103,12 @@ def _create_agent(config: AegisConfig) -> AegisAgent | None:
 
 
 def _task_store(config: AegisConfig) -> TaskStore:
-    return TaskStore(config.paths.index / "tasks.db")
+    from doctoragent.orchestration.agent import resolve_external_vector_store
+
+    return TaskStore(
+        config.paths.index / "tasks.db",
+        vector_store=resolve_external_vector_store(config),
+    )
 
 
 def _count_files(path: Path) -> int:

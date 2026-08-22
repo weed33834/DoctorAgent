@@ -323,6 +323,13 @@ class AegisConfig(BaseSettings):
     # this host's presence on the LAN; users opt in only when multi-device
     # sync is needed.
     discovery_enabled: bool = False
+    # ── RAG vector backend ────────────────────────────────────────
+    # "sqlite" keeps the legacy inline dense path (vectors in vault_chunks).
+    # "chroma" dual-writes chunk embeddings into a Chroma persistent store
+    # and serves dense queries from it; SQLite remains the metadata source
+    # of truth. Requires the ``chromadb`` package when set to "chroma".
+    rag_vector_backend: str = "sqlite"
+    rag_vector_backend_path: str = ""  # empty → <index>/vectorstore
     model: ModelConfig = Field(default_factory=ModelConfig)
     security: SecurityConfig = Field(default_factory=SecurityConfig)
     paths: PathConfig = Field(default_factory=PathConfig)

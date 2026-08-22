@@ -5,6 +5,24 @@
 
 ---
 
+## [0.3.18] - 2026-08-22
+
+### 集成：外部向量后端完整接线（Chroma 双写 + 查询委托）
+
+`vectorstore/factory.py` 与 Chroma/SQLite 双后端此前从未被 RAG 主链路调用——`RagConfig.vector_backend="chroma"` 只触发一条 warning 然后继续走内联路径（审计确认的"半真实"项）。本版本完成闭环：
+
+- **摄入双写**：`TaskStore.index_content_chunks` / `update_chunk_index` 把新/变更 chunk 向量推入外部后端；stale chunk 删除与 `delete_content_chunks` 同步删除对应向量。SQLite 仍是元数据/正文唯一事实源，外部后端只承担 ANN 检索。
+- **查询委托**：`HybridRetriever._dense_search` 优先走外部后端 ANN 命中，再按租户回查 SQLite 行物化文本/元数据——外租户命中因行查不到而自然丢弃；后端为空或抛错时自动回退内联路径，检索永不因此变空。
+- **共享实例**：`factory.get_shared_vector_store()` 按 (backend, path) 进程级缓存，摄入与查询共享同一连接；构造失败一次性告警并降级，绝不阻塞启动。
+- **配置**：`DOCTORAGENT_RAG_VECTOR_BACKEND=chroma` + `DOCTORAGENT_RAG_VECTOR_BACKEND_PATH`（留空默认 `<index>/vectorstore`）；默认 sqlite 完全保持旧行为。
+
+### 测试
+
+- 新增 `tests/test_vector_backend_wiring.py`（13 用例，FakeBackend 免 chromadb）：双写元数据/增量跳过/stale 删除/任务清除、后端故障不阻断摄入、外部命中物化、跨租户过滤、空/错误回退、工厂缓存与降级 — **13 passed**
+- 回归：rag/task_store/api_server/agent **334 passed**
+
+---
+
 ## [0.3.17] - 2026-08-22
 
 ### 测试基建：路由鉴权扫描兼容 FastAPI ≥0.14x 懒挂载语义

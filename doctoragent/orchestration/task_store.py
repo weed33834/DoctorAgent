@@ -40,12 +40,23 @@ _INSERT_VECTOR_SQL = """
 class TaskStore:
     """Persist task state and context across crashes."""
 
-    def __init__(self, db_path: Path, tenant_id: str = "default") -> None:
+    def __init__(
+        self,
+        db_path: Path,
+        tenant_id: str = "default",
+        vector_store: Any | None = None,
+    ) -> None:
         """初始化任务存储。
 
         ``tenant_id`` 用于多租户隔离：所有写入自动带上该租户 ID，
         所有查询自动过滤到该租户。默认值 ``'default'`` 保证旧单租户
         调用方行为不变（旧数据全部归属于 'default' 租户）。
+
+        ``vector_store``：可选的外部向量后端
+        (:class:`~doctoragent.model.vectorstore.base.VectorStoreBackend`)。
+        提供时，`index_content_chunks` 会把新/变更 chunk 的向量**双写**
+        进该后端，chunk/任务删除会同步删除对应向量；SQLite 仍是元数据
+        与正文的唯一事实源，外部后端只承担 ANN 检索。
         """
         if not tenant_id:
             raise ValueError("tenant_id 不能为空")
@@ -53,6 +64,7 @@ class TaskStore:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._tenant_id = tenant_id
         self._write_lock = threading.Lock()
+        self.vector_store = vector_store
         self._init_db()
 
     @contextmanager
@@ -571,6 +583,58 @@ class TaskStore:
             )
             conn.commit()
 
+    def _push_vector_records(self, records: list[dict[str, Any]]) -> None:
+        """Dual-write chunk vectors into the external store (best-effort).
+
+        SQLite stays the source of truth; a failed external write is logged
+        and never fails ingestion.
+        """
+        if self.vector_store is None or not records:
+            return
+        try:
+            self.vector_store.add(records)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "External vector store add() failed for %d record(s): %s",
+                len(records),
+                exc,
+            )
+
+    def _delete_external_vectors(self, chunk_ids: list[str]) -> None:
+        """Best-effort removal of chunk vectors from the external store."""
+        if self.vector_store is None or not chunk_ids:
+            return
+        try:
+            self.vector_store.delete(chunk_ids)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "External vector store delete() failed for %d id(s): %s",
+                len(chunk_ids),
+                exc,
+            )
+
+    @staticmethod
+    def _vector_record(
+        chunk_id: str,
+        task_id: UUID,
+        vault_path: Path,
+        category: str,
+        text: str,
+        embedding: list[float],
+        tenant_id: str,
+    ) -> dict[str, Any]:
+        return {
+            "id": chunk_id,
+            "vector": embedding,
+            "metadata": {
+                "tenant_id": tenant_id,
+                "task_id": str(task_id),
+                "vault_path": str(vault_path),
+                "category": category,
+            },
+            "document": text[:2000],
+        }
+
     def index_content_chunks(
         self,
         task_id: UUID,
@@ -589,8 +653,12 @@ class TaskStore:
         changed are skipped — no re-embedding, no re-insert. Only new or
         modified chunks are written. When no chunks have changed the method
         returns early after the hash comparison.
+
+        When an external ``vector_store`` is attached, every written chunk's
+        embedding is also pushed to it (dual-write).
         """
         now = created_at or self._now()
+        vec_records: list[dict[str, Any]] = []
 
         # Compute content hashes for all incoming chunks.
         incoming: list[tuple[int, str, str, dict[str, Any]]] = []  # (idx, chunk_id, hash, chunk)
@@ -703,7 +771,24 @@ class TaskStore:
                     except sqlite3.Error:
                         pass  # FTS table might not exist yet
 
+                # Dual-write: collect the vector for the external backend.
+                if self.vector_store is not None and j < len(embeddings) and embeddings[j]:
+                    vec_records.append(
+                        self._vector_record(
+                            chunk_id,
+                            task_id,
+                            vault_path,
+                            classification.category,
+                            text,
+                            embeddings[j],
+                            self._tenant_id,
+                        )
+                    )
+
             conn.commit()
+
+        # Push after commit so the SQLite rows exist before ANN hits arrive.
+        self._push_vector_records(vec_records)
 
     def update_chunk_index(
         self,
@@ -726,6 +811,8 @@ class TaskStore:
         modified). Unchanged chunks are left untouched.
         """
         now = created_at or self._now()
+        deleted_ids: list[str] = []
+        vec_records: list[dict[str, Any]] = []
 
         # Build the set of incoming chunk IDs and hashes.
         incoming_ids: set[str] = set()
@@ -767,6 +854,7 @@ class TaskStore:
                         )
                     except sqlite3.Error:
                         pass
+                deleted_ids.append(cid)
 
             # Determine which chunks are new or changed.
             changed = [
@@ -836,8 +924,23 @@ class TaskStore:
                             )
                         except sqlite3.Error:
                             pass
+                    if self.vector_store is not None and j < len(embeddings) and embeddings[j]:
+                        vec_records.append(
+                            self._vector_record(
+                                chunk_id,
+                                task_id,
+                                vault_path,
+                                classification.category,
+                                text,
+                                embeddings[j],
+                                self._tenant_id,
+                            )
+                        )
 
             conn.commit()
+        # External store: push new vectors, drop stale ones.
+        self._delete_external_vectors(deleted_ids)
+        self._push_vector_records(vec_records)
         return len(changed)
 
     def reindex_all(
@@ -911,7 +1014,13 @@ class TaskStore:
 
     def delete_content_chunks(self, task_id: UUID) -> None:
         """Delete all content chunks for a task."""
+        chunk_ids: list[str] = []
         with self._write_lock, self._connect() as conn:
+            rows = conn.execute(
+                "SELECT chunk_id FROM vault_chunks WHERE task_id = ? AND tenant_id = ?",
+                (str(task_id), self._tenant_id),
+            ).fetchall()
+            chunk_ids = [r[0] for r in rows]
             conn.execute(
                 "DELETE FROM vault_chunks WHERE task_id = ? AND tenant_id = ?",
                 (str(task_id), self._tenant_id),
@@ -925,6 +1034,8 @@ class TaskStore:
             except sqlite3.Error:
                 pass
             conn.commit()
+        # Best-effort removal from the external ANN store.
+        self._delete_external_vectors(chunk_ids)
 
     def get_chunk_by_id(self, chunk_id: str) -> dict[str, Any] | None:
         """Fetch a single chunk by its ``chunk_id`` (tenant-scoped).
