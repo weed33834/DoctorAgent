@@ -21,20 +21,32 @@ TENANT_TABLES: tuple[str, ...] = (
 )
 
 # SET LOCAL is transaction-scoped: pool reuse can never leak a tenant.
-_ENABLE_RLS_SQL = (
-    "ALTER TABLE {table} ENABLE ROW LEVEL SECURITY;"
-    "ALTER TABLE {table} FORCE ROW LEVEL SECURITY;"
-)
+
+
+def _enable_rls_statements(table: str) -> list[str]:
+    return [
+        f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY",
+        f"ALTER TABLE {table} FORCE ROW LEVEL SECURITY",
+    ]
 
 
 def rls_policy_sql(table: str) -> str:
-    """Return idempotent RLS DDL for *table* (tenant = GUC comparison)."""
-    return (
-        f"DROP POLICY IF EXISTS tenant_isolation ON {table};"
+    """Human-readable/CLI form: both statements joined with ``;``."""
+    return ";".join(rls_policy_statements(table)) + ";"
+
+
+def rls_policy_statements(table: str) -> list[str]:
+    """Idempotent RLS DDL for *table*, one statement per item.
+
+    asyncpg-style drivers forbid multiple commands per prepared statement,
+    so programmatic callers consume the list form.
+    """
+    return [
+        f"DROP POLICY IF EXISTS tenant_isolation ON {table}",
         f"CREATE POLICY tenant_isolation ON {table} "
-        f"USING ({TENANT_GUC} = current_setting('{TENANT_GUC}', true)) "
-        f"WITH CHECK ({TENANT_GUC} = current_setting('{TENANT_GUC}', true));"
-    )
+        f"USING (tenant_id = current_setting('{TENANT_GUC}', true)) "
+        f"WITH CHECK (tenant_id = current_setting('{TENANT_GUC}', true))",
+    ]
 
 
 async def install_rls_policies(conn: Any, tables: tuple[str, ...] = TENANT_TABLES) -> None:
@@ -44,8 +56,12 @@ async def install_rls_policies(conn: Any, tables: tuple[str, ...] = TENANT_TABLE
     bypass RLS; normal application roles must NOT have BYPASSRLS.
     """
     for table in tables:
-        await conn.execute(_ENABLE_RLS_SQL.format(table=table))
-        await conn.execute(rls_policy_sql(table))
+        from sqlalchemy import text as _sql_text
+
+        for stmt in _enable_rls_statements(table):
+            await conn.execute(_sql_text(stmt))
+        for stmt in rls_policy_statements(table):
+            await conn.execute(_sql_text(stmt))
 
 
 POSTGRES_SCHEMA_SQL = """

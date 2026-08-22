@@ -1,0 +1,31 @@
+# Reproducible PostgreSQL + pgvector for doctoragent.db (Postgres track).
+#
+# Usage:
+#   docker compose -f deploy/docker-compose.postgres.yml up -d
+#   set DOCTORAGENT_DATABASE_URL=postgresql+asyncpg://doctoragent:doctoragent@localhost:55432/doctoragent_test
+#   set DOCTORAGENT_TEST_PG_URL=<same url>   # enables tests/test_pg_integration.py
+#
+# Image note: pgvector/pgvector ships the ``vector`` extension pre-built.
+# If docker.io is unreachable, mirror prefixes work, e.g.:
+#   docker pull docker.m.daocloud.io/pgvector/pgvector:pg16
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: doctoragent-pg
+    environment:
+      POSTGRES_USER: doctoragent
+      POSTGRES_PASSWORD: doctoragent
+      POSTGRES_DB: doctoragent_test
+    ports:
+      - "55432:5432"
+    volumes:
+      - doctoragent_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U doctoragent -d doctoragent_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  doctoragent_pgdata:
