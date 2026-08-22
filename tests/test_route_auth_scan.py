@@ -54,6 +54,22 @@ def _has_auth_dependency(dependant: Any) -> bool:
     return any(_has_auth_dependency(sub) for sub in dependant.dependencies)
 
 
+def _iter_api_routes(routes: Any) -> Any:
+    """Yield concrete APIRoutes from an app's route table.
+
+    FastAPI ≥0.14x wraps ``include_router`` results in a lazy
+    ``_IncludedRouter`` (routes resolve on first request) instead of copying
+    them eagerly; older versions flatten plain APIRoute objects. Walk
+    ``original_router`` recursively so both layouts work.
+    """
+    for route in routes:
+        original = getattr(route, "original_router", None)
+        if original is not None:
+            yield from _iter_api_routes(original.routes)
+        else:
+            yield route
+
+
 @pytest.mark.skipif(
     not is_available(),
     reason="FastAPI is not installed (optional dependency)",
@@ -84,7 +100,7 @@ class TestAllUnsafeRoutesAuthenticated:
     def test_unsafe_routes_have_auth(self, app: Any) -> None:
         offenders: list[str] = []
         checked = 0
-        for route in app.routes:
+        for route in _iter_api_routes(app.routes):
             methods = getattr(route, "methods", None)
             if not methods or not (set(methods) & UNSAFE_METHODS):
                 continue
@@ -107,7 +123,7 @@ class TestAllUnsafeRoutesAuthenticated:
     def test_known_rce_endpoints_are_protected(self, app: Any) -> None:
         """Explicit pins for the two historical unauthenticated endpoints."""
         protected_paths = {"/mcp/connect": False, "/a2a/rpc": False}
-        for route in app.routes:
+        for route in _iter_api_routes(app.routes):
             methods = getattr(route, "methods", None) or set()
             if "POST" in methods and route.path in protected_paths:
                 protected_paths[route.path] = _has_auth_dependency(route.dependant)
