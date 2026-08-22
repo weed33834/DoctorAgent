@@ -5,6 +5,24 @@
 
 ---
 
+## [0.3.23] - 2026-08-22
+
+### 集成：Postgres 迁移 P2——会话存储 ORM 试点（双跑模式）
+
+`ConversationStore` 成为第一个接入 `doctoragent/db` 抽象层的存储，验证"SQLite 默认 / Postgres 可选"的双跑模式：
+
+- **新增 `db/models.py`**：conv_conversations/conv_messages/conv_shares 的 SQLAlchemy 2.0 声明式模型，逐列镜像现有 SQLite DDL
+- **新增 `db/repositories.py::AsyncConversationRepository`**：完整异步实现（create/list 搜索/get_for_tenant/rename/delete/fork/add_message/feedback/share/revoke_share/get_shared/summarize/stats），语义与 v0.3.10 逐条对齐；首次使用自动建表；消息排序 `ts,id` 替代旧 `ts,rowid`（Postgres 无 rowid，实际等价）
+- **新增 `api/conversation_facade.py::ConversationFacade`**：统一异步门面——`database_url` 为空包装旧 Store（行为逐字节不变），配置后路由到 async 仓储；路由处理器从同步调用改为 `await`
+- Postgres 上每会话经 `tenant_scope()` 绑定 RLS GUC；跨租户过滤在两种语义下均由显式 WHERE 保证
+
+### 测试
+
+- 新增 `tests/test_conversation_repository.py`（14 用例，aiosqlite 真实异步栈）：v0.3.10 租户隔离语义全量重放 + 门面双路分发 — **32 passed**（含既有会话回归）
+- 回归 api_server: **64 passed**
+
+---
+
 ## [0.3.22] - 2026-08-22
 
 ### 集成：Postgres 迁移 P1——双驱动数据库抽象层（`doctoragent/db/`）
