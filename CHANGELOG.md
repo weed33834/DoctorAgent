@@ -5,6 +5,22 @@
 
 ---
 
+## [0.3.14] - 2026-08-22
+
+### 集成：web_search 后端原生支持 SearXNG
+
+`DOCTORAGENT_SEARCH_URL` 自定义搜索后端此前要求返回 `{results:[{title,url,snippet}]}` 私有约定，而自托管的 SearXNG 返回的摘要字段叫 `content`——对接需要额外写代理。
+
+- 请求自动附加 `format=json`（SearXNG 的 JSON 输出开关）
+- 响应字段归一化：`content` → `snippet`、`href` → `url` 兼容；非字典行容错跳过
+- 原 `{title,url,snippet}` 契约完全向后兼容
+
+### 测试
+
+- 新增 `tests/test_web_search_searxng.py`（4 用例）：content 归一化、原契约兼容、脏数据容错、limit 生效 — **9 passed**（含 general_tools 回归）
+
+---
+
 ## [0.3.13] - 2026-08-22
 
 ### 集成：远程 Embedding 适配器（OpenAI 兼容 /v1/embeddings）
