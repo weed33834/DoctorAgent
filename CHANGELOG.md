@@ -5,6 +5,19 @@
 
 ---
 
+## [0.3.21] - 2026-08-22
+
+### 文档：结构档收官——Postgres RLS 立项设计 + 集成状态更新
+
+- **新增 `docs/POSTGRES_MIGRATION.md`**：SQLite → PostgreSQL 15 + pgvector + RLS 的五阶段迁移蓝图。含 RLS 策略模板（`FORCE ROW LEVEL SECURITY` + 事务级 `app.tenant_id` GUC）、双驱动过渡方案、jieba 分词与数据迁移风险清单、跨租户渗透测试验收标准。
+- **`docs/INTEGRATIONS.md` 结构档状态更新**：
+  - ✅ Chroma 接线（v0.3.18 完成）
+  - ✅ 容器沙箱（v0.3.20 完成，生产集群可换 gVisor/E2B runtime）
+  - ✅ PHI NER（v0.3.19 完成）
+  - 📋 数据库 RLS → 已立项（见 POSTGRES_MIGRATION.md）
+
+---
+
 ## [0.3.20] - 2026-08-22
 
 ### 加固：容器级代码执行沙箱（Docker/Podman 后端）

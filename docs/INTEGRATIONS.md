@@ -56,12 +56,12 @@
 
 ## 三、结构性改造：需要立项
 
-| 缺口 | 现状 | 推荐方案 |
+| 缺口 | 状态（v0.3.20） | 方案 |
 |---|---|---|
-| Chroma 向量库未接线 | `vectorstore/factory.py` 完整但 `HybridRetriever` 未调用 | 按 rag.py 内提示接 factory（几十行胶水）；或维持 SQLite 路径到 Postgres 迁移一并解决 |
-| 容器级代码沙箱 | 子进程 + namespace 增强（Linux），Windows 最弱档 | 生产：gVisor(runsc) sidecar 或 [E2B](https://github.com/e2b-dev/E2B)；医疗多租户建议 Firecracker microVM |
-| 数据库 RLS | 手动 `WHERE tenant_id=?` | 迁移 Postgres 后启用 Row-Level Security（README 已列 roadmap） |
-| PHI 姓名识别 NER | 正则/姓氏表启发式 | 叠加 spaCy/Stanza 中文医学模型 + 人工抽检流程（见合规现状表） |
+| ~~Chroma 向量库未接线~~ | ✅ **已完成**（v0.3.18）：摄入双写 + 查询委托 + 删除同步 + 跨租户过滤，见 `tests/test_vector_backend_wiring.py` | — |
+| ~~容器级代码沙箱~~ | ✅ **已完成**（v0.3.20）：Docker/Podman 后端，断网+资源上限+只读根 fs；`DOCTORAGENT_SANDBOX_CONTAINER=1` 启用 | 生产集群可换 gVisor(runsc) runtime 或 E2B |
+| PHI 姓名 NER | ✅ **已完成**（v0.3.19）：可选 spaCy 层 `DEID_SPACY_MODEL` | 中文推荐 zh_core_web_sm；生产仍需人工抽检 |
+| 数据库 RLS | 📋 已立项：完整迁移设计见 `docs/POSTGRES_MIGRATION.md` | Postgres 15 + pgvector + RLS，五阶段实施 |
 
 ---
 
