@@ -396,6 +396,12 @@ class AgentConfig(BaseModel):
     # Original knobs (unchanged defaults).
     max_iterations: int = 10
     max_tool_calls: int = 5
+    # Global wall-clock budget for one agent run (ReAct loop + planning +
+    # reflection). ``None`` keeps the legacy unlimited behaviour; set a value
+    # (e.g. 300) so a wedged tool or slow LLM cannot pin the run forever.
+    # When exceeded the loop stops iterating and asks the LLM for a final
+    # consolidated answer from what it has gathered so far.
+    max_wall_clock_seconds: float | None = None
     tool_choice: ToolChoice = ToolChoice.AUTO
     temperature: float = 0.7
     max_tokens: int = 2000
@@ -1527,9 +1533,19 @@ class Agent:
         observations to the conversation. Returns the final answer string
         when the LLM stops requesting tools or the budget is exhausted.
         """
+        import time as _time
+
+        deadline = (
+            (_time.monotonic() + self.config.max_wall_clock_seconds)
+            if self.config.max_wall_clock_seconds is not None
+            else None
+        )
         for iteration in range(self.config.max_iterations):
             if self.state == AgentState.ERROR:
                 return ""
+            # Wall-clock budget: stop iterating and consolidate below.
+            if deadline is not None and _time.monotonic() >= deadline:
+                break
 
             # Think
             self.state = AgentState.THINKING
@@ -1924,10 +1940,19 @@ class Agent:
             else:
                 yield "Thinking..."
                 answer = ""
+                import time as _time
+
+                deadline = (
+                    (_time.monotonic() + self.config.max_wall_clock_seconds)
+                    if self.config.max_wall_clock_seconds is not None
+                    else None
+                )
                 for _iteration in range(self.config.max_iterations):
                     if self.state == AgentState.ERROR:
                         yield "Error: agent entered error state."
                         return
+                    if deadline is not None and _time.monotonic() >= deadline:
+                        break  # fall into the consolidate branch below
                     self.state = AgentState.THINKING
                     content, tool_calls = await asyncio.wait_for(
                         self._call_llm_with_tools(messages, tools_spec),
