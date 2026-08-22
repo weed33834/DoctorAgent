@@ -7,8 +7,6 @@ import asyncio
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-import pytest
-
 from doctoragent.model.tools import ToolRegistry
 from doctoragent.tools.conversation_tools import register_conversation_tools
 from doctoragent.workspace_config import WorkspaceConfig

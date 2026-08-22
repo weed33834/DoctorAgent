@@ -26,7 +26,6 @@ import pytest
 
 from doctoragent.api.advanced_routes import _FASTAPI_AVAILABLE
 
-
 pytestmark = pytest.mark.skipif(
     not _FASTAPI_AVAILABLE,
     reason="FastAPI is not installed (optional dependency)",
@@ -74,11 +73,21 @@ def _client(app, *, token: str | None = "test-token"):
 
 
 @pytest.fixture(autouse=True)
-def _clean_token_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Ensure DOCTORAGENT_API_TOKEN is reset between tests."""
-    monkeypatch.delenv("DOCTORAGENT_API_TOKEN", raising=False)
+def _clean_token_env() -> Any:
+    """Snapshot & restore DOCTORAGENT_API_TOKEN around every test.
+
+    ``_make_app`` mutates ``os.environ`` directly; a monkeypatch-based
+    delenv here would *restore* that mutated value during undo and leak it
+    into later test files. Explicit snapshot/restore cannot leak.
+    """
+    import os
+
+    saved = os.environ.pop("DOCTORAGENT_API_TOKEN", None)
     yield
-    monkeypatch.delenv("DOCTORAGENT_API_TOKEN", raising=False)
+    if saved is None:
+        os.environ.pop("DOCTORAGENT_API_TOKEN", None)
+    else:
+        os.environ["DOCTORAGENT_API_TOKEN"] = saved
 
 
 # ---------------------------------------------------------------------------
