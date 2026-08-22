@@ -58,13 +58,19 @@ CREATE POLICY tenant_isolation ON vault_chunks
 
 ## 三、分阶段实施
 
-| 阶段 | 内容 | 验收 |
+| 阶段 | 内容 | 状态 |
 |---|---|---|
-| P1 | 引入 SQLAlchemy async + asyncpg 双驱动抽象；SQLite 路径保持默认 | 全量测试不变绿→红 |
-| P2 | 表结构与数据访问迁到 ORM；jieba 分词改 tsvector 自定义 parser 或保留 BM25 于 SQLite 读模型 | 单元测试双跑 |
-| P3 | pgvector 替代内联向量；HybridRetriever dense 路径走 `<=>` 余弦算子 | 与现有 ANN 结果一致性 ≥99% |
-| P4 | 启用 RLS + 跨租户渗透测试套件（自动化：以 A 租户上下文遍历 B 租户全部端点断言 404/空） | 渗透套件全绿 |
-| P5 | docker-compose 增加 postgres profile；迁移脚本 + 回滚脚本进 deploy/ | 升级回滚演练 |
+| P1 | SQLAlchemy async + asyncpg 双驱动抽象（`doctoragent/db/`） | ✅ v0.3.22 |
+| P2 | conversations ORM 试点 + 双跑门面（`AsyncConversationRepository` / `ConversationFacade`） | ✅ v0.3.23 |
+| P3a | 真机驱动验证（PG16+pgvector 容器）：asyncpg 往返、tenant_scope GUC 绑定、**RLS 端到端实证**（跨租户不可见/无 GUC 零行/WITH CHECK 拒绝/跨租户 UPDATE 0 行）、仓储 parity、pgvector `<=>` 冒烟 | ✅ v0.3.24（`tests/test_pg_integration.py`，env 门控） |
+| P3b | task_store/memory 铺开 ORM；pgvector 替代内联稠密路径 | 进行中 |
+| P4 | 全端点跨租户渗透测试套件（RLS 已单点实证，需铺开覆盖） | 待 P3b |
+| P5 | compose profile（`deploy/docker-compose.postgres.yml` ✅）+ 迁移/回滚 CLI | 部分 |
+
+**关键实证（v0.3.24，真机 PG16+pgvector）**：RLS 策略在非超管角色下完全生效——
+A/B 两租户互相不可见、未绑定 GUC 的会话零行、WITH CHECK 拒绝错租户插入、
+跨租户 UPDATE 影响 0 行。注意：应用连接角色必须是 NOSUPERUSER（超管绕过
+RLS，容器镜像默认角色即超管，部署时必须换专用低权角色）。
 
 ## 四、风险清单
 

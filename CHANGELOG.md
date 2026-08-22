@@ -5,6 +5,30 @@
 
 ---
 
+## [0.3.24] - 2026-08-22
+
+### 集成：真机 PostgreSQL 集成测试——RLS 端到端实证 + pgvector 冒烟（P3a）
+
+新增 `tests/test_pg_integration.py`（9 用例），由 `DOCTORAGENT_TEST_PG_URL` 门控，默认跳过；配套 `deploy/docker-compose.postgres.yml` 一键拉起 PG16+pgvector。
+
+**RLS 端到端实证（非超管角色探针）**
+- A/B 租户互相不可见；未绑定 GUC 的会话零行（fail-closed）
+- 跨租户 UPDATE 影响 0 行；WITH CHECK 拒绝错租户插入
+- **重要发现**：容器镜像默认角色是 SUPERUSER，天然绕过 RLS——首个版本测试经此假绿。现全部探针改用专用 NOSUPERUSER 角色 `rls_probe_user`；部署文档同步强调应用角色必须低权
+
+**其余覆盖**
+- asyncpg 驱动经引擎工厂往返；`tenant_scope` GUC 事务内绑定/提交后自动还原
+- `AsyncConversationRepository` 全 parity 流程跑通真机 PG
+- pgvector：`CREATE EXTENSION` + vector(2) 列 + `<=>` 余弦算子冒烟
+
+**修复**：bootstrap 的 RLS 策略模板此前把 GUC 名误作列名（`app.tenant_id = ...`），已改为行列 `tenant_id = current_setting(...)`；语句按 asyncpg 单命令约束拆分为列表 API。
+
+### 迁移状态
+
+P1 ✅ P2 ✅ P3a ✅（本 PR）｜P3b task_store/memory 铺开进行中｜P4 渗透套件待铺开｜P5 compose 已就位
+
+---
+
 ## [0.3.23] - 2026-08-22
 
 ### 集成：Postgres 迁移 P2——会话存储 ORM 试点（双跑模式）

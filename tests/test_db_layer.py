@@ -67,17 +67,25 @@ class TestDialectClassification:
 
 
 class TestRlsPolicySql:
-    def test_policy_compares_against_tenant_guc(self) -> None:
+    def test_policy_compares_row_column_against_guc(self) -> None:
         sql = rls_policy_sql("vault_chunks")
-        assert TENANT_GUC in sql
+        assert "tenant_id = current_setting('app.tenant_id', true)" in sql
+        # The GUC name must never be parsed as a column reference.
+        assert "app.tenant_id =" not in sql
         assert "ENABLE ROW LEVEL SECURITY" not in sql  # enable handled separately
         assert "CREATE POLICY tenant_isolation ON vault_chunks" in sql
-        assert "USING (" in sql and "WITH CHECK (" in sql
+
+    def test_statements_split_for_asyncpg(self) -> None:
+        from doctoragent.db.bootstrap import rls_policy_statements
+
+        stmts = rls_policy_statements("tasks")
+        assert len(stmts) == 2
+        assert all(";" not in s for s in stmts)
 
     def test_enable_sql_forces_rls(self) -> None:
-        from doctoragent.db.bootstrap import _ENABLE_RLS_SQL
+        from doctoragent.db.bootstrap import _enable_rls_statements
 
-        rendered = _ENABLE_RLS_SQL.format(table="tasks")
+        rendered = "\n".join(_enable_rls_statements("tasks"))
         assert "ENABLE ROW LEVEL SECURITY" in rendered
         assert "FORCE ROW LEVEL SECURITY" in rendered
 
@@ -180,8 +188,8 @@ class TestPostgresBootstrapSqlOnly:
         executed: list[str] = []
 
         class FakeConn:
-            async def execute(self, sql: str) -> None:
-                executed.append(sql)
+            async def execute(self, sql: Any) -> None:
+                executed.append(str(sql))
 
         tables = ("tasks", "vault_chunks")
         await install_rls_policies(FakeConn(), tables=tables)
@@ -189,6 +197,6 @@ class TestPostgresBootstrapSqlOnly:
         for t in tables:
             assert "ENABLE ROW LEVEL SECURITY" in joined
             assert f"CREATE POLICY tenant_isolation ON {t}" in joined
-        # enable + policy per table
-        assert len(executed) == len(tables) * 2
+        # enable(2) + policy(2) statements per table
+        assert len(executed) == len(tables) * 4
 
