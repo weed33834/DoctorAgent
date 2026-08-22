@@ -14,6 +14,7 @@ immediately visible in the management interface and vice-versa.
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 
@@ -45,7 +46,7 @@ class WorkspaceConfig:
         return open_sqlite(self.db_path, row_factory=sqlite3.Row)
 
     def _init_db(self) -> None:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS ws_prompts (
@@ -70,7 +71,7 @@ class WorkspaceConfig:
     # ── prompts ─────────────────────────────────────────────────────
 
     def list_prompts(self) -> list[dict[str, Any]]:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             rows = conn.execute("SELECT * FROM ws_prompts ORDER BY name").fetchall()
         return [dict(r) | {"variables": self._loads(r["variables"])} for r in rows]
 
@@ -86,7 +87,7 @@ class WorkspaceConfig:
             "variables": variables or _extract_vars(template),
             "updated_at": _now(),
         }
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute(
                 "INSERT INTO ws_prompts (id,name,template,description,variables,updated_at) "
                 "VALUES (?,?,?,?,?,?) "
@@ -106,7 +107,7 @@ class WorkspaceConfig:
         return self.get_prompt(name) or row
 
     def get_prompt(self, name: str) -> dict[str, Any] | None:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             r = conn.execute(
                 "SELECT * FROM ws_prompts WHERE name=? OR id=?", (name, name)
             ).fetchone()
@@ -115,14 +116,14 @@ class WorkspaceConfig:
     # ── skills ──────────────────────────────────────────────────────
 
     def list_skills(self) -> list[dict[str, Any]]:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             rows = conn.execute("SELECT * FROM ws_skills ORDER BY name").fetchall()
         return [dict(r) | {"triggers": self._loads(r["triggers"])} for r in rows]
 
     def register_skill(
         self, name: str, description: str, *, triggers: list[str] | None = None, code: str = ""
     ) -> dict[str, Any]:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute(
                 "INSERT INTO ws_skills (id,name,description,triggers,code,updated_at) VALUES (?,?,?,?,?,?) "
                 "ON CONFLICT(name) DO UPDATE SET description=excluded.description, "
@@ -142,14 +143,14 @@ class WorkspaceConfig:
     # ── experts ─────────────────────────────────────────────────────
 
     def list_experts(self) -> list[dict[str, Any]]:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             rows = conn.execute("SELECT * FROM ws_experts ORDER BY name").fetchall()
         return [dict(r) | {"tools": self._loads(r["tools"])} for r in rows]
 
     def create_expert(
         self, name: str, title: str, system_prompt: str, *, tools: list[str] | None = None
     ) -> dict[str, Any]:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute(
                 "INSERT INTO ws_experts (id,name,title,system_prompt,tools,updated_at) VALUES (?,?,?,?,?,?) "
                 "ON CONFLICT(name) DO UPDATE SET title=excluded.title, "
@@ -169,7 +170,7 @@ class WorkspaceConfig:
     # ── settings (generic key-value persistence) ─────────────────────
 
     def set_settings(self, values: dict[str, str]) -> None:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             for k, v in values.items():
                 conn.execute(
                     "INSERT INTO ws_settings (key,value,updated_at) VALUES (?,?,?) "
@@ -179,7 +180,7 @@ class WorkspaceConfig:
             conn.commit()
 
     def get_setting(self, key: str, default: str = "") -> str:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             row = conn.execute("SELECT value FROM ws_settings WHERE key=?", (key,)).fetchone()
         return row["value"] if row else default
 

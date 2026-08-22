@@ -5,6 +5,35 @@
 
 ---
 
+## [0.3.26] - 2026-08-22
+
+### 质量回检：全量回归归绿 + 测试污染修复 + 空壳清查
+
+**全量回归**：`pytest tests` → **2453 passed / 0 failed / 82 skipped**（本机含真机 PG 集成）。
+
+#### 修复一：测试间环境变量泄漏（根因排查）
+
+全量跑时 23 个用例失败而单跑通过。插桩定位：`test_advanced_routes.py::_make_app` 直接写 `os.environ["DOCTORAGENT_API_TOKEN"]`，其 autouse 清理 fixture 用 `monkeypatch.delenv`——monkeypatch 的 undo 会把**被直接赋值的值恢复回去**，造成跨文件泄漏，后续鉴权测试拿到 401 而非预期的 403。
+- 改为显式 snapshot/restore fixture（不可能泄漏），并删除误报调试打印。
+
+#### 修复二：SQLite 连接未确定性关闭（Windows 文件锁）
+
+`workspace_config.py` 的 10 处 `with self._connect() as conn:` 只提交不关闭；Windows 下残留句柄令 `TemporaryDirectory` 清理抛 `WinError 32`（3 个用例偶发失败）。
+- 全部改为 `with closing(self._connect()) as conn, conn:`——用后即关，生产侧同步受益。
+
+#### 空壳清查结果（AgentSeed 全包扫描 + 标记搜索）
+
+| 检查项 | 结果 |
+|---|---|
+| `doctoragent/` 生产代码 stub/占位/夸大标记 | **0 命中** |
+| 生产代码 `TODO/FIXME` | 0 |
+| `NotImplementedError` ×2 | 抽象基类方法（合法模式，非空壳） |
+| 语音 501 | 配置驱动的诚实降级（未配 ASR/TTS 时），非空壳 |
+| 前端 StubView | 仅作未知路由防御兜底，导航不可达 |
+| 仓库遗留物 `doctoragent_refactor.patch`（182KB 过期补丁） | 已删除 |
+
+---
+
 ## [0.3.25] - 2026-08-22
 
 ### 集成：pgvector 后端接入检索链（P3b 第一刀）
