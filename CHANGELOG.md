@@ -5,6 +5,23 @@
 
 ---
 
+## [0.3.16] - 2026-08-22
+
+### 修复：评估门禁的诚实性与本地 judge 支持
+
+核心审计发现 `eval_gate.py` 两处问题：gold 答案自评自比却标记为 `"mode": "full"`（冒充真实 LLM 评估）；评估依赖缺失时静默返回 PASS。
+
+- **模式如实标注**：确定性自检路径改为 `"mode": "gold-selfcheck"`，docstring 写明它是回归冒烟测试而非 LLM 质量信号
+- **`--strict`**：依赖缺失/零用例时门禁判 FAIL（默认保持 skip-green 兼容既有 CI）
+- **`--judge-model/--judge-api-key/--judge-base-url`**：可选接入 DeepEval 真 LLM judge，`--judge-base-url` 指向 Ollama/vLLM 即可无云 key 运行真模型评分（`"mode": "llm-judged"`）
+
+### 测试
+
+- 新增 `tests/test_eval_gate.py`（5 用例）：skip/strict 行为、模式标签契约、judge 构造降级 — **5 passed**
+- 实跑验证：`eval_gate.py --cases 2` → gold-selfcheck 模式 GATE: PASS（证据在构建日志）
+
+---
+
 ## [0.3.15] - 2026-08-22
 
 ### 加固：ReAct 循环全局时长预算
