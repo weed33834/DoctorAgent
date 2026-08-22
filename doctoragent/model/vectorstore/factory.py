@@ -97,6 +97,16 @@ def create_vector_store(backend: str = "sqlite", **kwargs: Any) -> VectorStoreBa
             raise ValueError("chroma backend requires a 'path' argument")
         return ChromaVectorStore(path=path)
 
+    if name == "pgvector":
+        from doctoragent.model.vectorstore.pgvector_store import PgVectorStore
+
+        # *path* carries the Postgres DSN for symmetry with other backends.
+        path = kwargs.get("path")
+        if not path:
+            raise ValueError("pgvector backend requires a 'path' argument (DSN)")
+        return PgVectorStore(dsn=path)
+
     raise ValueError(
-        f"Unknown vector store backend: {backend!r}. Supported backends: 'sqlite', 'chroma'."
+        f"Unknown vector store backend: {backend!r}. "
+        "Supported backends: 'sqlite', 'chroma', 'pgvector'."
     )
