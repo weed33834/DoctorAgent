@@ -5,6 +5,24 @@
 
 ---
 
+## [0.3.20] - 2026-08-22
+
+### 加固：容器级代码执行沙箱（Docker/Podman 后端）
+
+代码沙箱此前最强档是 Linux unshare+mount 掩蔽（Windows 仅裸子进程）。新增可选容器后端，提供跨平台的最强隔离：
+
+- **启用**：`DOCTORAGENT_SANDBOX_CONTAINER=1`（或 `SandboxManager(container_backend=True)`）；需本机有可用的 docker/podman 引擎
+- **加固契约**（生成的 argv 全部强制）：`--network none`（断网）、`--cpus=1 --memory=256m --pids-limit=128`（资源/fork 炸弹上限）、`--read-only + tmpfs /tmp`（只读根文件系统）、`no-new-privileges`、work_dir 挂载 `/sandbox`，allowed_paths 只读挂载
+- **降级语义**：引擎二进制缺失或 daemon 不可达 → 一次性探测后回退平台后端；`CodeExecTool` 的 fail-closed 门禁（`isolation_effective`）将可用容器计入有效隔离
+- 引擎探测按实例缓存一次；默认关闭，不开启时行为完全不变
+
+### 测试
+
+- 新增 `tests/test_sandbox_container.py`（11 用例，全 mock 免 Docker）：argv 加固契约逐项断言、run_sandboxed 走 container 级、引擎缺失/daemon 宕机回退、探测缓存、门禁放行 — **11 passed**
+- 回归 sandbox/code_exec 相关 **72 passed**
+
+---
+
 ## [0.3.19] - 2026-08-22
 
 ### 集成：PHI 姓名 NER 增强（可选 spaCy 层）

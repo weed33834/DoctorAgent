@@ -114,6 +114,8 @@ class SandboxManager:
         audit_logger: AuditLogger | None = None,
         work_dir: Path | None = None,
         enable_strong_isolation: bool = True,
+        container_backend: bool | None = None,
+        container_image: str = "python:3.12-slim",
     ) -> None:
         self._audit = audit_logger
         self._enable_strong = enable_strong_isolation
@@ -124,6 +126,18 @@ class SandboxManager:
             self._work_dir = Path(tempfile.mkdtemp(prefix="doctoragent-sandbox-"))
             self._owns_work_dir = True
         self._platform = sys.platform
+        # Container backend (v0.3.20): opt-in via constructor or
+        # DOCTORAGENT_SANDBOX_CONTAINER=1. When a container engine is
+        # available it takes precedence over the platform backends — a
+        # network-disabled, resource-capped container confines far more than
+        # unshare/bwrap and works identically on every host OS.
+        if container_backend is None:
+            container_backend = os.environ.get("DOCTORAGENT_SANDBOX_CONTAINER") == "1"
+        self._container_enabled = bool(container_backend)
+        self._container_image = container_image
+        # None = not probed yet; after probe: engine executable path or None.
+        self._engine_path: str | None = None
+        self._engine_probed = False
 
     # ── public API ────────────────────────────────────────────────────────
 
@@ -149,11 +163,34 @@ class SandboxManager:
 
     @staticmethod
     def _probe_isolation_effective() -> bool:
-        """Return True if the Linux unshare+mount masking backend actually hides
-        /etc/passwd from the child. This is the same mechanism
-        :meth:`_prepare_linux` uses, so a True result means code execution is
-        genuinely confined (not a bare subprocess)."""
+        """Return True if a *real* confinement backend is usable.
+
+        Two accepted backends, in order:
+
+        1. **Container** (``DOCTORAGENT_SANDBOX_CONTAINER=1`` + working
+           docker/podman engine) — strongest, OS-independent.
+        2. Linux unshare+mount masking — verified by actually running a
+           probe program that tries to read ``/etc/passwd``; True only if
+           the read is blocked.
+        """
         import tempfile
+
+        if os.environ.get("DOCTORAGENT_SANDBOX_CONTAINER") == "1":
+            for name in ("docker", "podman"):
+                exe = shutil.which(name)
+                if not exe:
+                    continue
+                try:
+                    probe = subprocess.run(  # noqa: S603
+                        [exe, "info", "--format", "{{.ServerVersion}}"],
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
+                    )
+                    if probe.returncode == 0 and probe.stdout.strip():
+                        return True
+                except Exception:  # noqa: BLE001 — try next engine
+                    continue
 
         if not sys.platform.startswith("linux"):
             return False
@@ -184,6 +221,73 @@ class SandboxManager:
                 return out.returncode == 0 and "BLOCKED" in out.stdout
         except Exception:  # noqa: BLE001
             return False
+
+    # ── container backend (v0.3.20) ──────────────────────────────────────
+
+    def _container_engine(self) -> str | None:
+        """Return the engine executable when a usable engine exists, else None.
+
+        Probed once per manager instance. Detection = binary on PATH plus a
+        cheap `info` invocation so a broken daemon degrades to the platform
+        backends instead of failing every execution.
+        """
+        if self._engine_probed:
+            return self._engine_path
+        self._engine_probed = True
+        for name in ("docker", "podman"):
+            exe = shutil.which(name)
+            if exe:
+                try:
+                    probe = subprocess.run(  # noqa: S603
+                        [exe, "info", "--format", "{{.ServerVersion}}"],
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
+                    )
+                    if probe.returncode == 0 and probe.stdout.strip():
+                        self._engine_path = exe
+                        break
+                except Exception:  # noqa: BLE001 — try next engine
+                    continue
+        return self._engine_path
+
+    def _container_launch(
+        self, full_cmd: list[str], resolved_allowed: list[str]
+    ) -> tuple[str, list[str]]:
+        """Build the docker/podman argv running *full_cmd* inside the image."""
+        engine = self._container_engine()
+        if not engine:
+            return "", []
+        mounts: list[str] = []
+        for p in resolved_allowed:
+            mounts += ["-v", f"{p}:{p}:ro"]
+        mounts += ["-v", f"{self._work_dir}:/sandbox"]
+        cmd = [
+            engine,
+            "run",
+            "--rm",
+            "-i",
+            "--network",
+            "none",
+            "--cpus=1",
+            "--memory=256m",
+            "--pids-limit=128",
+            "--security-opt",
+            "no-new-privileges",
+            "--read-only",
+            "--tmpfs",
+            "/tmp:rw,size=64m",
+            *mounts,
+            "-w",
+            "/sandbox",
+            "-e",
+            "HOME=/sandbox",
+            "-e",
+            "TMPDIR=/tmp",
+            self._container_image,
+            *full_cmd,
+        ]
+        return "container", cmd
 
     def run_sandboxed(
         self,
@@ -287,6 +391,19 @@ class SandboxManager:
         child_cwd = self._work_dir
         self._work_dir.mkdir(parents=True, exist_ok=True)
         resolved_allowed = [str(Path(p)) for p in (allowed_paths or [])]
+
+        # Container backend takes precedence when enabled AND a working
+        # engine is present (strongest, OS-independent confinement).
+        if self._container_enabled:
+            isolation_level_c, container_cmd = self._container_launch(
+                full_cmd, resolved_allowed
+            )
+            if container_cmd:
+                return "container", container_cmd, child_env, child_cwd
+            logger.debug(
+                "Container sandbox requested but no usable engine; "
+                "falling back to platform isolation"
+            )
 
         if self._platform.startswith("linux"):
             return self._prepare_linux(full_cmd, child_env, child_cwd, resolved_allowed)
