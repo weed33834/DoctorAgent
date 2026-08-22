@@ -5,6 +5,18 @@
 
 ---
 
+## [0.3.28] - 2026-08-22
+
+### 修复：CLI 真机实测暴露的三处缺陷（LLM 云端接入场景）
+
+用真实 OpenAI 兼容中转端点全量实测 CLI 时发现：
+
+1. **旧代 tasks 表自动迁移缺失**：v0.2 部署升级后所有查 tasks 的命令崩溃（no such column: task_id）。_init_db 现检测 id/status 形态 → 重建映射迁移，非 UUID 旧 id 合成确定性 uuid5，原始数据归档 	asks_legacy_v1。
+2. **export KeyError: salt**：list_vault_files 契约不含加密材料。新增 TaskStore.get_task_crypto(task_id)，export 按任务取 salt 并对缺钥项明确报错跳过。
+3. **导出/下载 InvalidTag（密钥派生错位）**：写入侧 pipeline 以主密钥原文作 vault_key，而 export/download/tray 三处读路径误用 keytree HKDF 派生 → 密钥不同必然解密失败。统一对齐写路径（直用主密钥），代码内标注与 keytree 层级的偏离及 re-encrypt 迁移待办（POSTGRES P3b+）。
+
+---
+
 ## [0.3.27] - 2026-08-22
 
 ### 修复：FTS 幽灵行 + 更新路径分词缺失（中文检索双 bug）

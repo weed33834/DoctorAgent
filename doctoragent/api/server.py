@@ -1613,9 +1613,13 @@ def create_app(config: AegisConfig, agent: AegisAgent) -> Any:
             )
 
         from doctoragent.execution.vault import VaultManager
-        from doctoragent.security.keytree import derive_vault_key
 
-        vault_key = derive_vault_key(agent.master_key_provider.get_key())
+        # Match the write path: pipeline encrypts with the RAW master key
+        # (orchestration/agent.py passes get_key() as vault_key). Deriving
+        # via keytree here yields a different key → InvalidTag on download.
+        # TODO(P3b+): re-encrypt migration to the HKDF hierarchy, then both
+        # sides switch to derive_vault_key consistently.
+        vault_key = agent.master_key_provider.get_key()
 
         # Decrypt into a private temp directory and stream it back, cleaning
         # up via a BackgroundTask that runs after the response is sent.  The
