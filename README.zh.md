@@ -205,7 +205,7 @@ DoctorAgent 在核心临床能力之外，已落地一整套**可上线、可信
 
 | 标准 | 状态 | 备注 |
 |---|---|---|
-| HIPAA Safe Harbor（去标识化） | **部分实现** | 19 类标识符的正则/启发式脱敏（含身份证号）。**注意**：姓名识别基于称谓与姓氏表，漏检率未达 Safe Harbor 的法律标准；生产用途建议叠加 NER（spaCy/Stanza）并做人工抽检。 |
+| HIPAA Safe Harbor（去标识化） | **部分实现** | 19 类标识符的正则/启发式脱敏（含身份证号）。**注意**：姓名识别默认基于称谓与姓氏表，漏检率未达 Safe Harbor 的法律标准；可配置 `DEID_SPACY_MODEL` 启用 spaCy NER 层提升召回，生产环境仍建议人工抽检。 |
 | CDS Hooks 2.0 | 已实现 | `/cds-services` 端点按规范暴露。 |
 | FHIR R4 + SMART-on-FHIR | 已实现 | 资源处理器在 `doctoragent/api/fhir/`。 |
 | SNOMED CT / LOINC / ICD-10-CM | 已实现 | 术语绑定 + 查询辅助。 |

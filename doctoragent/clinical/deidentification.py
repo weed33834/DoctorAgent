@@ -49,6 +49,8 @@ title-less blind spots.
 from __future__ import annotations
 
 import hashlib
+import logging
+import os
 import re
 from typing import Any
 
@@ -113,6 +115,55 @@ _FAX_KEYWORD_RE: re.Pattern[str] = re.compile(r"(?i)\b(?:fax|传真)\b")
 
 # pseudonymize 默认盐值（可用 config["pseudonym_salt"] 覆盖）。
 _DEFAULT_PSEUDONYM_SALT: str = "doctoragent-phi-v1"
+
+logger = logging.getLogger(__name__)
+
+# ── Optional NER layer (v0.3.19) ────────────────────────────────────────
+# Regex/heuristic name detection cannot reach HIPAA Safe Harbor recall on its
+# own. When a spaCy model is available (``pip install spacy`` + a ``PER``-
+# capable model such as zh_core_web_sm / en_core_web_sm), PERSON entities are
+# merged into the PATIENT_NAME candidate set; the existing overlap dedupe
+# arbitrates against regex hits.
+#
+# Enable via config key ``spacy_model`` or env
+# ``DOCTORAGENT_SECURITY__DEID_SPACY_MODEL`` (model name; empty/unset = off).
+_NER_NLP: Any = None
+_NER_INIT_DONE = False
+
+
+def _get_ner_pipeline(model_name: str | None) -> Any:
+    """Return a cached spaCy pipeline, or ``None`` when unavailable/disabled.
+
+    Failure is latched for the process lifetime (one warning) so a broken
+    model never turns every detection call into a retry storm.
+    """
+    global _NER_NLP, _NER_INIT_DONE
+    if not model_name:
+        return None
+    if _NER_INIT_DONE:
+        return _NER_NLP
+    try:
+        import spacy  # type: ignore[import-not-found]
+
+        _NER_NLP = spacy.load(model_name, exclude=["parser", "lemmatizer"])
+        logger.info("PHI de-identification NER enabled (model=%s)", model_name)
+    except Exception as exc:  # noqa: BLE001 — degrade once, then stay off
+        logger.warning(
+            "spaCy NER unavailable (model=%r): %s — falling back to regex-only "
+            "name detection",
+            model_name,
+            exc,
+        )
+        _NER_NLP = None
+    _NER_INIT_DONE = True
+    return _NER_NLP
+
+
+def _reset_ner_cache() -> None:
+    """Test hook: clear the cached pipeline so env changes are re-read."""
+    global _NER_NLP, _NER_INIT_DONE
+    _NER_NLP = None
+    _NER_INIT_DONE = False
 
 # 英文双词姓名排除集：句首常见词、地名、机构词，避免把 “San Francisco”
 # / “Emergency Room” 之类误判为人名。
@@ -251,6 +302,39 @@ class PHIDetector:
         self._config: dict[str, Any] = dict(config or {})
         self._pseudonym_salt: str = str(self._config.get("pseudonym_salt", _DEFAULT_PSEUDONYM_SALT))
         self._patterns: list[tuple[PHIType, re.Pattern[str]]] = _build_patterns()
+        # NER model: constructor key wins over env; empty disables.
+        self._spacy_model: str = str(
+            self._config.get(
+                "spacy_model",
+                os.environ.get("DOCTORAGENT_SECURITY__DEID_SPACY_MODEL", ""),
+            )
+        ).strip()
+
+    def _detect_names_ner(self, text: str) -> list[tuple[int, int, PHIType, str]]:
+        """ spaCy PERSON-entity pass (no-op when the layer is unavailable)."""
+        if not text:
+            return []
+        nlp = _get_ner_pipeline(self._spacy_model)
+        if nlp is None:
+            return []
+        try:
+            doc = nlp(text)
+        except Exception:  # noqa: BLE001 — NER must never break detection
+            logger.warning("NER pipeline raised during detection", exc_info=True)
+            return []
+        spans: list[tuple[int, int, PHIType, str]] = []
+        for ent in doc.ents:
+            label = getattr(ent, "label_", "")
+            if label in ("PERSON", "PER"):
+                spans.append(
+                    (
+                        ent.start_char,
+                        ent.end_char,
+                        PHIType.PATIENT_NAME,
+                        ent.text,
+                    )
+                )
+        return spans
 
     # ── detection ───────────────────────────────────────────────────────
 
@@ -268,6 +352,9 @@ class PHIDetector:
         for phi_type, pattern in self._patterns:
             for m in pattern.finditer(text):
                 raw.append((m.start(), m.end(), phi_type, m.group(0)))
+        # NER 增强：spaCy PERSON 实体并入 PATIENT_NAME 候选集，交由
+        # 既有重叠去重与正则命中仲裁（更早/更长者胜）。
+        raw.extend(self._detect_names_ner(text))
         # FAX 后处理：电话号码附近 ±20 字符内出现 fax/传真 关键词时，
         # 改判为 FAX（与单纯 PHONE 区分，便于差异化脱敏）。
         retagged: list[tuple[int, int, PHIType, str]] = []

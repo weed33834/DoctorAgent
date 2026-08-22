@@ -1,3 +1,3 @@
 """DoctorAgent: Local private content management agent."""
 
-__version__ = "0.3.18"
+__version__ = "0.3.19"
