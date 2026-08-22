@@ -1,6 +1,6 @@
 [project]
 name = "doctoragent"
-version = "0.3.21"
+version = "0.3.22"
 description = "Clinical AI agent for doctors: CDS Hooks 2.0, FHIR R4 / SMART-on-FHIR, SNOMED CT / LOINC / ICD-10-CM terminology, deterministic safety rules, 18 built-in specialty doctor roles, built-in medical knowledge base, conversation-driven operations, RAG knowledge base, multi-agent + A2A + MCP, sandboxed code execution, voice, multi-tenant audit with HMAC, towards HIPAA / 等保三级 hardening (certification is a roadmap goal, not yet certified)"
 authors = [{ name = "DoctorAgent Team" }]
 readme = "README.md"
@@ -112,6 +112,14 @@ notifications = ["plyer>=2.1,<3.0"]
 # Chroma vector store backend (model/vectorstore/chroma_store.py).
 # Previously chromadb was imported but never declared — surfaced by import audit.
 chroma = ["chromadb>=0.5,<2.0"]
+# PostgreSQL backend + SQLAlchemy async abstraction (doctoragent/db/).
+# P1 of the migration design in docs/POSTGRES_MIGRATION.md. SQLite stays the
+# default; installing this extra only *enables* the postgres dialect.
+database = [
+    "SQLAlchemy>=2.0,<3.0",
+    "asyncpg>=0.29,<1.0",
+    "aiosqlite>=0.20,<1.0",
+]
 # S3 / MinIO storage backend (integrations/storage.py) and AWS KMS.
 s3 = ["boto3>=1.34,<2.0"]
 # Enterprise auth: RBAC + OIDC (api/auth/).

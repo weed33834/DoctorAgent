@@ -5,6 +5,25 @@
 
 ---
 
+## [0.3.22] - 2026-08-22
+
+### 集成：Postgres 迁移 P1——双驱动数据库抽象层（`doctoragent/db/`）
+
+按 `docs/POSTGRES_MIGRATION.md` 蓝图启动 P1：引入 SQLAlchemy 2.0 async 抽象，SQLite 默认行为完全不变。
+
+- **新增 `doctoragent/db/` 包**：
+  - `engine.py`：`resolve_database_url`（config→SQLAlchemy URL）、`dialect_of`（sqlite|postgres 分类，未知方言显式报错而非静默走未测驱动）、`create_async_engine_from_url`（懒导入；Postgres 默认 pre-ping + 有界连接池）、`tenant_scope()`（async 上下文管理器，事务内执行 `SET LOCAL app.tenant_id`，提交/回滚自动还原杜绝连接池租户泄漏；SQLite 下为 no-op 包装）
+  - `bootstrap.py`：RLS 策略 DDL 模板（`ENABLE/FORCE ROW LEVEL SECURITY` + `tenant_isolation` 策略比对事务级 GUC）与参考 schema（tasks/vault_chunks/conversations 三表镜像现有 SQLite 结构）
+- **配置**：`DOCTORAGENT_DATABASE_URL`（留空 = 旧版行为）；新 extra `pip install 'doctoragent[database]'`（SQLAlchemy 2.0 + asyncpg + aiosqlite）
+- **租户上下文契约**：后续阶段所有租户查询必须在 `tenant_scope()` 内运行；注入防御（单引号转义）有专项测试
+
+### 测试
+
+- 新增 `tests/test_db_layer.py` **16 passed**（纯逻辑用例无依赖必跑；引擎构造用例在缺 extra 时 skip）：URL 解析、方言分类、策略 DDL、SET LOCAL 注入防御、SQLite no-op、缺 SQLAlchemy 报错指引、FakeConn 安装 RLS
+- 回归 config: **6 passed**
+
+---
+
 ## [0.3.21] - 2026-08-22
 
 ### 文档：结构档收官——Postgres RLS 立项设计 + 集成状态更新
